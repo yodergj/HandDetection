@@ -1,0 +1,3 @@
+PROJECT(GMM)
+INCLUDE_DIRECTORIES(src)
+SUBDIRS(src test apps)
