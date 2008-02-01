@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "Matrix.h"
+
+#define IDENTITY_THRESH .001
 
 Matrix::Matrix()
 {
@@ -135,11 +138,16 @@ Matrix& Matrix::Inverse()
 {
   double determinant;
   static Matrix result;
+  Matrix workMatrix;
+  int row, column;
 
-  /* TODO : Reimplement for General Case */
-  if ( (mRows != 2) || (mColumns != 2) )
+  if ( mRows != mColumns )
+  {
     result.SetSize(0, 0);
-  else
+    return result;
+  }
+
+  if ( (mRows == 2) && (mColumns == 2) )
   {
     GetDeterminant(determinant);
     if ( determinant > 0 )
@@ -153,8 +161,92 @@ Matrix& Matrix::Inverse()
     }
     else
       result.SetSize(0, 0);
+    return result;
   }
+
+  workMatrix.SetSize(mRows, mColumns * 2, false);
+  for (row = 0; row < mRows; row++)
+  {
+    for (column = 0; column < mColumns; column++)
+    {
+      workMatrix.mData[row * mColumns * 2 + column] = mData[row * mColumns + column];
+      if ( row == column )
+        workMatrix.mData[row * mColumns * 2 + mColumns + column] = 1;
+      else
+        workMatrix.mData[row * mColumns * 2 + mColumns + column] = 0;
+    }
+  }
+
+  if ( workMatrix.RowReduce() )
+  {
+    result.SetSize(mRows, mColumns);
+    for (row = 0; row < mRows; row++)
+      for (column = 0; column < mColumns; column++)
+        result.mData[row * mColumns + column] = workMatrix.mData[row * mColumns * 2 + mColumns + column];
+  }
+  else
+    result.SetSize(0, 0);
+
   return result;
+}
+
+bool Matrix::RowReduce()
+{
+  int currentRow, refRow, row, column;
+  double pivotValue, ratio;
+  bool identityFound = true;
+
+  if ( mRows > mColumns )
+  {
+    fprintf(stderr, "RowReduce - Matrix is too narrow\n");
+    return false;
+  }
+
+  /* Form diagonal on left of matrix */
+  for (currentRow = 0; currentRow < mRows; currentRow++)
+  {
+    pivotValue = mData[currentRow * mColumns + currentRow];
+    if ( pivotValue == 0 )
+      return false;
+    for (refRow = 0; refRow < mRows; refRow++)
+    {
+      if ( refRow == currentRow )
+        continue;
+      ratio = -mData[refRow * mColumns + currentRow] / pivotValue;
+      for (column = 0; column < mColumns; column++)
+        mData[refRow * mColumns + column] += mData[currentRow * mColumns + column] * ratio;
+    }
+  }
+
+  /* Reduce the diagonal to an identity */
+  for (currentRow = 0; currentRow < mRows; currentRow++)
+  {
+    pivotValue = mData[currentRow * mColumns + currentRow];
+    if ( pivotValue == 0 )
+      return false;
+    for (column = 0; column < mColumns; column++)
+      mData[currentRow * mColumns + column] /= pivotValue;
+  }
+
+  /* Check if we've sufficiently approximated an identity matrix on the left side */
+  for (row = 0; (row < mRows) && identityFound; row++)
+  {
+    for (column = 0; (column < mRows) && identityFound; column++)
+    {
+      if ( row == column )
+      {
+        if ( fabs(1 - mData[row * mColumns + column]) > IDENTITY_THRESH )
+          identityFound = false;
+      }
+      else
+      {
+        if ( fabs(mData[row * mColumns + column]) > IDENTITY_THRESH )
+          identityFound = false;
+      }
+    }
+  }
+
+  return identityFound;
 }
 
 Matrix& Matrix::operator-(Matrix& m)

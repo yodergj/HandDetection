@@ -2,7 +2,7 @@
 
 int main(int argc, char* argv[])
 {
-  Matrix a, b, c, d, e, f, g, h, i, j, k, l;
+  Matrix a, b, c, d, e, f, g, h, i, j, k, l, m, n, o;
   double determinant;
 
   a.SetSize(2, 1);
@@ -73,6 +73,27 @@ int main(int argc, char* argv[])
 
   j *= 2;
   j.Save(stdout);
+
+  printf("Orig\n");
+  m.SetSize(3, 3);
+  m.SetValue(0, 0, 1);
+  m.SetValue(0, 1, -1);
+  m.SetValue(0, 2, 5);
+  m.SetValue(1, 0, 3);
+  m.SetValue(1, 1, 3);
+  m.SetValue(1, 2, -1);
+  m.SetValue(2, 0, 1);
+  m.SetValue(2, 1, 3);
+  m.SetValue(2, 2, 2);
+  m.Save(stdout);
+
+  printf("Inverse\n");
+  n = m.Inverse();
+  n.Save(stdout);
+
+  printf("Product\n");
+  o = m * n;
+  o.Save(stdout);
 
   return 0;
 }

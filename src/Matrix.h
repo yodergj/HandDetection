@@ -14,6 +14,7 @@ class Matrix
     double GetValue(int row, int column);
     bool SetValue(int row, int column, double value);
     bool GetDeterminant(double &determinant);
+    bool RowReduce();
     void Clear();
     bool Save(FILE* file);
     bool Load(FILE* file);

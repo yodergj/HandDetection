@@ -1,12 +1,9 @@
 PROJECT(GMM)
-FIND_LIBRARY(QT_LIBRARY
-             NAMES qt-mt
-             PATHS /usr/qt/3/lib
-            )
-INCLUDE_DIRECTORIES(/usr/qt/3/include)
+FIND_PACKAGE(Qt3)
+INCLUDE_DIRECTORIES(${QT_INCLUDE_DIR})
 ADD_EXECUTABLE(trainer trainer.cpp)
 ADD_EXECUTABLE(extractor extractor.cpp)
 ADD_EXECUTABLE(dataAnalyzer dataAnalyzer.cpp)
-TARGET_LINK_LIBRARIES(trainer gmm qt-mt)
-TARGET_LINK_LIBRARIES(extractor gmm qt-mt)
-TARGET_LINK_LIBRARIES(dataAnalyzer gmm qt-mt)
+TARGET_LINK_LIBRARIES(trainer gmm ${QT_LIBRARIES})
+TARGET_LINK_LIBRARIES(extractor gmm ${QT_LIBRARIES})
+TARGET_LINK_LIBRARIES(dataAnalyzer gmm ${QT_LIBRARIES})
