@@ -16,12 +16,13 @@ int main(int argc, char* argv[])
   Matrix input;
   int classIndex = 0;
   FILE *file;
+  int classComponents[] = {2, 5};
 
   if ( argc < 4 )
     return 0;
 
   input.SetSize(2, 1);
-  classifier.Create(2, 2);
+  classifier.Create(2, 2, classComponents);
 
   for (j=1; j<argc; j++)
   {

@@ -231,13 +231,8 @@ bool GaussianMixtureModel::TrainEM()
     {
       sampleProb = Probability(*(mTrainingData[sample]), components, componentWeights);
       for (component = 0; component < mNumComponents; component++)
-#if 0
-        sampleWeights.SetValue(sample, component, 
-            components[component]->Probability(*(mTrainingData[sample])) / sampleProb);
-#else
         sampleWeights.SetValue(sample, component, 
             componentWeights[component] * components[component]->Probability(*(mTrainingData[sample])) / sampleProb);
-#endif
     }
 
     /* Update component weights */
@@ -245,13 +240,8 @@ bool GaussianMixtureModel::TrainEM()
     {
       sum = 0;
       for (sample = 0; sample < numSamples; sample++)
-#if 0
-        sum += sampleWeights.GetValue(sample, component);
-      updatedWeights[component] = sum / numSamples;
-#else
         sum += sampleWeights.GetValue(sample, component) * mTrainingDataFreq[sample];
       updatedWeights[component] = sum / totalSamples;
-#endif
     }
 
     /* Update component means */
@@ -259,19 +249,11 @@ bool GaussianMixtureModel::TrainEM()
     {
       sum = 0;
       for (sample = 0; sample < numSamples; sample++)
-#if 0
-        sum += sampleWeights.GetValue(sample, component);
-#else
         sum += sampleWeights.GetValue(sample, component) * mTrainingDataFreq[sample];
-#endif
 
       updatedMeans[component].Clear();
       for (sample = 0; sample < numSamples; sample++)
-#if 0
-        updatedMeans[component] += *(mTrainingData[sample]) * sampleWeights.GetValue(sample, component);
-#else
         updatedMeans[component] += *(mTrainingData[sample]) * sampleWeights.GetValue(sample, component) * mTrainingDataFreq[sample];
-#endif
       updatedMeans[component] *= 1 / sum;
     }
 
@@ -280,11 +262,7 @@ bool GaussianMixtureModel::TrainEM()
     {
       sum = 0;
       for (sample = 0; sample < numSamples; sample++)
-#if 0
-        sum += sampleWeights.GetValue(sample, component);
-#else
         sum += sampleWeights.GetValue(sample, component) * mTrainingDataFreq[sample];
-#endif
 
       updatedVariances[component].Clear();
 
@@ -293,12 +271,8 @@ bool GaussianMixtureModel::TrainEM()
         diffMatrix = *(mTrainingData[sample]) - updatedMeans[component];
         productMatrix = diffMatrix * diffMatrix.Transpose();
         productMatrix *= sampleWeights.GetValue(sample, component);
-#if 0
-        updatedVariances[component] += productMatrix;
-#else
         for (i = 0; i < mTrainingDataFreq[sample]; i++)
           updatedVariances[component] += productMatrix;
-#endif
       }
 
       updatedVariances[component] *= 1 / sum;

@@ -7,10 +7,11 @@ int main(int argc, char* argv[])
   int classIndex;
   double confidence;
   FILE *file;
+  int classComponents[] = {2, 5};  
 
   input.SetSize(2, 1);
 
-  classifier.Create(2, 2);
+  classifier.Create(2, 2, classComponents);
 
   classifier.AddTrainingData(input, 0);
   input.SetValue(0, 0, .5);

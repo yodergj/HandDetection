@@ -18,9 +18,10 @@ BayesianClassifier::~BayesianClassifier()
   delete[] mClassProbabilities;
 }
 
-bool BayesianClassifier::Create(int numDimensions, int numClasses)
+bool BayesianClassifier::Create(int numDimensions, int numClasses, int* classComponents)
 {
   int i;
+  int numComponents;
 
   if ( (numDimensions < 1) || (numClasses < 2) )
     return false;
@@ -41,14 +42,16 @@ bool BayesianClassifier::Create(int numDimensions, int numClasses)
   memset(mClassCounts, 0, numClasses * sizeof(int));
   memset(mClassWeights, 0, numClasses * sizeof(double));
 
-#if 0
   for (i = 0; i < numClasses; i++)
-    if ( !mModels[i].Create(numDimensions, 2) )
+  {
+    if ( classComponents )
+      numComponents = classComponents[i];
+    else
+      numComponents = 1;
+
+    if ( !mModels[i].Create(numDimensions, numComponents) )
       return false;
-#else
-  mModels[0].Create(numDimensions, 2);
-  mModels[1].Create(numDimensions, 5);
-#endif
+  }
 
   return true;
 }

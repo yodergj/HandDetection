@@ -30,6 +30,7 @@ int main(int argc, char* argv[])
 //  int totalBins, currentLevel, currentBinLimit, currentFreqBin;
   int red, green, blue;
   double ratio;
+  int classComponents[] = {2, 5};
 
   if ( argc < 4 )
     return 0;
@@ -37,7 +38,7 @@ int main(int argc, char* argv[])
   frequencyLevels = (int *)malloc(equalizationLevels * sizeof(int));
 
   input.SetSize(2, 1);
-  classifier.Create(2, 2);
+  classifier.Create(2, 2, classComponents);
   histogramImage.create(256, 256, 32);
 
   for (j=1; j<argc; j++)

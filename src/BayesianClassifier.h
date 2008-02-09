@@ -8,7 +8,7 @@ class BayesianClassifier
   public:
     BayesianClassifier();
     ~BayesianClassifier();
-    bool Create(int numDimensions, int numClasses);
+    bool Create(int numDimensions, int numClasses, int* classComponents = NULL);
     bool AddTrainingData(Matrix& data, int classIndex);
     int* Get2dDataHistogram(int classIndex, int binsPerSide, double scaleFactor);
     bool Classify(Matrix& data, int& classIndex, double& confidence);
