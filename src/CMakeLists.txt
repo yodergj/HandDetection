@@ -1,2 +1,2 @@
-PROJECT(GMM)
+PROJECT(HandDetection)
 ADD_LIBRARY(gmm SHARED Matrix.cpp Gaussian.cpp GaussianMixtureModel.cpp BayesianClassifier.cpp)

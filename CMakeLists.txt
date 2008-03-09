@@ -1,3 +1,3 @@
-PROJECT(GMM)
-INCLUDE_DIRECTORIES(src)
-SUBDIRS(src test apps)
+PROJECT(HandDetection)
+INCLUDE_DIRECTORIES(src vidproc)
+SUBDIRS(src test apps vidproc)

@@ -1,4 +1,4 @@
-PROJECT(GMM)
+PROJECT(HandDetection)
 ADD_EXECUTABLE(test test.cpp)
 ADD_EXECUTABLE(trainTest trainTest.cpp)
 ADD_EXECUTABLE(matrixTest matrixTest.cpp)
