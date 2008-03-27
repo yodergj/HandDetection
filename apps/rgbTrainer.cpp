@@ -54,9 +54,24 @@ int main(int argc, char* argv[])
           else
             maxVal = b;
 
-          rFlat = r / maxVal;
-          gFlat = g / maxVal;
-          bFlat = b / maxVal;
+          if ( maxVal == 0 )
+          {
+#if 0
+            rFlat = 0;
+            gFlat = 0;
+            bFlat = 0;
+#else
+            rFlat = 1;
+            gFlat = 1;
+            bFlat = 1;
+#endif
+          }
+          else
+          {
+            rFlat = r / maxVal;
+            gFlat = g / maxVal;
+            bFlat = b / maxVal;
+          }
 
           if ( (classIndex == 0) && (maxVal <= 55) )
             continue;

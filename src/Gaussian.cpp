@@ -126,6 +126,8 @@ double Gaussian::Probability(Matrix& input)
   fullProduct = halfProduct * diffMatrix;
 
   result = mProbabilityScaleFactor * exp(-.5 * fullProduct.GetValue(0, 0));
+  if ( result < MIN_PROB )
+    result = MIN_PROB;
   return result;
 }
 

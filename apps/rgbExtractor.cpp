@@ -64,9 +64,24 @@ int main(int argc, char* argv[])
         else
           maxVal = b;
 
-        rFlat = r / maxVal;
-        gFlat = g / maxVal;
-        bFlat = b / maxVal;
+        if ( maxVal > 0 )
+        {
+          rFlat = r / maxVal;
+          gFlat = g / maxVal;
+          bFlat = b / maxVal;
+        }
+        else
+        {
+#if 0
+          rFlat = 0;
+          gFlat = 0;
+          bFlat = 0;
+#else
+          rFlat = 1;
+          gFlat = 1;
+          bFlat = 1;
+#endif
+        }
 
         input.SetValue(0, 0, rFlat);
         input.SetValue(1, 0, gFlat);

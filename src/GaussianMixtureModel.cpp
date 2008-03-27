@@ -1,6 +1,12 @@
 #include "GaussianMixtureModel.h"
 #include "math.h"
 
+//#define TRAIN_DEBUG
+
+#ifndef MAX
+#define MAX(a,b) ( (a) > (b) ? (a) : (b) )
+#endif
+
 GaussianMixtureModel::GaussianMixtureModel()
 {
   mNumDimensions = 0;
@@ -147,6 +153,9 @@ double GaussianMixtureModel::Probability(Matrix& data,
   for (i = 0; i < mNumComponents; i++)
     probability += components[i]->Probability(data) * weights[i];
 
+  if ( probability < MIN_PROB )
+    probability = MIN_PROB;
+
   return probability;
 }
 
@@ -154,6 +163,15 @@ bool GaussianMixtureModel::Train()
 {
   if ( mTrainingData.empty() )
     return false;
+
+#ifdef TRAIN_DEBUG
+  int i;
+  for (i = 0; i < mTrainingData.size(); i++)
+  {
+    fprintf(stderr, "Freq %d\n", mTrainingDataFreq[i]);
+    mTrainingData[i]->Save(stderr);
+  }
+#endif
 
   return TrainEM();
 }
@@ -220,6 +238,17 @@ bool GaussianMixtureModel::TrainEM()
     componentWeights.push_back(1.0 / mNumComponents);
   }
 
+#ifdef TRAIN_DEBUG
+  int foo, bar;
+  bar = 0;
+  printf("Initial components\n");
+  for (foo = 0; foo < mNumComponents; foo++)
+  {
+    printf("Weight %f\n", componentWeights[foo]);
+    components[foo]->Save(stdout);
+  }
+#endif
+
   totalSamples = 0;
   for (sample = 0; sample < numSamples; sample++)
     totalSamples += mTrainingDataFreq[sample];
@@ -230,10 +259,25 @@ bool GaussianMixtureModel::TrainEM()
     for (sample = 0; sample < numSamples; sample++)
     {
       sampleProb = Probability(*(mTrainingData[sample]), components, componentWeights);
+#ifdef TRAIN_DEBUG
+      printf("Sample %d Mix Prob %f\n", sample, sampleProb);
+#endif
       for (component = 0; component < mNumComponents; component++)
+      {
+#ifdef TRAIN_DEBUG
+        printf("Sample %d Component %d Prob %f\n", sample, component,
+            components[component]->Probability(*(mTrainingData[sample])) );
+#endif
         sampleWeights.SetValue(sample, component, 
-            componentWeights[component] * components[component]->Probability(*(mTrainingData[sample])) / sampleProb);
+            MAX(MIN_PROB, 
+                componentWeights[component] * components[component]->Probability(*(mTrainingData[sample])) / sampleProb) );
+      }
     }
+
+#ifdef TRAIN_DEBUG
+    printf("Sample Weights\n");
+    sampleWeights.Save(stdout);
+#endif
 
     /* Update component weights */
     for (component = 0; component < mNumComponents; component++)
@@ -289,6 +333,17 @@ bool GaussianMixtureModel::TrainEM()
       if ( components[component]->UpdateVariance(updatedVariances[component]) > VARIANCE_THRESH )
         thresholdExceeded = true;
     }
+
+#ifdef TRAIN_DEBUG
+  printf("Update %d-------------------------------------------------\n", bar);
+  bar++;
+  for (foo = 0; foo < mNumComponents; foo++)
+  {
+    printf("Weight %f\n", componentWeights[foo]);
+    components[foo]->Save(stdout);
+  }
+#endif
+
     componentWeights = updatedWeights;
     if ( !thresholdExceeded )
       done = true;

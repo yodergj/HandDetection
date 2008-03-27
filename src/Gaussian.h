@@ -3,6 +3,8 @@
 
 #include "Matrix.h"
 
+#define MIN_PROB .000001
+
 class Gaussian
 {
   public:
