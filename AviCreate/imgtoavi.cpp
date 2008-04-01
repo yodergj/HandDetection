@@ -46,9 +46,9 @@ int main(int argc, char* argv[])
   avm::IWriteFile* outFile = avm::CreateWriteFile("out.avi");
   BITMAPINFOHEADER bi;
   //fourcc_t codec = fccMP42;
-  //fourcc_t codec = fccDIV3;
+  fourcc_t codec = fccDIV3;
   //fourcc_t codec = fccIV32;
-  fourcc_t codec = fccCVID;
+  //fourcc_t codec = fccCVID;
   avm::IVideoWriteStream* vidStr;
 
   if ( argc < 2 )
