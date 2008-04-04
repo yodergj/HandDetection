@@ -5,7 +5,7 @@
 int main(int argc, char* argv[])
 {
   QApplication app(argc,argv);
-  QColor color;
+  QRgb* scanline;
   VideoDecoder decoder;
   BayesianClassifier classifier;
   FILE* file;
@@ -18,7 +18,12 @@ int main(int argc, char* argv[])
   int width, height;
   int u, v;
   int r, g, b;
+#if 0
   double y, i, q;
+#else
+  double maxVal;
+  double rFlat, gFlat, bFlat;
+#endif
   int classIndex;
   double confidence;
 
@@ -44,7 +49,11 @@ int main(int argc, char* argv[])
     return 1;
   }
 
+#if 0
   input.SetSize(2, 1);
+#else
+  input.SetSize(3, 1);
+#endif
   while ( decoder.UpdateFrame() )
   {
     inputImage = decoder.GetFrame();
@@ -54,16 +63,48 @@ int main(int argc, char* argv[])
     fleshImage.create(width, height, 32);
     for (v = 0; v < height; v++)
     {
+      scanline = (QRgb*)inputImage->scanLine(v);
       for (u = 0; u < width; u++)
       {
-        color = inputImage->pixel(u,v);
-        color.getRgb(&r, &g, &b);
+        r = qRed(scanline[u]);
+        g = qGreen(scanline[u]);
+        b = qBlue(scanline[u]);
+
+#if 0
         y =   r * .299 + g *  .587 + b *  .114;
         i = ((r * .596 + g * -.275 + b * -.321)/.596 + 255)/2;
         q = ((r * .212 + g * -.523 + b *  .311)/.523 + 255)/2;
 
         input.SetValue(0, 0, i / 255);
         input.SetValue(1, 0, q / 255);
+#else
+        if ( (r >= g) && (r >= b) )
+          maxVal = r;
+        else if ( (g >= r) && (g >= b) )
+          maxVal = g;
+        else
+          maxVal = b;
+
+        if ( (classIndex == 0) && (maxVal <= 55) )
+          continue;
+
+        if ( maxVal == 0 )
+        {
+          rFlat = 1;
+          gFlat = 1;
+          bFlat = 1;
+        }
+        else
+        {
+          rFlat = r / maxVal;
+          gFlat = g / maxVal;
+          bFlat = b / maxVal;
+        }
+
+        input.SetValue(0, 0, rFlat);
+        input.SetValue(1, 0, gFlat);
+        input.SetValue(2, 0, bFlat);
+#endif
         classifier.Classify(input, classIndex, confidence);
 
         if ( classIndex == 0 )
