@@ -1,3 +1,3 @@
 PROJECT(HandDetection)
-INCLUDE_DIRECTORIES(src vidproc)
-SUBDIRS(src test apps vidproc)
+INCLUDE_DIRECTORIES(classifier image vidproc)
+SUBDIRS(classifier image test apps vidproc)
