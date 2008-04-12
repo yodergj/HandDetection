@@ -1,6 +1,8 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
+#include <string>
+
 class Image
 {
   public:
@@ -13,9 +15,10 @@ class Image
     double* GetScaledRGBBuffer();
     bool CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth);
     bool CopyRGBBuffer(int width, int height, unsigned char* buffer, int bufferWidth);
+    double* GetCustomBuffer(std::string &featureList);    
   private:
     bool SetSize(int width, int height);
-    bool ResizeBuffer(double** buffer, int* bufferAlloc);
+    bool ResizeBuffer(double** buffer, int* bufferAlloc, int numFeatures);
 
     int mWidth;
     int mHeight;
@@ -25,6 +28,8 @@ class Image
     int mYIQAlloc;
     double* mScaledRGBBuffer;
     int mScaledRGBAlloc;
+    double* mCustomBuffer;
+    int mCustomAlloc;
 };
 
 #endif
