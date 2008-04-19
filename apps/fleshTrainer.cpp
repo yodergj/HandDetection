@@ -1,18 +1,18 @@
 #include "BayesianClassifier.h"
+#include "Image.h"
 #include <qapplication.h>
 #include <qimage.h>
+
+#define MAX(a,b) ( (a) > (b) ? (a) : (b) )
 
 int main(int argc, char* argv[])
 {
   QApplication app(argc,argv);
   QImage inputImage;
-  QRgb* scanline;
-  int i;
+  QRgb* srcPixel;
+  int i, j;
   int x, y;
   int width, height;
-  int r, g, b;
-  double maxVal;
-  double rFlat, gFlat, bFlat;
   BayesianClassifier classifier;
   Matrix input;
   int classIndex = 0;
@@ -20,12 +20,18 @@ int main(int argc, char* argv[])
   FILE *file;
   int classComponents[] = {2, 5};
   int revNumber = 0;
+  Image image;
+  double* featureBuffer;
+  double* pixel;
+  std::string featureList = "RGB";
+  int numFeatures;
 
   if ( argc < 4 )
     return 0;
 
-  input.SetSize(3, 1);
-  classifier.Create(3, 2, classComponents);
+  numFeatures = featureList.size();
+  input.SetSize(numFeatures, 1);
+  classifier.Create(numFeatures, 2, classComponents);
 
   for (i = 1; i < argc; i++)
   {
@@ -42,41 +48,20 @@ int main(int argc, char* argv[])
         printf("Processing other image %s\n", argv[i]);
       width = inputImage.width();
       height = inputImage.height();
+      srcPixel = (QRgb*)inputImage.bits();
+      image.CopyARGBBuffer(width, height, (int*)srcPixel, width);
+      featureBuffer = image.GetCustomBuffer(featureList);
+      pixel = featureBuffer;
       for (y = 0; y < height; y++)
       {
-        scanline = (QRgb*)inputImage.scanLine(y);
-        for (x = 0; x < width; x++)
+        for (x = 0; x < width; x++, srcPixel++, pixel += numFeatures)
         {
-          r = qRed(scanline[x]);
-          g = qGreen(scanline[x]);
-          b = qBlue(scanline[x]);
-
-          if ( (r >= g) && (r >= b) )
-            maxVal = r;
-          else if ( (g >= r) && (g >= b) )
-            maxVal = g;
-          else
-            maxVal = b;
-
-          if ( (classIndex == 0) && (maxVal <= 55) )
+          if ( (classIndex == 0) &&
+               (MAX(qRed(*srcPixel), MAX(qGreen(*srcPixel), qBlue(*srcPixel))) <= 55) )
             continue;
 
-          if ( maxVal == 0 )
-          {
-            rFlat = 1;
-            gFlat = 1;
-            bFlat = 1;
-          }
-          else
-          {
-            rFlat = r / maxVal;
-            gFlat = g / maxVal;
-            bFlat = b / maxVal;
-          }
-
-          input.SetValue(0, 0, rFlat);
-          input.SetValue(1, 0, gFlat);
-          input.SetValue(2, 0, bFlat);
+          for (j = 0; j < numFeatures; j++)
+            input.SetValue(j, 0, pixel[j]);
           classifier.AddTrainingData(input, classIndex);
         }
       }
@@ -88,7 +73,7 @@ int main(int argc, char* argv[])
 
   do 
   {
-    sprintf(filename, "hand-%d-%d.rev%d.cfg", classComponents[0], classComponents[1], revNumber);
+    sprintf(filename, "flesh-%d-%d.rev%d.cfg", classComponents[0], classComponents[1], revNumber);
     file = fopen(filename, "r");
     if ( file )
       fclose(file);
@@ -96,6 +81,7 @@ int main(int argc, char* argv[])
   } while ( file );
 
   file = fopen(filename, "w");
+  fprintf(file, "%s\n", featureList.c_str());
   classifier.Save(file);
   fclose(file);
 

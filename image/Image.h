@@ -14,6 +14,7 @@ class Image
     double* GetYIQBuffer();
     double* GetScaledRGBBuffer();
     bool CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth);
+    bool CopyARGBBuffer(int width, int height, int* buffer, int bufferWidth);
     bool CopyRGBBuffer(int width, int height, unsigned char* buffer, int bufferWidth);
     double* GetCustomBuffer(std::string &featureList);    
   private:

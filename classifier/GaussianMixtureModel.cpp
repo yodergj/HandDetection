@@ -46,6 +46,8 @@ bool GaussianMixtureModel::Create(int numDimensions, int numComponents)
 
   mNumDimensions = numDimensions;
   mNumComponents = numComponents;
+  mTrainingDataMin.SetSize(mNumDimensions, 1);
+  mTrainingDataMax.SetSize(mNumDimensions, 1);
 
   return true;
 }
@@ -53,8 +55,9 @@ bool GaussianMixtureModel::Create(int numDimensions, int numComponents)
 bool GaussianMixtureModel::AddTrainingData(Matrix& data)
 {
   Matrix* duplicate;
-  int len;
+  int i, len;
   int minPos, curPos, maxPos;
+  double val;
 
   if ( (data.GetRows() != mNumDimensions) || (data.GetColumns() != 1) )
     return false;
@@ -65,6 +68,10 @@ bool GaussianMixtureModel::AddTrainingData(Matrix& data)
     *duplicate = data;
     mTrainingData.push_back(duplicate);
     mTrainingDataFreq.push_back(1);
+
+    mTrainingDataMin = data;
+    mTrainingDataMax = data;
+
     return true;
   }
 
@@ -94,6 +101,15 @@ bool GaussianMixtureModel::AddTrainingData(Matrix& data)
   *duplicate = data;
   mTrainingData.insert(mTrainingData.begin() + maxPos + 1, duplicate);
   mTrainingDataFreq.insert(mTrainingDataFreq.begin() + maxPos + 1, 1);
+
+  for (i = 0; i < mNumDimensions; i++)
+  {
+    val = data.GetValue(i, 0);
+    if ( val < mTrainingDataMin.GetValue(i, 0) )
+      mTrainingDataMin.SetValue(i, 0, val);
+    if ( val > mTrainingDataMax.GetValue(i, 0) )
+      mTrainingDataMax.SetValue(i, 0, val);
+  }
 
   return true;
 }
@@ -176,18 +192,7 @@ bool GaussianMixtureModel::Train()
   return TrainEM();
 }
 
-#if 0
-#define MEAN_THRESH     .1
-#define VARIANCE_THRESH .1
-#else
-#if 0
-#define MEAN_THRESH     .02
-#define VARIANCE_THRESH .02
-#else
-#define MEAN_THRESH     .005
-#define VARIANCE_THRESH .005
-#endif
-#endif
+#define THRESH_PERCENT  .005
 #define WEIGHT_THRESH   .01
 bool GaussianMixtureModel::TrainEM()
 {
@@ -199,6 +204,7 @@ bool GaussianMixtureModel::TrainEM()
   std::vector<Gaussian *> components;
   std::vector<double> componentWeights;
   Matrix mean, variance;
+  double val, updateThresh, minSpan;
 
   Matrix sampleWeights;
   double sampleProb;
@@ -223,14 +229,38 @@ bool GaussianMixtureModel::TrainEM()
   /* Initialize the model */
   mean.SetSize(mNumDimensions, 1, false);
   variance.SetSize(mNumDimensions, mNumDimensions);
+  diffMatrix = mTrainingDataMax - mTrainingDataMin;
+
+#ifdef TRAIN_DEBUG
+  printf("Training Data Span\n");
+  diffMatrix.Save(stdout);
+#endif
+
+  minSpan = -1;
+  for (dimension = 0; dimension < mNumDimensions; dimension++)
+  {
+    val = diffMatrix.GetValue(dimension, 0);
+    if ( (val > 0) && ( (minSpan == -1) || (val < minSpan) ) )
+      minSpan = val;
+  }
+  if ( minSpan == -1 )
+    updateThresh = THRESH_PERCENT;
+  else
+    updateThresh = minSpan * THRESH_PERCENT;
+
   for (component = 0; component < mNumComponents; component++)
   {
     currentGaussian = new Gaussian;
     currentGaussian->SetNumDimensions(mNumDimensions);
     for (dimension = 0; dimension < mNumDimensions; dimension++)
     {
-      mean.SetValue(dimension, 0, rand() / (RAND_MAX + 1.0));
-      variance.SetValue(dimension, dimension, rand() / (RAND_MAX + 1.0));
+      val = (rand() / (double)RAND_MAX) * diffMatrix.GetValue(dimension, 0) +
+            mTrainingDataMin.GetValue(dimension, 0);
+      mean.SetValue(dimension, 0, val);
+      val = diffMatrix.GetValue(dimension, 0) * (rand() + 1.0) / (RAND_MAX + 1.0);
+      if ( val < updateThresh )
+        val = updateThresh;
+      variance.SetValue(dimension, dimension, val);
     }
     currentGaussian->SetMean(mean);
     currentGaussian->SetVariance(variance);
@@ -328,9 +358,9 @@ bool GaussianMixtureModel::TrainEM()
     {
       if ( fabs(updatedWeights[component] - componentWeights[component]) > WEIGHT_THRESH )
         thresholdExceeded = true;
-      if ( components[component]->UpdateMean(updatedMeans[component]) > MEAN_THRESH )
+      if ( components[component]->UpdateMean(updatedMeans[component]) > updateThresh )
         thresholdExceeded = true;
-      if ( components[component]->UpdateVariance(updatedVariances[component]) > VARIANCE_THRESH )
+      if ( components[component]->UpdateVariance(updatedVariances[component]) > updateThresh )
         thresholdExceeded = true;
     }
 

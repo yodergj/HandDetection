@@ -85,7 +85,7 @@ double* Image::GetScaledRGBBuffer()
     return NULL;
 
   srcPixel = mBuffer;
-  destPixel = mYIQBuffer;
+  destPixel = mScaledRGBBuffer;
   for (y = 0; y < mHeight; y++)
   {
     for (x = 0; x < mWidth; x++)
@@ -108,7 +108,7 @@ double* Image::GetScaledRGBBuffer()
     }
   }
 
-  return mYIQBuffer;
+  return mScaledRGBBuffer;
 }
 
 double* Image::GetCustomBuffer(std::string &featureList)
@@ -118,17 +118,17 @@ double* Image::GetCustomBuffer(std::string &featureList)
   unsigned char* srcPixel;
   double* destPixel;
   double maxVal, minVal;
-  int r, g, b;
+  double r, g, b;
   int numFeatures;
   double colorX, colorY, colorZ;
 
   numFeatures = featureList.size();
 
-  if ( !ResizeBuffer(&mScaledRGBBuffer, &mScaledRGBAlloc, numFeatures) )
+  if ( !ResizeBuffer(&mCustomBuffer, &mCustomAlloc, numFeatures) )
     return NULL;
 
   srcPixel = mBuffer;
-  destPixel = mYIQBuffer;
+  destPixel = mCustomBuffer;
   for (y = 0; y < mHeight; y++)
   {
     for (x = 0; x < mWidth; x++)
@@ -270,7 +270,7 @@ double* Image::GetCustomBuffer(std::string &featureList)
     }
   }
 
-  return mYIQBuffer;
+  return mCustomBuffer;
 }
 
 bool Image::CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth)
@@ -297,6 +297,38 @@ bool Image::CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth)
       destLine[3 * x] = (srcLine[x] >> 24) & 0xFF;
       destLine[3 * x + 1] = (srcLine[x] >> 16) & 0xFF;
       destLine[3 * x + 2] = (srcLine[x] >> 8) & 0xFF;
+    }
+    srcLine += bufferWidth;
+    destLine += lineWidth;
+  }
+
+  return true;
+}
+
+bool Image::CopyARGBBuffer(int width, int height, int* buffer, int bufferWidth)
+{
+  int x, y;
+  int lineWidth;
+  unsigned char* destLine;
+  int* srcLine;
+
+  if ( (width <= 0) || (height <= 0) || !buffer || (bufferWidth <= 0) )
+    return false;
+
+  if ( !SetSize(width, height) )
+    return false;
+
+  lineWidth = 3 * width;
+
+  srcLine = buffer;
+  destLine = mBuffer;
+  for (y = 0; y < height; y++)
+  {
+    for (x = 0; x < width; x++)
+    {
+      destLine[3 * x] = (srcLine[x] >> 16) & 0xFF;
+      destLine[3 * x + 1] = (srcLine[x] >> 8) & 0xFF;
+      destLine[3 * x + 2] = srcLine[x] & 0xFF;
     }
     srcLine += bufferWidth;
     destLine += lineWidth;
@@ -363,7 +395,7 @@ bool Image::ResizeBuffer(double** buffer, int* bufferAlloc, int numFeatures)
   sizeNeeded = mWidth * mHeight * numFeatures;
   if ( sizeNeeded > *bufferAlloc )
   {
-    tmp = (double *)realloc(*buffer, sizeNeeded);
+    tmp = (double *)realloc(*buffer, sizeNeeded * sizeof(double));
     if ( !tmp )
       return false;
     *buffer = tmp;

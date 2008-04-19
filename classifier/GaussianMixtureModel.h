@@ -27,6 +27,8 @@ class GaussianMixtureModel
     std::vector<double> mComponentWeights;
     std::vector<Matrix *> mTrainingData;
     std::vector<int> mTrainingDataFreq;
+    Matrix mTrainingDataMin;
+    Matrix mTrainingDataMax;
     int mNumDimensions;
     int mNumComponents;
     int* m2dDataHistogram;

@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define MIN_DIAG_VARIANCE .000000001
+
 Gaussian::Gaussian()
 {
   mDimensions = 0;
@@ -67,6 +69,10 @@ bool Gaussian::SetVariance(Matrix& variance)
     return false;
 
   mVariance = variance;
+
+  for (i = 0; i < mDimensions; i++)
+    if ( mVariance.GetValue(i, i) < MIN_DIAG_VARIANCE )
+      mVariance.SetValue(i, i, MIN_DIAG_VARIANCE);
 
   /* Precompute the scaling factor to save time on the probability function */
   if ( !mVariance.GetDeterminant(determinant) )
