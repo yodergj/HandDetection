@@ -23,12 +23,13 @@ int main(int argc, char* argv[])
   Image image;
   double* featureBuffer;
   double* pixel;
-  std::string featureList = "RGB";
+  std::string featureList;
   int numFeatures;
 
-  if ( argc < 4 )
+  if ( argc < 5 )
     return 0;
 
+  featureList = argv[1];
   numFeatures = featureList.size();
   input.SetSize(numFeatures, 1);
   classifier.Create(numFeatures, 2, classComponents);
