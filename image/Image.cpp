@@ -32,6 +32,14 @@ Image::~Image()
     free(mCustomBuffer);
 }
 
+bool Image::Create(int width, int height)
+{
+  if ( (width <= 0) || (height <= 0) )
+    return false;
+
+  return SetSize(width, height);
+}
+
 int Image::GetWidth()
 {
   return mWidth;
@@ -182,19 +190,19 @@ double* Image::GetCustomBuffer(std::string &featureList)
             if ( maxVal == 0 )
               destPixel[i] = 1;
             else
-              destPixel[i] = r / (double)(r + g + b);
+              destPixel[i] = r / (r + g + b);
             break;
           case 'n':
             if ( maxVal == 0 )
               destPixel[i] = 1;
             else
-              destPixel[i] = g / (double)(r + g + b);
+              destPixel[i] = g / (r + g + b);
             break;
           case 'o':
             if ( maxVal == 0 )
               destPixel[i] = 1;
             else
-              destPixel[i] = b / (double)(r + g + b);
+              destPixel[i] = b / (r + g + b);
             break;
           /* YIQ Colorspace */
           case 'Y':

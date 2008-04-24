@@ -41,6 +41,13 @@ QImage* VideoDecoder::GetFrame()
 {
   if ( mDoneReading )
     return NULL;
+  return &mQImage;
+}
+
+Image* VideoDecoder::GetMyFrame()
+{
+  if ( mDoneReading )
+    return NULL;
   return &mImage;
 }
 
@@ -104,11 +111,11 @@ bool VideoDecoder::UpdateFrame()
   if ( !GetNextFrame() )
     return false;
 
-  if ( !mImage.isNull() )
+  if ( !mQImage.isNull() )
   {
     srcWidth = mCodecContext->width;
     srcHeight = mCodecContext->height;
-    pixel = (int *)mImage.bits();
+    pixel = (int *)mQImage.bits();
 
     for (y=0; y<srcHeight; y++)
     {
@@ -122,7 +129,7 @@ bool VideoDecoder::UpdateFrame()
     }
   }
 
-  return true;
+  return mImage.CopyRGBBuffer(mCodecContext->width, mCodecContext->height, mFrameRGB->data[0], mFrameRGB->linesize[0]);
 }
 
 bool VideoDecoder::Load()
@@ -178,7 +185,7 @@ bool VideoDecoder::Load()
   avpicture_fill((AVPicture *)mFrameRGB, mBuffer, PIX_FMT_RGB24, mCodecContext->width, mCodecContext->height);
 
   /* Have to use 32-bit depth since 24-bit isn't supported anymore */
-  if ( !mImage.create(mCodecContext->width, mCodecContext->height, 32) )
+  if ( !mQImage.create(mCodecContext->width, mCodecContext->height, 32) )
     return false;
 
   mDoneReading = false;

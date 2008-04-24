@@ -1,6 +1,7 @@
 #ifndef VIDEO_DECODER_H
 #define VIDEO_DECODER_H
 
+#include "Image.h"
 #include <qimage.h>
 extern "C" {
 #include <ffmpeg/avformat.h>
@@ -16,6 +17,7 @@ class VideoDecoder
     bool Load();
     void Reset();
     QImage* GetFrame();
+    Image* GetMyFrame();
     bool UpdateFrame();
   private:
     bool GetNextFrame();
@@ -27,7 +29,8 @@ class VideoDecoder
     AVPacket mPacket;
     int mVideoStream;
     uint8_t *mBuffer;
-    QImage mImage;
+    QImage mQImage;
+    Image mImage;
     int mStartFrame;
     QString mFilename;
     bool mDoneReading;

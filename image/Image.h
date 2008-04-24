@@ -8,6 +8,7 @@ class Image
   public:
     Image();
     ~Image();
+    bool Create(int width, int height);
     int GetWidth();
     int GetHeight();
     unsigned char* GetRGBBuffer();
