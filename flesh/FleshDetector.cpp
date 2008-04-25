@@ -107,7 +107,7 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
   if ( !mNonFleshImage.Create(width, height) )
     return false;
 
-  nonFleshDestPixel = mFleshImage.GetRGBBuffer();
+  nonFleshDestPixel = mNonFleshImage.GetRGBBuffer();
 
   for (y = 0; y < height; y++)
   {
@@ -290,7 +290,7 @@ bool FleshDetector::GetOutlineImage(unsigned char* backgroundColor, unsigned cha
 
   width = imagePtr->GetWidth();
   height = imagePtr->GetHeight();
-  if ( !mOutlineImage.CopyRGBBuffer(width, height, imagePtr->GetRGBBuffer(), width) )
+  if ( !mOutlineImage.CopyRGBBuffer(width, height, imagePtr->GetRGBBuffer(), 3 * width) )
     return false;
 
   buffer = mOutlineImage.GetRGBBuffer();
