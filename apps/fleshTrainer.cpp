@@ -27,14 +27,17 @@ int main(int argc, char* argv[])
   int numFeatures;
 
   if ( argc < 5 )
+  {
+    printf("Usage: fleshTrainer <feature string> <flesh Image> [...] -x <non-flesh image> [...]\n");
     return 0;
+  }
 
   featureList = argv[1];
   numFeatures = featureList.size();
   input.SetSize(numFeatures, 1);
   classifier.Create(numFeatures, 2, classComponents);
 
-  for (i = 1; i < argc; i++)
+  for (i = 2; i < argc; i++)
   {
     if ( !strcmp(argv[i], "-x") )
     {
