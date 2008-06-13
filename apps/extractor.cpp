@@ -1,6 +1,7 @@
 #include "BayesianClassifier.h"
 #include <qapplication.h>
 #include <qimage.h>
+#include <stdlib.h>
 
 int main(int argc, char* argv[])
 {

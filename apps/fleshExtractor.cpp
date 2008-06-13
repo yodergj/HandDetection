@@ -2,6 +2,7 @@
 #include "Image.h"
 #include <qapplication.h>
 #include <qimage.h>
+#include <stdlib.h>
 
 #define MAX_FEATURES 512
 

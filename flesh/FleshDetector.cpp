@@ -1,5 +1,7 @@
 #include "FleshDetector.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define MAX_FEATURES 512
 #define PROXIMITY_THRESH  30

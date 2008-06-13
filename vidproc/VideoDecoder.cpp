@@ -1,4 +1,5 @@
 #include "VideoDecoder.h"
+#include <stdlib.h>
 
 static bool AVRegistered = false;
 

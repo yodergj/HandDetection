@@ -1,4 +1,5 @@
 #include "BayesianClassifier.h"
+#include <string.h>
 
 BayesianClassifier::BayesianClassifier()
 {

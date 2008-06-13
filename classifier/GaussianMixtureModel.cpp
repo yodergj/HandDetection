@@ -1,5 +1,8 @@
 #include "GaussianMixtureModel.h"
-#include "math.h"
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 //#define TRAIN_DEBUG
 
