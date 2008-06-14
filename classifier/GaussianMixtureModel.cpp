@@ -184,7 +184,7 @@ bool GaussianMixtureModel::Train()
     return false;
 
 #ifdef TRAIN_DEBUG
-  int i;
+  unsigned int i;
   for (i = 0; i < mTrainingData.size(); i++)
   {
     fprintf(stderr, "Freq %d\n", mTrainingDataFreq[i]);
@@ -215,7 +215,7 @@ bool GaussianMixtureModel::TrainEM()
   std::vector<double> updatedWeights;
   Matrix *updatedMeans = new Matrix[mNumComponents];
   Matrix *updatedVariances = new Matrix[mNumComponents];
-  double sum;
+  double sum, varianceDiff, meanDiff;
   bool thresholdExceeded;
   Matrix diffMatrix, productMatrix;
 
@@ -361,9 +361,15 @@ bool GaussianMixtureModel::TrainEM()
     {
       if ( fabs(updatedWeights[component] - componentWeights[component]) > WEIGHT_THRESH )
         thresholdExceeded = true;
-      if ( components[component]->UpdateMean(updatedMeans[component]) > updateThresh )
-        thresholdExceeded = true;
-      if ( components[component]->UpdateVariance(updatedVariances[component]) > updateThresh )
+      if ( !components[component]->UpdateMean(updatedMeans[component], meanDiff) ||
+           !components[component]->UpdateVariance(updatedVariances[component], varianceDiff) )
+      {
+        fprintf(stderr, "TrainEM: Failed updating mean or variance\n");
+        delete[] updatedMeans;
+        delete[] updatedVariances;
+        return false;
+      }
+      if ( (meanDiff > updateThresh) || (varianceDiff > updateThresh) )
         thresholdExceeded = true;
     }
 

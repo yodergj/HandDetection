@@ -4,6 +4,7 @@
 #include <string.h>
 
 #define MIN_DIAG_VARIANCE .000000001
+#define MIN_DETERMINANT   .000000000001
 
 Gaussian::Gaussian()
 {
@@ -38,26 +39,29 @@ bool Gaussian::SetMean(Matrix& mean)
   return true;
 }
 
-double Gaussian::UpdateMean(Matrix& mean)
+bool Gaussian::UpdateMean(Matrix& mean, double& maxDifference)
 {
   int i;
   double difference;
-  double maxDiff = 0;
   Matrix diffMatrix;
 
   if ( (mDimensions == 0) || (mean.GetRows() != mDimensions) || (mean.GetColumns() != 1) )
-    return -1;
+  {
+    fprintf(stderr, "UpdateMean: Invalid parameter\n");
+    return false;
+  }
 
+  maxDifference = 0;
   diffMatrix = mMean - mean;
   for (i = 0; i < mDimensions; i++)
   {
     difference = fabs(diffMatrix.GetValue(i, 0));
-    if ( difference > maxDiff )
-      maxDiff = difference;
+    if ( difference > maxDifference )
+      maxDifference = difference;
   }
   mMean = mean;
 
-  return maxDiff;
+  return true;
 }
 
 bool Gaussian::SetVariance(Matrix& variance)
@@ -76,7 +80,16 @@ bool Gaussian::SetVariance(Matrix& variance)
 
   /* Precompute the scaling factor to save time on the probability function */
   if ( !mVariance.GetDeterminant(determinant) )
-    fprintf(stderr, "SetVariance: GetDerminant failed\n");
+  {
+    fprintf(stderr, "SetVariance: GetDeterrminant failed\n");
+    return false;
+  }
+
+  if ( determinant < MIN_DETERMINANT )
+  {
+    fprintf(stderr, "SetVariance: Determinant is not positive.\n");
+    return false;
+  }
 
   piComponent = 2 * M_PI;
   for (i = 1; i < mDimensions; i++)
@@ -90,30 +103,61 @@ bool Gaussian::SetVariance(Matrix& variance)
   return true;
 }
 
-double Gaussian::UpdateVariance(Matrix& variance)
+bool Gaussian::UpdateVariance(Matrix& variance, double& maxDifference)
 {
   int i, j;
-  double difference;
-  double maxDiff = 0;
+  double difference, determinant, adjustment, value;
   Matrix diffMatrix;
 
   if ( (mDimensions == 0) || (variance.GetRows() != mDimensions) || (variance.GetColumns() != mDimensions) )
-    return -1;
+  {
+    fprintf(stderr, "UpdateVariance: Invalid parameter\n");
+    return false;
+  }
 
+  determinant = -1;
+
+  while ( determinant < MIN_DETERMINANT )
+  {
+    if ( !variance.GetDeterminant(determinant) )
+    {
+      fprintf(stderr, "UpdateVariance: GetDeterminant failed\n");
+      return false;
+    }
+
+    if ( determinant < MIN_DETERMINANT )
+    {
+      adjustment = fabs(determinant);
+      if ( adjustment < .00001 )
+        adjustment = .00001;
+      fprintf(stderr, "UpdateVariance: Determinant is not positive - adjusting diagonal by %f\n", adjustment);
+      for (i = 0; i < mDimensions; i++)
+      {
+        value = variance.GetValue(i, i);
+        value += adjustment;
+        variance.SetValue(i, i, value);
+      }
+    }
+  }
+
+  maxDifference = 0;
   diffMatrix = mVariance - variance;
   for (i = 0; i < mDimensions; i++)
   {
     for (j = 0; j < mDimensions; j++)
     {
       difference = fabs(diffMatrix.GetValue(i, j));
-      if ( difference > maxDiff )
-        maxDiff = difference;
+      if ( difference > maxDifference )
+        maxDifference = difference;
     }
   }
   if ( !SetVariance(variance) )
-    return -1;
+  {
+    fprintf(stderr, "UpdateVariance: SetVariance failed.\n");
+    return false;
+  }
 
-  return maxDiff;
+  return true;
 }
 
 /* Calculate the value of the multivariate dormal distribution */
@@ -125,7 +169,7 @@ double Gaussian::Probability(Matrix& input)
   Matrix fullProduct;
 
   if ( (mDimensions == 0) || (input.GetRows() != mDimensions) || (input.GetColumns() != 1) )
-    return false;
+    return -1;
 
   diffMatrix = input - mMean;
   halfProduct = diffMatrix.Transpose() * mVarianceInverse;

@@ -13,9 +13,9 @@ class Gaussian
     int GetNumDimensions();
     bool SetNumDimensions(int dimensions);
     bool SetMean(Matrix& mean);
-    double UpdateMean(Matrix& mean);
+    bool UpdateMean(Matrix& mean, double& maxDifference);
     bool SetVariance(Matrix& variance);
-    double UpdateVariance(Matrix& variance);
+    bool UpdateVariance(Matrix& variance, double& maxDifference);
     double Probability(Matrix& input);
     bool Save(FILE* file);
     bool Load(FILE* file);
