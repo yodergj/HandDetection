@@ -49,13 +49,14 @@ bool FleshDetector::Load(const char* filename)
   return retCode;
 }
 
-bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fleshImageOut)
+bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fleshImageOut, Image** confidenceImageOut)
 {
   Image* fleshImage;
+  Image* confidenceImage;
   unsigned char backgroundColor[] = {255, 255, 255};
   unsigned char outlineColor[] = {0, 255, 0};
 
-  if ( !imagePtr || (!outlineImageOut && !fleshImageOut) )
+  if ( !imagePtr || (!outlineImageOut && !fleshImageOut && !confidenceImageOut) )
     return false;
 
   if ( !GetFleshImage(imagePtr, backgroundColor, &fleshImage, NULL) )
@@ -68,6 +69,13 @@ bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fl
   {
     if ( !GetOutlineImage(backgroundColor, outlineColor, imagePtr, fleshImage, outlineImageOut) )
       return false;
+  }
+
+  if ( confidenceImageOut )
+  {
+    if ( !GetFleshConfidenceImage(imagePtr, &confidenceImage) )
+      return false;
+    *confidenceImageOut = confidenceImage;
   }
 
   return true;
@@ -144,6 +152,69 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
     *fleshImage = &mFleshImage;
   if ( nonFleshImage )
     *nonFleshImage = &mNonFleshImage;
+
+  return true;
+}
+
+bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage)
+{
+  int i, x, y;
+  int numFeatures, classIndex, width, height;
+  Matrix input;
+  double confidence;
+  double *featureBuffer;
+  double *featurePixel;
+  unsigned char* srcPixel;
+  unsigned char* destPixel;
+
+  if ( !imagePtr || !outputImage )
+    return false;
+
+  numFeatures = mFeatureList.size();
+  input.SetSize(numFeatures, 1);
+
+  width = imagePtr->GetWidth();
+  height = imagePtr->GetHeight();
+
+  featureBuffer = imagePtr->GetCustomBuffer(mFeatureList);
+  if ( !featureBuffer )
+    return false;
+
+  featurePixel = featureBuffer;
+  srcPixel = imagePtr->GetRGBBuffer();
+
+  if ( !mConfidenceImage.Create(width, height) )
+    return false;
+
+  destPixel = mConfidenceImage.GetRGBBuffer();
+
+  for (y = 0; y < height; y++)
+  {
+    for (x = 0; x < width; x++, srcPixel += 3, destPixel += 3, featurePixel += numFeatures)
+    {
+      for (i = 0; i < numFeatures; i++)
+        input.SetValue(i, 0, featurePixel[i]);
+      mClassifier.Classify(input, classIndex, confidence);
+
+      if ( classIndex == 1 )
+        confidence = 1 - confidence;
+
+      if ( classIndex == 0 )
+      {
+        destPixel[0] = 0;
+        destPixel[1] = (int)(255 * (confidence - .5) / .5);
+      }
+      else
+      {
+        destPixel[0] = (int)(255 * (confidence - .5) / .5);
+        destPixel[1] = 0;
+      }
+      destPixel[2] = 0;
+    }
+  }
+
+  if ( outputImage )
+    *outputImage = &mConfidenceImage;
 
   return true;
 }

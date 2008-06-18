@@ -10,6 +10,7 @@ int main(int argc, char* argv[])
   Image* inputImage;
   Image* fleshImage;
   Image* outlineImage;
+  Image* confidenceImage;
   int frameNumber = 0;
   QString vidFilename;
   char outputFilename[1024];
@@ -17,9 +18,11 @@ int main(int argc, char* argv[])
   int height;
   QImage fleshQImage;
   QImage outputQImage;
+  QImage confidenceQImage;
   int x, y;
   unsigned char* fleshSrc;
   unsigned char* outlineSrc;
+  unsigned char* confidenceSrc;
 
   if ( argc < 4 )
   {
@@ -51,24 +54,29 @@ int main(int argc, char* argv[])
       height = inputImage->GetHeight();
       fleshQImage.create(width, height, 32);
       outputQImage.create(width, height, 32);
+      confidenceQImage.create(width, height, 32);
     }
 
-    if ( fleshDetector.Process(inputImage, &outlineImage, &fleshImage) )
+    if ( fleshDetector.Process(inputImage, &outlineImage, &fleshImage, &confidenceImage) )
     {
       fleshSrc = fleshImage->GetRGBBuffer();
       outlineSrc = outlineImage->GetRGBBuffer();
+      confidenceSrc = confidenceImage->GetRGBBuffer();
       for (y = 0; y < height; y++)
       {
-        for (x = 0; x < width; x++, fleshSrc += 3, outlineSrc += 3)
+        for (x = 0; x < width; x++, fleshSrc += 3, outlineSrc += 3, confidenceSrc += 3)
         {
           fleshQImage.setPixel(x, y, qRgb(fleshSrc[0], fleshSrc[1], fleshSrc[2]));
           outputQImage.setPixel(x, y, qRgb(outlineSrc[0], outlineSrc[1], outlineSrc[2]));
+          confidenceQImage.setPixel(x, y, qRgb(confidenceSrc[0], confidenceSrc[1], confidenceSrc[2]));
         }
       }
       sprintf(outputFilename, "%s/flesh%05d.png", argv[3], frameNumber);
       fleshQImage.save(outputFilename, "PNG");
       sprintf(outputFilename, "%s/frame%05d.png", argv[3], frameNumber);
       outputQImage.save(outputFilename, "PNG");
+      sprintf(outputFilename, "%s/confidence%05d.png", argv[3], frameNumber);
+      confidenceQImage.save(outputFilename, "PNG");
     }
 
     frameNumber++;

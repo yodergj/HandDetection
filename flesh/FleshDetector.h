@@ -16,13 +16,15 @@ class FleshDetector
     FleshDetector();
     ~FleshDetector();
     bool Load(const char* filename);
-    bool Process(Image* imagePtr, Image** outlineImageOut, Image** fleshImageOut);
+    bool Process(Image* imagePtr, Image** outlineImageOut, Image** fleshImageOut, Image** confidenceImageOut);
     bool GetFleshImage(Image* imagePtr, unsigned char* backgroundColor, Image** fleshImage, Image** nonfleshImage);
+    bool GetFleshConfidenceImage(Image* imagePtr, Image** outputImage);
     int GetBlocks(unsigned char* ignoreColor, Image* imagePtr, std::vector<BlockType*> &blockList);
     bool GetOutlineImage(unsigned char* backgroundColor, unsigned char* outlineColor, Image* imagePtr, Image* fleshImagePtr, Image** outlineImage);
   private:
     std::string mFeatureList;
     BayesianClassifier mClassifier;
+    Image mConfidenceImage;
     Image mFleshImage;
     Image mNonFleshImage;
     Image mOutlineImage;
