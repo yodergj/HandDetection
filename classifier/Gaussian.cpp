@@ -43,7 +43,6 @@ bool Gaussian::UpdateMean(Matrix& mean, double& maxDifference)
 {
   int i;
   double difference;
-  Matrix diffMatrix;
 
   if ( (mDimensions == 0) || (mean.GetRows() != mDimensions) || (mean.GetColumns() != 1) )
   {
@@ -52,10 +51,10 @@ bool Gaussian::UpdateMean(Matrix& mean, double& maxDifference)
   }
 
   maxDifference = 0;
-  diffMatrix = mMean - mean;
+  mDiffMatrix = mMean - mean;
   for (i = 0; i < mDimensions; i++)
   {
-    difference = fabs(diffMatrix.GetValue(i, 0));
+    difference = fabs(mDiffMatrix.GetValue(i, 0));
     if ( difference > maxDifference )
       maxDifference = difference;
   }
@@ -107,7 +106,6 @@ bool Gaussian::UpdateVariance(Matrix& variance, double& maxDifference)
 {
   int i, j;
   double difference, determinant, adjustment, value;
-  Matrix diffMatrix;
 
   if ( (mDimensions == 0) || (variance.GetRows() != mDimensions) || (variance.GetColumns() != mDimensions) )
   {
@@ -141,12 +139,12 @@ bool Gaussian::UpdateVariance(Matrix& variance, double& maxDifference)
   }
 
   maxDifference = 0;
-  diffMatrix = mVariance - variance;
+  mDiffMatrix = mVariance - variance;
   for (i = 0; i < mDimensions; i++)
   {
     for (j = 0; j < mDimensions; j++)
     {
-      difference = fabs(diffMatrix.GetValue(i, j));
+      difference = fabs(mDiffMatrix.GetValue(i, j));
       if ( difference > maxDifference )
         maxDifference = difference;
     }
@@ -163,19 +161,17 @@ bool Gaussian::UpdateVariance(Matrix& variance, double& maxDifference)
 /* Calculate the value of the multivariate dormal distribution */
 double Gaussian::Probability(Matrix& input)
 {
-  double result;
-  Matrix diffMatrix;
-  Matrix halfProduct;
-  Matrix fullProduct;
+  double result, fullProduct;
 
   if ( (mDimensions == 0) || (input.GetRows() != mDimensions) || (input.GetColumns() != 1) )
     return -1;
 
-  diffMatrix = input - mMean;
-  halfProduct = diffMatrix.Transpose() * mVarianceInverse;
-  fullProduct = halfProduct * diffMatrix;
+  mDiffMatrix = input;
+  mDiffMatrix -= mMean;
+  mHalfProduct.SetFromProduct(mDiffMatrix.Transpose(), mVarianceInverse);
+  fullProduct = (mHalfProduct * mDiffMatrix).GetValue(0,0);
 
-  result = mProbabilityScaleFactor * exp(-.5 * fullProduct.GetValue(0, 0));
+  result = mProbabilityScaleFactor * exp(-.5 * fullProduct);
   if ( result < MIN_PROB )
     result = MIN_PROB;
   return result;

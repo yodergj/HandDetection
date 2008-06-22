@@ -13,6 +13,7 @@ class Matrix
     int GetColumns();
     double GetValue(int row, int column);
     bool SetValue(int row, int column, double value);
+    bool SetFromProduct(Matrix& a, Matrix& b);
     bool GetDeterminant(double &determinant);
     bool RowReduce();
     void Clear();
@@ -26,13 +27,16 @@ class Matrix
     Matrix& operator=(Matrix& m);
     Matrix& operator*=(double d);
     Matrix& operator+=(Matrix& m);
+    Matrix& operator-=(Matrix& m);
     bool operator==(Matrix& m);
     bool operator!=(Matrix& m);
     bool operator<(Matrix& m); // For sorting purposes only
   private:
     int mRows;
     int mColumns;
+    int mCells;
     double *mData;
+    int mDataAlloc;
 };
 
 #endif

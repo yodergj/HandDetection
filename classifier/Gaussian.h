@@ -25,6 +25,10 @@ class Gaussian
     Matrix mVariance;
     Matrix mVarianceInverse;
     double mProbabilityScaleFactor;
+
+    // These would be local, but this reduces memory churn
+    Matrix mDiffMatrix;
+    Matrix mHalfProduct;
 };
 
 #endif

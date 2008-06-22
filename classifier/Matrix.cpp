@@ -8,6 +8,7 @@
 Matrix::Matrix()
 {
   mData = NULL;
+  mDataAlloc = 0;
   mRows = 0;
   mColumns = 0;
 }
@@ -21,23 +22,30 @@ Matrix::~Matrix()
 bool Matrix::SetSize(int rows, int columns, bool clear)
 {
   double *tmp;
+  int cells;
 
   if ( (rows < 0) || (columns < 0) )
     return false;
 
-  if ( (rows > 0) && (columns > 0) )
+  cells = rows * columns;
+  if ( cells )
   {
-    tmp = (double *)realloc(mData, rows * columns * sizeof(double));
-    if ( !tmp )
-      return false;
+    if ( cells > mDataAlloc )
+    {
+      tmp = (double *)realloc(mData, cells * sizeof(double));
+      if ( !tmp )
+        return false;
 
-    mData = tmp;
+      mData = tmp;
+      mDataAlloc = cells;
+    }
+
+    if ( clear )
+      memset(mData, 0, cells * sizeof(double));
   }
   mRows = rows;
   mColumns = columns;
-
-  if ( clear )
-    Clear();
+  mCells = rows * columns;
 
   return true;
 }
@@ -128,9 +136,14 @@ Matrix& Matrix::Transpose()
   static Matrix result;
 
   result.SetSize(mColumns, mRows, false);
-  for (i = 0; i < mRows; i++)
-    for (j = 0; j < mColumns; j++)
-      result.mData[i * mColumns + j] =  mData[j * mColumns + i];
+  if ( (mRows == 1) || (mColumns == 1) )
+    memcpy(result.mData, mData, mRows * mColumns * sizeof(double));
+  else
+  {
+    for (i = 0; i < mRows; i++)
+      for (j = 0; j < mColumns; j++)
+        result.mData[i * mColumns + j] =  mData[j * mColumns + i];
+  }
   return result;
 }
 
@@ -251,7 +264,7 @@ bool Matrix::RowReduce()
 
 Matrix& Matrix::operator-(Matrix& m)
 {
-  int i, j;
+  int i;
   static Matrix result;
 
   if ( (mRows != m.mRows) || (mColumns != m.mColumns) )
@@ -259,9 +272,8 @@ Matrix& Matrix::operator-(Matrix& m)
   else
   {
     result.SetSize(mRows, mColumns, false);
-    for (i = 0; i < mRows; i++)
-      for (j = 0; j < mColumns; j++)
-        result.mData[i * mColumns + j] =  mData[i * mColumns + j] - m.mData[i * mColumns + j];
+    for (i = 0; i < mCells; i++)
+      result.mData[i] =  mData[i] - m.mData[i];
   }
   return result;
 }
@@ -278,26 +290,42 @@ Matrix& Matrix::operator*(Matrix& m)
     return result;
   }
 
-  result.SetSize(mRows, m.mColumns, false);
+  result.SetSize(mRows, m.mColumns);
   for (row = 0; row < mRows; row++)
     for (column = 0; column < m.mColumns; column++)
     {
-      result.mData[row * m.mColumns + column] = 0;
       for (i = 0; i < mColumns; i++)
         result.mData[row * m.mColumns + column] += mData[row * mColumns + i] * m.mData[i * m.mColumns + column];
     }
   return result;
 }
 
+bool Matrix::SetFromProduct(Matrix& a, Matrix& b)
+{
+  int i;
+  int row, column;
+
+  if ( a.mColumns != b.mRows )
+    return false;
+
+  SetSize(a.mRows, b.mColumns);
+  for (row = 0; row < a.mRows; row++)
+    for (column = 0; column < b.mColumns; column++)
+    {
+      for (i = 0; i < a.mColumns; i++)
+        mData[row * b.mColumns + column] += a.mData[row * a.mColumns + i] * b.mData[i * b.mColumns + column];
+    }
+  return true;
+}
+
 Matrix& Matrix::operator*(double d)
 {
-  int i, j;
+  int i;
   static Matrix result;
 
   result.SetSize(mRows, mColumns, false);
-  for (i = 0; i < mRows; i++)
-    for (j = 0; j < mColumns; j++)
-      result.mData[i * mColumns + j] = d * mData[i * mColumns + j];
+  for (i = 0; i < mCells; i++)
+    result.mData[i] = d * mData[i];
   return result;
 }
 
@@ -310,21 +338,30 @@ Matrix& Matrix::operator=(Matrix& m)
 
 Matrix& Matrix::operator*=(double d)
 {
-  int i, j;
+  int i;
 
-  for (i = 0; i < mRows; i++)
-    for (j = 0; j < mColumns; j++)
-      mData[i * mColumns + j] *= d;
+  for (i = 0; i < mCells; i++)
+    mData[i] *= d;
   return *this;
 }
 
 Matrix& Matrix::operator+=(Matrix& m)
 {
-  int i, j;
+  int i;
 
-  for (i = 0; i < mRows; i++)
-    for (j = 0; j < mColumns; j++)
-      mData[i * mColumns + j] += m.mData[i * mColumns + j];
+  for (i = 0; i < mCells; i++)
+    mData[i] += m.mData[i];
+
+  return *this;
+}
+
+Matrix& Matrix::operator-=(Matrix& m)
+{
+  int i;
+
+  for (i = 0; i < mCells; i++)
+    mData[i] -= m.mData[i];
+
   return *this;
 }
 
