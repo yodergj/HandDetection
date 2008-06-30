@@ -1,5 +1,6 @@
 #include "VideoDecoder.h"
 #include "FleshDetector.h"
+#include "TimingAnalyzer.h"
 #include <qapplication.h>
 
 int main(int argc, char* argv[])
@@ -57,8 +58,10 @@ int main(int argc, char* argv[])
       confidenceQImage.create(width, height, 32);
     }
 
+    TimingAnalyzer_Start(0);
     if ( fleshDetector.Process(inputImage, &outlineImage, &fleshImage, &confidenceImage) )
     {
+      TimingAnalyzer_Stop(0);
       fleshSrc = fleshImage->GetRGBBuffer();
       outlineSrc = outlineImage->GetRGBBuffer();
       confidenceSrc = confidenceImage->GetRGBBuffer();
@@ -81,6 +84,16 @@ int main(int argc, char* argv[])
 
     frameNumber++;
   }
+  printf("FleshDetector Process Time Min: %d\tMax: %d\tMean: %d\n",
+         TimingAnalyzer_Min(0), TimingAnalyzer_Max(0), TimingAnalyzer_Mean(0));
+  printf("FleshDetector GetFleshImage Time Min: %d\tMax: %d\tMean: %d\n",
+         TimingAnalyzer_Min(1), TimingAnalyzer_Max(1), TimingAnalyzer_Mean(1));
+  printf("FleshDetector GetOutlineImage Time Min: %d\tMax: %d\tMean: %d\n",
+         TimingAnalyzer_Min(2), TimingAnalyzer_Max(2), TimingAnalyzer_Mean(2));
+  printf("FleshDetector GetFleshConfidenceImage Time Min: %d\tMax: %d\tMean: %d\n",
+         TimingAnalyzer_Min(3), TimingAnalyzer_Max(3), TimingAnalyzer_Mean(3));
+  printf("BayesianClassifier Classify Time Min: %d\tMax: %d\tMean: %d\n",
+         TimingAnalyzer_Min(4), TimingAnalyzer_Max(4), TimingAnalyzer_Mean(4));
 
   return 0;
 }

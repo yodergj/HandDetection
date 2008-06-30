@@ -45,7 +45,7 @@ bool Matrix::SetSize(int rows, int columns, bool clear)
   }
   mRows = rows;
   mColumns = columns;
-  mCells = rows * columns;
+  mCells = cells;
 
   return true;
 }
@@ -132,75 +132,96 @@ void Matrix::Clear()
 
 Matrix& Matrix::Transpose()
 {
-  int i, j;
   static Matrix result;
 
-  result.SetSize(mColumns, mRows, false);
+  result.SetAsTranspose(*this);
+
+  return result;
+}
+
+void Matrix::SetAsTranspose(Matrix& m)
+{
+  int i, j;
+
+  SetSize(m.mColumns, m.mRows, false);
   if ( (mRows == 1) || (mColumns == 1) )
-    memcpy(result.mData, mData, mRows * mColumns * sizeof(double));
+    memcpy(mData, m.mData, mRows * mColumns * sizeof(double));
   else
   {
     for (i = 0; i < mRows; i++)
       for (j = 0; j < mColumns; j++)
-        result.mData[i * mColumns + j] =  mData[j * mColumns + i];
+        mData[i * mColumns + j] =  m.mData[j * mColumns + i];
   }
-  return result;
 }
 
 Matrix& Matrix::Inverse()
 {
-  double determinant;
   static Matrix result;
+
+  if ( !result.SetAsInverse(*this) )
+    result.SetSize(0, 0);
+
+  return result;
+}
+
+bool Matrix::SetAsInverse(Matrix& m)
+{
+  double determinant;
   Matrix workMatrix;
   int row, column;
 
-  if ( mRows != mColumns )
-  {
-    result.SetSize(0, 0);
-    return result;
-  }
+  if ( m.mRows != m.mColumns )
+    return false;
 
-  if ( (mRows == 2) && (mColumns == 2) )
+  if ( (m.mRows == 2) && (m.mColumns == 2) )
   {
-    GetDeterminant(determinant);
+    m.GetDeterminant(determinant);
     if ( determinant > 0 )
     {
+#if 0
       result.SetSize(2, 2, false);
-      result.SetValue(0, 0, GetValue(1, 1));
-      result.SetValue(0, 1, -1 * GetValue(0, 1));
-      result.SetValue(1, 0, -1 * GetValue(1, 0));
-      result.SetValue(1, 1, GetValue(0, 0));
+      result.SetValue(0, 0, m.GetValue(1, 1));
+      result.SetValue(0, 1, -1 * m.GetValue(0, 1));
+      result.SetValue(1, 0, -1 * m.GetValue(1, 0));
+      result.SetValue(1, 1, m.GetValue(0, 0));
       result = result * (1 / determinant);
+#else
+      SetSize(2, 2, false);
+      mData[0] = m.mData[3] / determinant;
+      mData[1] = -1 * m.mData[1] / determinant;
+      mData[2] = -1 * m.mData[2] / determinant;
+      mData[3] = m.mData[0] / determinant;
+#endif
     }
     else
-      result.SetSize(0, 0);
-    return result;
+      return false;
+    return true;
   }
 
-  workMatrix.SetSize(mRows, mColumns * 2, false);
-  for (row = 0; row < mRows; row++)
+  workMatrix.SetSize(m.mRows, m.mColumns * 2, false);
+  for (row = 0; row < m.mRows; row++)
   {
-    for (column = 0; column < mColumns; column++)
+    for (column = 0; column < m.mColumns; column++)
     {
-      workMatrix.mData[row * mColumns * 2 + column] = mData[row * mColumns + column];
+      workMatrix.mData[row * m.mColumns * 2 + column] = m.mData[row * m.mColumns + column];
       if ( row == column )
-        workMatrix.mData[row * mColumns * 2 + mColumns + column] = 1;
+        workMatrix.mData[row * m.mColumns * 2 + m.mColumns + column] = 1;
       else
-        workMatrix.mData[row * mColumns * 2 + mColumns + column] = 0;
+        workMatrix.mData[row * m.mColumns * 2 + m.mColumns + column] = 0;
     }
   }
 
   if ( workMatrix.RowReduce() )
   {
-    result.SetSize(mRows, mColumns);
+    SetSize(m.mRows, m.mColumns, false);
     for (row = 0; row < mRows; row++)
       for (column = 0; column < mColumns; column++)
-        result.mData[row * mColumns + column] = workMatrix.mData[row * mColumns * 2 + mColumns + column];
+        mData[row * mColumns + column] = workMatrix.mData[row * mColumns * 2 + mColumns + column];
   }
   else
-    result.SetSize(0, 0);
+    return false;
 
-  return result;
+  return true;
 }
 
 bool Matrix::RowReduce()
@@ -264,18 +285,25 @@ bool Matrix::RowReduce()
 
 Matrix& Matrix::operator-(Matrix& m)
 {
-  int i;
   static Matrix result;
 
-  if ( (mRows != m.mRows) || (mColumns != m.mColumns) )
+  if ( !result.SetFromDifference(*this, m) )
     result.SetSize(0, 0);
-  else
-  {
-    result.SetSize(mRows, mColumns, false);
-    for (i = 0; i < mCells; i++)
-      result.mData[i] =  mData[i] - m.mData[i];
-  }
   return result;
+}
+
+bool Matrix::SetFromDifference(Matrix& a, Matrix& b)
+{
+  int i;
+
+  if ( (a.mRows != b.mRows) || (a.mColumns != b.mColumns) )
+    return false;
+
+  SetSize(a.mRows, a.mColumns, false);
+  for (i = 0; i < mCells; i++)
+    mData[i] =  a.mData[i] - b.mData[i];
+
+  return true;
 }
 
 Matrix& Matrix::operator*(Matrix& m)
@@ -283,6 +311,7 @@ Matrix& Matrix::operator*(Matrix& m)
   int i;
   int row, column;
   static Matrix result;
+  int dest, aRowStart, bRowStart;
 
   if ( mColumns != m.mRows )
   {
@@ -291,11 +320,14 @@ Matrix& Matrix::operator*(Matrix& m)
   }
 
   result.SetSize(mRows, m.mColumns);
-  for (row = 0; row < mRows; row++)
-    for (column = 0; column < m.mColumns; column++)
+  dest = 0;
+  aRowStart = 0;
+  for (row = 0; row < result.mRows; row++, aRowStart += mColumns)
+    for (column = 0; column < result.mColumns; column++, dest++)
     {
-      for (i = 0; i < mColumns; i++)
-        result.mData[row * m.mColumns + column] += mData[row * mColumns + i] * m.mData[i * m.mColumns + column];
+      bRowStart = 0;
+      for (i = 0; i < mColumns; i++, bRowStart += m.mColumns)
+        result.mData[dest] += mData[aRowStart + i] * m.mData[bRowStart + column];
     }
   return result;
 }
@@ -304,16 +336,20 @@ bool Matrix::SetFromProduct(Matrix& a, Matrix& b)
 {
   int i;
   int row, column;
+  int dest, aRowStart, bRowStart;
 
   if ( a.mColumns != b.mRows )
     return false;
 
   SetSize(a.mRows, b.mColumns);
-  for (row = 0; row < a.mRows; row++)
-    for (column = 0; column < b.mColumns; column++)
+  dest = 0;
+  aRowStart = 0;
+  for (row = 0; row < mRows; row++, aRowStart += a.mColumns)
+    for (column = 0; column < mColumns; column++, dest++)
     {
-      for (i = 0; i < a.mColumns; i++)
-        mData[row * b.mColumns + column] += a.mData[row * a.mColumns + i] * b.mData[i * b.mColumns + column];
+      bRowStart = 0;
+      for (i = 0; i < a.mColumns; i++, bRowStart += b.mColumns)
+        mData[dest] += a.mData[aRowStart + i] * b.mData[bRowStart + column];
     }
   return true;
 }

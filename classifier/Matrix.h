@@ -14,6 +14,9 @@ class Matrix
     double GetValue(int row, int column);
     bool SetValue(int row, int column, double value);
     bool SetFromProduct(Matrix& a, Matrix& b);
+    void SetAsTranspose(Matrix& m);
+    bool SetAsInverse(Matrix& m);
+    bool SetFromDifference(Matrix& a, Matrix& b);
     bool GetDeterminant(double &determinant);
     bool RowReduce();
     void Clear();

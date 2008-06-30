@@ -20,8 +20,8 @@ class GaussianMixtureModel
     void Clear();
     bool TrainEM();
     double Probability(Matrix& data,
-                       std::vector<Gaussian *> components,
-                       std::vector<double> weights);
+                       std::vector<Gaussian *>& components,
+                       std::vector<double>& weights);
 
     std::vector<Gaussian *> mComponents;
     std::vector<double> mComponentWeights;

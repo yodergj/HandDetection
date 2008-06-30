@@ -163,8 +163,8 @@ double GaussianMixtureModel::Probability(Matrix& data)
 }
 
 double GaussianMixtureModel::Probability(Matrix& data,
-                                         std::vector<Gaussian *> components,
-                                         std::vector<double> weights)
+                                         std::vector<Gaussian *>& components,
+                                         std::vector<double>& weights)
 {
   int i;
   double probability = 0;

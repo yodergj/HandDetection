@@ -1,4 +1,5 @@
 #include "FleshDetector.h"
+#include "TimingAnalyzer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,22 +60,28 @@ bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fl
   if ( !imagePtr || (!outlineImageOut && !fleshImageOut && !confidenceImageOut) )
     return false;
 
+  TimingAnalyzer_Start(1);
   if ( !GetFleshImage(imagePtr, backgroundColor, &fleshImage, NULL) )
     return false;
+  TimingAnalyzer_Stop(1);
 
   if ( fleshImageOut )
     *fleshImageOut = fleshImage;
 
   if ( outlineImageOut )
   {
+    TimingAnalyzer_Start(2);
     if ( !GetOutlineImage(backgroundColor, outlineColor, imagePtr, fleshImage, outlineImageOut) )
       return false;
+    TimingAnalyzer_Stop(2);
   }
 
   if ( confidenceImageOut )
   {
+    TimingAnalyzer_Start(3);
     if ( !GetFleshConfidenceImage(imagePtr, &confidenceImage) )
       return false;
+    TimingAnalyzer_Stop(3);
     *confidenceImageOut = confidenceImage;
   }
 
@@ -125,7 +132,9 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
     {
       for (i = 0; i < numFeatures; i++)
         input.SetValue(i, 0, featurePixel[i]);
+      TimingAnalyzer_Start(4);
       mClassifier.Classify(input, classIndex, confidence);
+      TimingAnalyzer_Stop(4);
 
       if ( classIndex == 0 )
       {
@@ -194,7 +203,9 @@ bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage
     {
       for (i = 0; i < numFeatures; i++)
         input.SetValue(i, 0, featurePixel[i]);
+      TimingAnalyzer_Start(4);
       mClassifier.Classify(input, classIndex, confidence);
+      TimingAnalyzer_Stop(4);
 
       if ( classIndex == 1 )
         confidence = 1 - confidence;

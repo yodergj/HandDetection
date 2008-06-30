@@ -29,6 +29,8 @@ class Gaussian
     // These would be local, but this reduces memory churn
     Matrix mDiffMatrix;
     Matrix mHalfProduct;
+    Matrix mTranspose;
+    Matrix mProductMatrix;
 };
 
 #endif
