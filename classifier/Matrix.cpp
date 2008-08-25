@@ -80,6 +80,16 @@ bool Matrix::SetValue(int row, int column, double value)
   return true;
 }
 
+bool Matrix::Set(double* values)
+{
+  if ( !values )
+    return false;
+
+  memcpy(mData, values, mCells * sizeof(double));
+
+  return true;
+}
+
 bool Matrix::GetDeterminant(double &determinant)
 {
   int i;
@@ -178,20 +188,11 @@ bool Matrix::SetAsInverse(Matrix& m)
     m.GetDeterminant(determinant);
     if ( determinant > 0 )
     {
-#if 0
-      result.SetSize(2, 2, false);
-      result.SetValue(0, 0, m.GetValue(1, 1));
-      result.SetValue(0, 1, -1 * m.GetValue(0, 1));
-      result.SetValue(1, 0, -1 * m.GetValue(1, 0));
-      result.SetValue(1, 1, m.GetValue(0, 0));
-      result = result * (1 / determinant);
-#else
       SetSize(2, 2, false);
       mData[0] = m.mData[3] / determinant;
       mData[1] = -1 * m.mData[1] / determinant;
       mData[2] = -1 * m.mData[2] / determinant;
       mData[3] = m.mData[0] / determinant;
-#endif
     }
     else
       return false;
@@ -300,35 +301,33 @@ bool Matrix::SetFromDifference(Matrix& a, Matrix& b)
     return false;
 
   SetSize(a.mRows, a.mColumns, false);
-  for (i = 0; i < mCells; i++)
-    mData[i] =  a.mData[i] - b.mData[i];
+  if ( mCells == 2 )
+  {
+    mData[0] = a.mData[0] - b.mData[0];
+    mData[1] = a.mData[1] - b.mData[1];
+  }
+  else if ( mCells == 3 )
+  {
+    mData[0] = a.mData[0] - b.mData[0];
+    mData[1] = a.mData[1] - b.mData[1];
+    mData[2] = a.mData[2] - b.mData[2];
+  }
+  else
+  {
+    for (i = 0; i < mCells; i++)
+      mData[i] =  a.mData[i] - b.mData[i];
+  }
 
   return true;
 }
 
 Matrix& Matrix::operator*(Matrix& m)
 {
-  int i;
-  int row, column;
   static Matrix result;
-  int dest, aRowStart, bRowStart;
 
-  if ( mColumns != m.mRows )
-  {
+  if ( !result.SetFromProduct(*this, m) )
     result.SetSize(0, 0);
-    return result;
-  }
 
-  result.SetSize(mRows, m.mColumns);
-  dest = 0;
-  aRowStart = 0;
-  for (row = 0; row < result.mRows; row++, aRowStart += mColumns)
-    for (column = 0; column < result.mColumns; column++, dest++)
-    {
-      bRowStart = 0;
-      for (i = 0; i < mColumns; i++, bRowStart += m.mColumns)
-        result.mData[dest] += mData[aRowStart + i] * m.mData[bRowStart + column];
-    }
   return result;
 }
 
@@ -336,21 +335,88 @@ bool Matrix::SetFromProduct(Matrix& a, Matrix& b)
 {
   int i;
   int row, column;
-  int dest, aRowStart, bRowStart;
+  int dest, aRowStart, bRowStart, bPos;
 
   if ( a.mColumns != b.mRows )
     return false;
 
-  SetSize(a.mRows, b.mColumns);
-  dest = 0;
-  aRowStart = 0;
-  for (row = 0; row < mRows; row++, aRowStart += a.mColumns)
-    for (column = 0; column < mColumns; column++, dest++)
+  if ( a.mRows == 1 )
+  {
+    SetSize(a.mRows, b.mColumns, false);
+
+    /* Manually unroll the loops for our common cases */
+    if ( mColumns == 1 )
     {
-      bRowStart = 0;
-      for (i = 0; i < a.mColumns; i++, bRowStart += b.mColumns)
-        mData[dest] += a.mData[aRowStart + i] * b.mData[bRowStart + column];
+      if ( b.mRows == 1 )
+        mData[0] = a.mData[0] * b.mData[0];
+      else if ( b.mRows == 2 )
+        mData[0] = a.mData[0] * b.mData[0] + a.mData[1] * b.mData[1];
+      else if ( b.mRows == 3 )
+        mData[0] = a.mData[0] * b.mData[0] + a.mData[1] * b.mData[1] + a.mData[2] * b.mData[2];
     }
+    else if ( mColumns == 2 )
+    {
+      if ( b.mRows == 1 )
+      {
+        mData[0] = a.mData[0] * b.mData[0];
+        mData[1] = a.mData[0] * b.mData[1];
+      }
+      else if ( b.mRows == 2 )
+      {
+        mData[0] = a.mData[0] * b.mData[0] + a.mData[1] * b.mData[2];
+        mData[1] = a.mData[0] * b.mData[1] + a.mData[1] * b.mData[3];
+      }
+      else if ( b.mRows == 3 )
+      {
+        mData[0] = a.mData[0] * b.mData[0] + a.mData[1] * b.mData[2] + a.mData[2] * b.mData[4];
+        mData[1] = a.mData[0] * b.mData[1] + a.mData[1] * b.mData[3] + a.mData[2] * b.mData[5];
+      }
+    }
+    else if ( mColumns == 3 )
+    {
+      if ( b.mRows == 1 )
+      {
+        mData[0] = a.mData[0] * b.mData[0];
+        mData[1] = a.mData[0] * b.mData[1];
+        mData[2] = a.mData[0] * b.mData[2];
+      }
+      else if ( b.mRows == 2 )
+      {
+        mData[0] = a.mData[0] * b.mData[0] + a.mData[1] * b.mData[3];
+        mData[1] = a.mData[0] * b.mData[1] + a.mData[1] * b.mData[4];
+        mData[2] = a.mData[0] * b.mData[2] + a.mData[1] * b.mData[5];
+      }
+      else if ( b.mRows == 3 )
+      {
+        mData[0] = a.mData[0] * b.mData[0] + a.mData[1] * b.mData[3] + a.mData[2] * b.mData[6];
+        mData[1] = a.mData[0] * b.mData[1] + a.mData[1] * b.mData[4] + a.mData[2] * b.mData[7];
+        mData[2] = a.mData[0] * b.mData[2] + a.mData[1] * b.mData[5] + a.mData[2] * b.mData[8];
+      }
+    }
+    else
+    {
+      for (column = 0; column < mColumns; column++)
+      {
+        mData[column] = a.mData[0] * b.mData[column];
+        bPos = column + b.mColumns;
+        for (i = 1; i < b.mRows; i++, bPos += b.mColumns)
+          mData[column] += a.mData[i] * b.mData[bPos];
+      }
+    }
+  }
+  else
+  {
+    SetSize(a.mRows, b.mColumns);
+    dest = 0;
+    aRowStart = 0;
+    for (row = 0; row < mRows; row++, aRowStart += a.mColumns)
+      for (column = 0; column < mColumns; column++, dest++)
+      {
+        bRowStart = 0;
+        for (i = 0; i < a.mColumns; i++, bRowStart += b.mColumns)
+          mData[dest] += a.mData[aRowStart + i] * b.mData[bRowStart + column];
+      }
+  }
   return true;
 }
 

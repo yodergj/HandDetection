@@ -21,7 +21,6 @@ class BayesianClassifier
     GaussianMixtureModel* mModels;
     int* mClassCounts;
     double* mClassWeights;
-    double* mClassProbabilities;
 };
 
 #endif

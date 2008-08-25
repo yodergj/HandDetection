@@ -130,11 +130,10 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
   {
     for (x = 0; x < width; x++, srcPixel += 3, fleshDestPixel += 3, nonFleshDestPixel += 3, featurePixel += numFeatures)
     {
-      for (i = 0; i < numFeatures; i++)
-        input.SetValue(i, 0, featurePixel[i]);
-      TimingAnalyzer_Start(4);
+      input.Set(featurePixel);
+      //TimingAnalyzer_Start(4);
       mClassifier.Classify(input, classIndex, confidence);
-      TimingAnalyzer_Stop(4);
+      //TimingAnalyzer_Stop(4);
 
       if ( classIndex == 0 )
       {
@@ -167,7 +166,7 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
 
 bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage)
 {
-  int i, x, y;
+  int x, y;
   int numFeatures, classIndex, width, height;
   Matrix input;
   double confidence;
@@ -201,11 +200,10 @@ bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage
   {
     for (x = 0; x < width; x++, srcPixel += 3, destPixel += 3, featurePixel += numFeatures)
     {
-      for (i = 0; i < numFeatures; i++)
-        input.SetValue(i, 0, featurePixel[i]);
-      TimingAnalyzer_Start(4);
+      input.Set(featurePixel);
+      //TimingAnalyzer_Start(4);
       mClassifier.Classify(input, classIndex, confidence);
-      TimingAnalyzer_Stop(4);
+      //TimingAnalyzer_Stop(4);
 
       if ( classIndex == 1 )
         confidence = 1 - confidence;

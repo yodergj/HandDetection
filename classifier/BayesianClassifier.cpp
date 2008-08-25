@@ -8,7 +8,6 @@ BayesianClassifier::BayesianClassifier()
   mModels = NULL;
   mClassCounts = NULL;
   mClassWeights = NULL;
-  mClassProbabilities = NULL;
 }
 
 BayesianClassifier::~BayesianClassifier()
@@ -16,7 +15,6 @@ BayesianClassifier::~BayesianClassifier()
   delete[] mModels;
   delete[] mClassCounts;
   delete[] mClassWeights;
-  delete[] mClassProbabilities;
 }
 
 bool BayesianClassifier::Create(int numDimensions, int numClasses, int* classComponents)
@@ -33,12 +31,10 @@ bool BayesianClassifier::Create(int numDimensions, int numClasses, int* classCom
   delete[] mModels;
   delete[] mClassCounts;
   delete[] mClassWeights;
-  delete[] mClassProbabilities;
 
   mModels = new GaussianMixtureModel[numClasses];
   mClassCounts = new int[numClasses];
   mClassWeights = new double[numClasses];
-  mClassProbabilities = new double[numClasses];
   
   memset(mClassCounts, 0, numClasses * sizeof(int));
   memset(mClassWeights, 0, numClasses * sizeof(double));
@@ -76,6 +72,7 @@ int* BayesianClassifier::Get2dDataHistogram(int classIndex, int binsPerSide, dou
 bool BayesianClassifier::Classify(Matrix& data, int& classIndex, double& confidence)
 {
   int i;
+  double probability;
   double max = 0;
   double sum = 0;
 
@@ -84,15 +81,16 @@ bool BayesianClassifier::Classify(Matrix& data, int& classIndex, double& confide
 
   for (i = 0; i < mNumClasses; i++)
   {
-    mClassProbabilities[i] = mModels[i].Probability(data);
-    sum += mClassProbabilities[i];
-    if ( mClassProbabilities[i] > max )
+    probability = mModels[i].Probability(data);
+    sum += probability;
+    if ( probability > max )
     {
-      max = mClassProbabilities[i];
+      max = probability;
       classIndex = i;
     }
   }
   confidence = max / sum;
+
   return true;
 }
 

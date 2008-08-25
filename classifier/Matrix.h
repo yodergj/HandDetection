@@ -13,6 +13,7 @@ class Matrix
     int GetColumns();
     double GetValue(int row, int column);
     bool SetValue(int row, int column, double value);
+    bool Set(double* values);
     bool SetFromProduct(Matrix& a, Matrix& b);
     void SetAsTranspose(Matrix& m);
     bool SetAsInverse(Matrix& m);

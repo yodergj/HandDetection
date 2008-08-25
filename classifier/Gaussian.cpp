@@ -109,11 +109,7 @@ bool Gaussian::SetVariance(Matrix& variance)
   mProbabilityScaleFactor = 1 / sqrt(piComponent * determinant);
 
   /* Compute the variance inverse to save time on the probability function */
- #if 0
-  mVarianceInverse = mVariance.Inverse();
-#else
   mVarianceInverse.SetAsInverse(mVariance);
-#endif
 
   return true;
 }
@@ -182,18 +178,11 @@ double Gaussian::Probability(Matrix& input)
   if ( (mDimensions == 0) || (input.GetRows() != mDimensions) || (input.GetColumns() != 1) )
     return -1;
 
-#if 0
-  mDiffMatrix = input;
-  mDiffMatrix -= mMean;
-  mHalfProduct.SetFromProduct(mDiffMatrix.Transpose(), mVarianceInverse);
-  fullProduct = (mHalfProduct * mDiffMatrix).GetValue(0,0);
-#else
   mDiffMatrix.SetFromDifference(input, mMean);
   mTranspose.SetAsTranspose(mDiffMatrix);
   mHalfProduct.SetFromProduct(mTranspose, mVarianceInverse);
   mProductMatrix.SetFromProduct(mHalfProduct, mDiffMatrix);
   fullProduct = mProductMatrix.GetValue(0, 0);
-#endif
 
   result = mProbabilityScaleFactor * exp(-.5 * fullProduct);
   if ( result < MIN_PROB )
