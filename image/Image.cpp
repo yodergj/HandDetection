@@ -36,6 +36,8 @@ Image::~Image()
     free(mScaledRGBBuffer);
   if ( mCustomBuffer )
     free(mCustomBuffer);
+  if ( mCustomIntegralBuffer )
+    free(mCustomIntegralBuffer);
 }
 
 bool Image::Create(int width, int height)
