@@ -14,10 +14,16 @@ Image::Image()
   mBufferSize = 0;
   mYIQBuffer = NULL;
   mYIQAlloc = 0;
+  mYIQValid = false;
   mScaledRGBBuffer = NULL;
   mScaledRGBAlloc = 0;
+  mScaledRGBValid = false;
   mCustomBuffer = NULL;
   mCustomAlloc = 0;
+  mCustomValid = false;
+  mCustomIntegralBuffer = NULL;
+  mCustomIntegralAlloc = 0;
+  mCustomIntegralValid = false;
 }
 
 Image::~Image()
@@ -61,6 +67,9 @@ double* Image::GetYIQBuffer()
   unsigned char* srcPixel;
   double* destPixel;
 
+  if ( mYIQValid )
+    return mYIQBuffer;
+
   if ( !ResizeBuffer(&mYIQBuffer, &mYIQAlloc, 3) )
     return NULL;
 
@@ -78,6 +87,7 @@ double* Image::GetYIQBuffer()
       destPixel += 3;
     }
   }
+  mYIQValid = true;
 
   return mYIQBuffer;
 }
@@ -88,6 +98,9 @@ double* Image::GetScaledRGBBuffer()
   unsigned char* srcPixel;
   double* destPixel;
   double maxVal;
+
+  if ( mScaledRGBValid )
+    return mScaledRGBBuffer;
 
   if ( !ResizeBuffer(&mScaledRGBBuffer, &mScaledRGBAlloc, 3) )
     return NULL;
@@ -115,6 +128,7 @@ double* Image::GetScaledRGBBuffer()
       destPixel += 3;
     }
   }
+  mScaledRGBValid = true;
 
   return mScaledRGBBuffer;
 }
@@ -130,6 +144,10 @@ double* Image::GetCustomBuffer(std::string &featureList)
   int numFeatures;
   double colorX, colorY, colorZ;
 
+  if ( mCustomValid && (mCustomString == featureList) )
+    return mCustomBuffer;
+
+  mCustomValid = false;
   numFeatures = featureList.size();
 
   if ( !ResizeBuffer(&mCustomBuffer, &mCustomAlloc, numFeatures) )
@@ -277,8 +295,56 @@ double* Image::GetCustomBuffer(std::string &featureList)
       destPixel += numFeatures;
     }
   }
+  mCustomValid = true;
+  mCustomString = featureList;
 
   return mCustomBuffer;
+}
+
+double* Image::GetCustomIntegralBuffer(std::string &featureList)
+{
+  int i;
+  int x, y;
+  double* feature;
+  int numFeatures, leftOffset, upOffset, diagOffset;
+
+  if ( mCustomIntegralValid && (mCustomString == featureList) )
+    return mCustomIntegralBuffer;
+
+  mCustomIntegralValid = false;
+  numFeatures = featureList.size();
+  leftOffset = -numFeatures;
+  upOffset = mWidth * leftOffset;
+  diagOffset = leftOffset + upOffset;
+
+  if ( !ResizeBuffer(&mCustomIntegralBuffer, &mCustomIntegralAlloc, numFeatures) )
+    return NULL;
+
+  if ( !GetCustomBuffer(featureList) )
+    return NULL;
+
+  memcpy(mCustomIntegralBuffer, mCustomBuffer, mWidth * mHeight * numFeatures);
+  feature = mCustomIntegralBuffer;
+  for (y = 0; y < mHeight; y++)
+  {
+    for (x = 0; x < mWidth; x++)
+    {
+      for (i = 0; i < numFeatures; i++, feature++)
+      {
+        if ( x > 0 )
+          feature[0] += feature[leftOffset];
+        if ( y > 0 )
+        {
+          feature[0] += feature[upOffset];
+          if ( x > 0 )
+            feature[0] -= feature[diagOffset];
+        }
+      }
+    }
+  }
+  mCustomIntegralValid = true;
+
+  return mCustomIntegralBuffer;
 }
 
 bool Image::CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth)
@@ -290,6 +356,8 @@ bool Image::CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth)
 
   if ( (width <= 0) || (height <= 0) || !buffer || (bufferWidth <= 0) )
     return false;
+
+  InvalidateBuffers();
 
   if ( !SetSize(width, height) )
     return false;
@@ -323,6 +391,8 @@ bool Image::CopyARGBBuffer(int width, int height, int* buffer, int bufferWidth)
   if ( (width <= 0) || (height <= 0) || !buffer || (bufferWidth <= 0) )
     return false;
 
+  InvalidateBuffers();
+
   if ( !SetSize(width, height) )
     return false;
 
@@ -354,6 +424,8 @@ bool Image::CopyRGBBuffer(int width, int height, unsigned char* buffer, int buff
 
   if ( (width <= 0) || (height <= 0) || !buffer || (bufferWidth <= 0) )
     return false;
+
+  InvalidateBuffers();
 
   if ( !SetSize(width, height) )
     return false;
@@ -411,4 +483,12 @@ bool Image::ResizeBuffer(double** buffer, int* bufferAlloc, int numFeatures)
   }
 
   return true;
+}
+
+void Image::InvalidateBuffers()
+{
+  mYIQValid = false;
+  mScaledRGBValid = false;
+  mCustomValid = false;
+  mCustomIntegralValid = false;
 }
