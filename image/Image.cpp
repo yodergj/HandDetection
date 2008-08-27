@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
 #define MIN(a,b) ( (a) < (b) ? (a) : (b) )
@@ -442,6 +445,42 @@ bool Image::CopyRGBBuffer(int width, int height, unsigned char* buffer, int buff
     srcLine += bufferWidth;
     destLine += lineWidth;
   }
+
+  return true;
+}
+
+bool Image::Save(const char* filename)
+{
+  char* extStart;
+
+  if ( !filename )
+    return false;
+
+  extStart = strrchr(filename, '.');
+  if ( !extStart )
+    return false;
+
+  if ( !strcmp(extStart, ".ppm") )
+    return SavePPM(filename);
+
+  return false;
+}
+
+bool Image::SavePPM(const char* filename)
+{
+  int numBytes, headerLen, fileDesc;
+  char headerBuffer[64];
+
+  fileDesc = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+  if ( fileDesc < 0 )
+    return false;
+
+  numBytes = mWidth * mHeight * 3;
+  sprintf(headerBuffer, "P6\n%d %d\n255\n", mWidth, mHeight);
+  headerLen = strlen(headerBuffer);
+  write(fileDesc, headerBuffer, headerLen);
+  write(fileDesc, mBuffer, numBytes);
+  close(fileDesc);
 
   return true;
 }

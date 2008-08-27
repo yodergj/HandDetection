@@ -19,7 +19,9 @@ class Image
     bool CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth);
     bool CopyARGBBuffer(int width, int height, int* buffer, int bufferWidth);
     bool CopyRGBBuffer(int width, int height, unsigned char* buffer, int bufferWidth);
+    bool Save(const char* filename);
   private:
+    bool SavePPM(const char* filename);
     bool SetSize(int width, int height);
     bool ResizeBuffer(double** buffer, int* bufferAlloc, int numFeatures);
     void InvalidateBuffers();
