@@ -71,7 +71,7 @@ bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fl
     return false;
 
   TimingAnalyzer_Start(1);
-  if ( !GetFleshImage(imagePtr, backgroundColor, &fleshImage, NULL) )
+  if ( !GetFleshImage(imagePtr, backgroundColor, &fleshImage) )
     return false;
   TimingAnalyzer_Stop(1);
 
@@ -98,15 +98,14 @@ bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fl
   return true;
 }
 
-bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColor, Image** fleshImage, Image** nonFleshImage)
+bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColor, Image** fleshImage)
 {
   int i, x, y;
   int xScale, yScale, width, height;
   unsigned char* srcPixel;
   unsigned char* fleshDestPixel;
-  unsigned char* nonFleshDestPixel;
 
-  if ( !imagePtr || (!fleshImage && !nonFleshImage) )
+  if ( !imagePtr || !fleshImage )
     return false;
 
   width = imagePtr->GetWidth();
@@ -122,40 +121,27 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
 
   fleshDestPixel = mFleshImage.GetRGBBuffer();
 
-  if ( !mNonFleshImage.Create(width, height) )
-    return false;
-
-  nonFleshDestPixel = mNonFleshImage.GetRGBBuffer();
-
   for (y = 0; y < height; y++)
   {
-    for (x = 0; x < width; x++, srcPixel += 3, fleshDestPixel += 3, nonFleshDestPixel += 3)
+    for (x = 0; x < width; x++, srcPixel += 3, fleshDestPixel += 3)
     {
       if ( mConfidenceBuffer[(y / yScale) * mConfidenceBufferWidth + x / xScale] >= .50 )
       {
         // Pixel is flesh colored
         for (i = 0; i < 3; i++)
-        {
           fleshDestPixel[i] = srcPixel[i];
-          nonFleshDestPixel[i] = backgroundColor[i];
-        }
       }
       else
       {
         // Pixel is not flesh colored
         for (i = 0; i < 3; i++)
-        {
           fleshDestPixel[i] = backgroundColor[i];
-          nonFleshDestPixel[i] = srcPixel[i];
-        }
       }
     }
   }
 
   if ( fleshImage )
     *fleshImage = &mFleshImage;
-  if ( nonFleshImage )
-    *nonFleshImage = &mNonFleshImage;
 
   return true;
 }
