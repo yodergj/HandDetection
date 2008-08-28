@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
          TimingAnalyzer_Min(2), TimingAnalyzer_Max(2), TimingAnalyzer_Mean(2));
   printf("FleshDetector GetFleshConfidenceImage Time Min: %d\tMax: %d\tMean: %d\n",
          TimingAnalyzer_Min(3), TimingAnalyzer_Max(3), TimingAnalyzer_Mean(3));
-  printf("BayesianClassifier Classify Time Min: %d\tMax: %d\tMean: %d\n",
+  printf("FleshDetector CalcConfidence Time Min: %d\tMax: %d\tMean: %d\n",
          TimingAnalyzer_Min(4), TimingAnalyzer_Max(4), TimingAnalyzer_Mean(4));
 
   return 0;

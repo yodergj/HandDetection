@@ -140,13 +140,12 @@ double* Image::GetScaledRGBBuffer()
 
 double* Image::GetCustomBuffer(std::string &featureList)
 {
-  int i;
-  int x, y;
+  int i, j;
   unsigned char* srcPixel;
   double* destPixel;
   double maxVal, minVal;
   double r, g, b;
-  int numFeatures;
+  int numFeatures, numPixels;
   double colorX, colorY, colorZ;
 
   if ( mCustomValid && (mCustomString == featureList) )
@@ -154,151 +153,149 @@ double* Image::GetCustomBuffer(std::string &featureList)
 
   mCustomValid = false;
   numFeatures = featureList.size();
+  numPixels = mWidth * mHeight;
 
   if ( !ResizeBuffer(&mCustomBuffer, &mCustomAlloc, numFeatures) )
     return NULL;
 
   srcPixel = mBuffer;
   destPixel = mCustomBuffer;
-  for (y = 0; y < mHeight; y++)
+  for (j = 0; j < numPixels; j++)
   {
-    for (x = 0; x < mWidth; x++)
+    r = srcPixel[0] / 255.0;
+    g = srcPixel[1] / 255.0;
+    b = srcPixel[2] / 255.0;
+
+    /* CIE XYZ Colorspace */
+    colorX = (r * .49 + g * .31 + b * .20) / .17697;
+    colorY = (r * .17697 + g * .81240 + b * .01063) / .17697;
+    colorZ = (g * .01 + b * .99) / .17697;
+
+    maxVal = MAX(r, MAX(g, b));
+    minVal = MIN(r, MIN(g, b));
+    for (i = 0; i < numFeatures; i++)
     {
-      r = srcPixel[0] / 255.0;
-      g = srcPixel[1] / 255.0;
-      b = srcPixel[2] / 255.0;
-
-      /* CIE XYZ Colorspace */
-      colorX = (r * .49 + g * .31 + b * .20) / .17697;
-      colorY = (r * .17697 + g * .81240 + b * .01063) / .17697;
-      colorZ = (g * .01 + b * .99) / .17697;
-
-      maxVal = MAX(r, MAX(g, b));
-      minVal = MIN(r, MIN(g, b));
-      for (i = 0; i < numFeatures; i++)
+      switch (featureList[i])
       {
-        switch (featureList[i])
-        {
-          /* Normal RGB */
-          case 'r':
-            destPixel[i] = r;
-            break;
-          case 'g':
-            destPixel[i] = g;
-            break;
-          case 'b':
-            destPixel[i] = b;
-            break;
+        /* Normal RGB */
+        case 'r':
+          destPixel[i] = r;
+          break;
+        case 'g':
+          destPixel[i] = g;
+          break;
+        case 'b':
+          destPixel[i] = b;
+          break;
           /* RGB scaled relative to maximum component */
-          case 'R':
-            if ( maxVal == 0 )
-              destPixel[i] = 1;
-            else
-              destPixel[i] = r / maxVal;
-            break;
-          case 'G':
-            if ( maxVal == 0 )
-              destPixel[i] = 1;
-            else
-              destPixel[i] = g / maxVal;
-            break;
-          case 'B':
-            if ( maxVal == 0 )
-              destPixel[i] = 1;
-            else
-              destPixel[i] = b / maxVal;
-            break;
+        case 'R':
+          if ( maxVal == 0 )
+            destPixel[i] = 1;
+          else
+            destPixel[i] = r / maxVal;
+          break;
+        case 'G':
+          if ( maxVal == 0 )
+            destPixel[i] = 1;
+          else
+            destPixel[i] = g / maxVal;
+          break;
+        case 'B':
+          if ( maxVal == 0 )
+            destPixel[i] = 1;
+          else
+            destPixel[i] = b / maxVal;
+          break;
           /* rg chromaticity space */
-          case 'm':
-            if ( maxVal == 0 )
-              destPixel[i] = 1;
-            else
-              destPixel[i] = r / (r + g + b);
-            break;
-          case 'n':
-            if ( maxVal == 0 )
-              destPixel[i] = 1;
-            else
-              destPixel[i] = g / (r + g + b);
-            break;
-          case 'o':
-            if ( maxVal == 0 )
-              destPixel[i] = 1;
-            else
-              destPixel[i] = b / (r + g + b);
-            break;
+        case 'm':
+          if ( maxVal == 0 )
+            destPixel[i] = 1;
+          else
+            destPixel[i] = r / (r + g + b);
+          break;
+        case 'n':
+          if ( maxVal == 0 )
+            destPixel[i] = 1;
+          else
+            destPixel[i] = g / (r + g + b);
+          break;
+        case 'o':
+          if ( maxVal == 0 )
+            destPixel[i] = 1;
+          else
+            destPixel[i] = b / (r + g + b);
+          break;
           /* YIQ Colorspace */
-          case 'Y':
-            destPixel[i] = r * .299 + g *  .587 + b *  .114;
-            break;
-          case 'I':
-            destPixel[i] = ((r * .596 + g * -.275 + b * -.321) / .596 + 1) / 2;
-            break;
-          case 'Q':
-            destPixel[i] = ((r * .212 + g * -.523 + b *  .311) / .523 + 1) / 2;
-            break;
+        case 'Y':
+          destPixel[i] = r * .299 + g *  .587 + b *  .114;
+          break;
+        case 'I':
+          destPixel[i] = ((r * .596 + g * -.275 + b * -.321) / .596 + 1) / 2;
+          break;
+        case 'Q':
+          destPixel[i] = ((r * .212 + g * -.523 + b *  .311) / .523 + 1) / 2;
+          break;
           /* HSL aka HSI Colorspace */
-          case 'H':
-            if ( maxVal == minVal )
-              destPixel[i] = 0;
-            else if ( r == maxVal )
-            {
-              if ( g >= b )
-                destPixel[i] = (g - b) / (6 * (maxVal - minVal));
-              else
-                destPixel[i] = (g - b) / (6 * (maxVal - minVal)) + 1;
-            }
-            else if ( g == maxVal )
-              destPixel[i] = (b - r) / (6 * (maxVal - minVal)) + (1 / 3.0);
+        case 'H':
+          if ( maxVal == minVal )
+            destPixel[i] = 0;
+          else if ( r == maxVal )
+          {
+            if ( g >= b )
+              destPixel[i] = (g - b) / (6 * (maxVal - minVal));
             else
-              destPixel[i] = (r - g) / (6 * (maxVal - minVal)) + (2 / 3.0);
-            break;
-          case 'S':
-            if ( maxVal == minVal )
-              destPixel[i] = 0;
-            else if ( maxVal + minVal <= 1 )
-              destPixel[i] = (maxVal - minVal) / (maxVal + minVal);
-            else
-              destPixel[i] = (maxVal - minVal) / (2 - maxVal + minVal);
-            break;
-          case 'L':
-            destPixel[i] = (maxVal + minVal) / 2;
-            break;
+              destPixel[i] = (g - b) / (6 * (maxVal - minVal)) + 1;
+          }
+          else if ( g == maxVal )
+            destPixel[i] = (b - r) / (6 * (maxVal - minVal)) + (1 / 3.0);
+          else
+            destPixel[i] = (r - g) / (6 * (maxVal - minVal)) + (2 / 3.0);
+          break;
+        case 'S':
+          if ( maxVal == minVal )
+            destPixel[i] = 0;
+          else if ( maxVal + minVal <= 1 )
+            destPixel[i] = (maxVal - minVal) / (maxVal + minVal);
+          else
+            destPixel[i] = (maxVal - minVal) / (2 - maxVal + minVal);
+          break;
+        case 'L':
+          destPixel[i] = (maxVal + minVal) / 2;
+          break;
           /* CIE xy chromaticity space */
-          case 'x':
-            if ( maxVal == 0 )
-              destPixel[i] = 1;
-            else
-              destPixel[i] = colorX / (colorX + colorY + colorZ);
-            break;
-          case 'y':
-            if ( maxVal == 0 )
-              destPixel[i] = 1;
-            else
-              destPixel[i] = colorY / (colorX + colorY + colorZ);
-            break;
-          case 'z':
-            if ( maxVal == 0 )
-              destPixel[i] = 1;
-            else
-              destPixel[i] = colorZ / (colorX + colorY + colorZ);
-            break;
+        case 'x':
+          if ( maxVal == 0 )
+            destPixel[i] = 1;
+          else
+            destPixel[i] = colorX / (colorX + colorY + colorZ);
+          break;
+        case 'y':
+          if ( maxVal == 0 )
+            destPixel[i] = 1;
+          else
+            destPixel[i] = colorY / (colorX + colorY + colorZ);
+          break;
+        case 'z':
+          if ( maxVal == 0 )
+            destPixel[i] = 1;
+          else
+            destPixel[i] = colorZ / (colorX + colorY + colorZ);
+          break;
           /* Hunter Lab Color space */
-          case 'l':
-            destPixel[i] = sqrt(colorY);
-            break;
-          case 'a':
-            destPixel[i] = 1.723 * (colorX - colorY) / sqrt(colorY);
-            break;
-          case 'c':
-            destPixel[i] = .672 * (colorY - colorZ) / sqrt(colorY);
-            break;
-        }
+        case 'l':
+          destPixel[i] = sqrt(colorY);
+          break;
+        case 'a':
+          destPixel[i] = 1.723 * (colorX - colorY) / sqrt(colorY);
+          break;
+        case 'c':
+          destPixel[i] = .672 * (colorY - colorZ) / sqrt(colorY);
+          break;
       }
-
-      srcPixel += 3;
-      destPixel += numFeatures;
     }
+
+    srcPixel += 3;
+    destPixel += numFeatures;
   }
   mCustomValid = true;
   mCustomString = featureList;
@@ -308,10 +305,10 @@ double* Image::GetCustomBuffer(std::string &featureList)
 
 double* Image::GetCustomIntegralBuffer(std::string &featureList)
 {
-  int i;
-  int x, y;
+  int i, y;
   double* feature;
   int numFeatures, leftOffset, upOffset, diagOffset;
+  int stepsPerRow;
 
   if ( mCustomIntegralValid && (mCustomString == featureList) )
     return mCustomIntegralBuffer;
@@ -329,24 +326,19 @@ double* Image::GetCustomIntegralBuffer(std::string &featureList)
     return NULL;
 
   memcpy(mCustomIntegralBuffer, mCustomBuffer, mWidth * mHeight * numFeatures * sizeof(double));
-  feature = mCustomIntegralBuffer;
-  for (y = 0; y < mHeight; y++)
+  stepsPerRow = mWidth * numFeatures;
+
+  feature = mCustomIntegralBuffer + numFeatures;
+  for (i = numFeatures; i < stepsPerRow; i++, feature++)
+    feature[0] += feature[leftOffset];
+  for (y = 1; y < mHeight; y++)
   {
-    for (x = 0; x < mWidth; x++)
-    {
-      for (i = 0; i < numFeatures; i++, feature++)
-      {
-        if ( x > 0 )
-          feature[0] += feature[leftOffset];
-        if ( y > 0 )
-        {
-          feature[0] += feature[upOffset];
-          if ( x > 0 )
-            feature[0] -= feature[diagOffset];
-        }
-      }
-    }
+    for (i = 0; i < numFeatures; i++, feature++)
+      feature[0] += feature[upOffset];
+    for (i = numFeatures; i < stepsPerRow; i++, feature++)
+      feature[0] += feature[upOffset] + feature[leftOffset] - feature[diagOffset];
   }
+
   mCustomIntegralValid = true;
 
   return mCustomIntegralBuffer;

@@ -67,8 +67,10 @@ bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fl
     return false;
 
   // TODO : Make sure this gets cached and is made available if we just want to call one of the other public functions
+  TimingAnalyzer_Start(4);
   if ( !CalcConfidence(imagePtr, 8, 8) )
     return false;
+  TimingAnalyzer_Stop(4);
 
   TimingAnalyzer_Start(1);
   if ( !GetFleshImage(imagePtr, backgroundColor, &fleshImage) )
@@ -100,10 +102,11 @@ bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fl
 
 bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColor, Image** fleshImage)
 {
-  int i, x, y;
+  int x, y;
   int xScale, yScale, width, height;
   unsigned char* srcPixel;
   unsigned char* fleshDestPixel;
+  int yOffset;
 
   if ( !imagePtr || !fleshImage )
     return false;
@@ -123,19 +126,22 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
 
   for (y = 0; y < height; y++)
   {
+    yOffset = (y / yScale) * mConfidenceBufferWidth;
     for (x = 0; x < width; x++, srcPixel += 3, fleshDestPixel += 3)
     {
-      if ( mConfidenceBuffer[(y / yScale) * mConfidenceBufferWidth + x / xScale] >= .50 )
+      if ( mConfidenceBuffer[yOffset + x / xScale] >= .50 )
       {
         // Pixel is flesh colored
-        for (i = 0; i < 3; i++)
-          fleshDestPixel[i] = srcPixel[i];
+        fleshDestPixel[0] = srcPixel[0];
+        fleshDestPixel[1] = srcPixel[1];
+        fleshDestPixel[2] = srcPixel[2];
       }
       else
       {
         // Pixel is not flesh colored
-        for (i = 0; i < 3; i++)
-          fleshDestPixel[i] = backgroundColor[i];
+        fleshDestPixel[0] = backgroundColor[0];
+        fleshDestPixel[1] = backgroundColor[1];
+        fleshDestPixel[2] = backgroundColor[2];
       }
     }
   }
@@ -152,6 +158,7 @@ bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage
   int width, height, xScale, yScale;
   double confidence;
   unsigned char* destPixel;
+  int yOffset;
 
   if ( !imagePtr || !outputImage )
     return false;
@@ -169,9 +176,10 @@ bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage
 
   for (y = 0; y < height; y++)
   {
+    yOffset = (y / yScale) * mConfidenceBufferWidth;
     for (x = 0; x < width; x++, destPixel += 3)
     {
-      confidence = mConfidenceBuffer[(y / yScale) * mConfidenceBufferWidth + x / xScale];
+      confidence = mConfidenceBuffer[yOffset + x / xScale];
 
       if ( confidence >= .50 )
       {
