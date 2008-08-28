@@ -328,7 +328,7 @@ double* Image::GetCustomIntegralBuffer(std::string &featureList)
   if ( !GetCustomBuffer(featureList) )
     return NULL;
 
-  memcpy(mCustomIntegralBuffer, mCustomBuffer, mWidth * mHeight * numFeatures);
+  memcpy(mCustomIntegralBuffer, mCustomBuffer, mWidth * mHeight * numFeatures * sizeof(double));
   feature = mCustomIntegralBuffer;
   for (y = 0; y < mHeight; y++)
   {

@@ -31,7 +31,9 @@ class Matrix
     Matrix& operator=(Matrix& m);
     Matrix& operator*=(double d);
     Matrix& operator+=(Matrix& m);
+    Matrix& operator+=(double* values);
     Matrix& operator-=(Matrix& m);
+    Matrix& operator-=(double* values);
     bool operator==(Matrix& m);
     bool operator!=(Matrix& m);
     bool operator<(Matrix& m); // For sorting purposes only

@@ -13,10 +13,16 @@
 
 FleshDetector::FleshDetector()
 {
+  mConfidenceBuffer = NULL;
+  mConfidenceBufferAlloc = 0;
+  mConfidenceBufferWidth = 0;
+  mConfidenceBufferHeight = 0;
 }
 
 FleshDetector::~FleshDetector()
 {
+  if ( mConfidenceBuffer )
+    free(mConfidenceBuffer);
 }
 
 bool FleshDetector::Load(const char* filename)
@@ -60,6 +66,10 @@ bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fl
   if ( !imagePtr || (!outlineImageOut && !fleshImageOut && !confidenceImageOut) )
     return false;
 
+  // TODO : Make sure this gets cached and is made available if we just want to call one of the other public functions
+  if ( !CalcConfidence(imagePtr, 8, 8) )
+    return false;
+
   TimingAnalyzer_Start(1);
   if ( !GetFleshImage(imagePtr, backgroundColor, &fleshImage, NULL) )
     return false;
@@ -91,11 +101,7 @@ bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fl
 bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColor, Image** fleshImage, Image** nonFleshImage)
 {
   int i, x, y;
-  int numFeatures, classIndex, width, height;
-  Matrix input;
-  double confidence;
-  double *featureBuffer;
-  double *featurePixel;
+  int xScale, yScale, width, height;
   unsigned char* srcPixel;
   unsigned char* fleshDestPixel;
   unsigned char* nonFleshDestPixel;
@@ -103,17 +109,12 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
   if ( !imagePtr || (!fleshImage && !nonFleshImage) )
     return false;
 
-  numFeatures = mFeatureList.size();
-  input.SetSize(numFeatures, 1);
-
   width = imagePtr->GetWidth();
   height = imagePtr->GetHeight();
 
-  featureBuffer = imagePtr->GetCustomBuffer(mFeatureList);
-  if ( !featureBuffer )
-    return false;
+  xScale = width / mConfidenceBufferWidth;
+  yScale = height / mConfidenceBufferHeight;
 
-  featurePixel = featureBuffer;
   srcPixel = imagePtr->GetRGBBuffer();
 
   if ( !mFleshImage.Create(width, height) )
@@ -128,14 +129,9 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
 
   for (y = 0; y < height; y++)
   {
-    for (x = 0; x < width; x++, srcPixel += 3, fleshDestPixel += 3, nonFleshDestPixel += 3, featurePixel += numFeatures)
+    for (x = 0; x < width; x++, srcPixel += 3, fleshDestPixel += 3, nonFleshDestPixel += 3)
     {
-      input.Set(featurePixel);
-      //TimingAnalyzer_Start(4);
-      mClassifier.Classify(input, classIndex, confidence);
-      //TimingAnalyzer_Stop(4);
-
-      if ( classIndex == 0 )
+      if ( mConfidenceBuffer[(y / yScale) * mConfidenceBufferWidth + x / xScale] >= .50 )
       {
         // Pixel is flesh colored
         for (i = 0; i < 3; i++)
@@ -167,29 +163,18 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
 bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage)
 {
   int x, y;
-  int numFeatures, classIndex, width, height;
-  Matrix input;
+  int width, height, xScale, yScale;
   double confidence;
-  double *featureBuffer;
-  double *featurePixel;
-  unsigned char* srcPixel;
   unsigned char* destPixel;
 
   if ( !imagePtr || !outputImage )
     return false;
 
-  numFeatures = mFeatureList.size();
-  input.SetSize(numFeatures, 1);
-
   width = imagePtr->GetWidth();
   height = imagePtr->GetHeight();
 
-  featureBuffer = imagePtr->GetCustomBuffer(mFeatureList);
-  if ( !featureBuffer )
-    return false;
-
-  featurePixel = featureBuffer;
-  srcPixel = imagePtr->GetRGBBuffer();
+  xScale = width / mConfidenceBufferWidth;
+  yScale = height / mConfidenceBufferHeight;
 
   if ( !mConfidenceImage.Create(width, height) )
     return false;
@@ -198,17 +183,11 @@ bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage
 
   for (y = 0; y < height; y++)
   {
-    for (x = 0; x < width; x++, srcPixel += 3, destPixel += 3, featurePixel += numFeatures)
+    for (x = 0; x < width; x++, destPixel += 3)
     {
-      input.Set(featurePixel);
-      //TimingAnalyzer_Start(4);
-      mClassifier.Classify(input, classIndex, confidence);
-      //TimingAnalyzer_Stop(4);
+      confidence = mConfidenceBuffer[(y / yScale) * mConfidenceBufferWidth + x / xScale];
 
-      if ( classIndex == 1 )
-        confidence = 1 - confidence;
-
-      if ( classIndex == 0 )
+      if ( confidence >= .50 )
       {
         destPixel[0] = 0;
         destPixel[1] = (int)(255 * (confidence - .5) / .5);
@@ -411,6 +390,85 @@ bool FleshDetector::GetOutlineImage(unsigned char* backgroundColor, unsigned cha
     free(blocklist[i]);
 
   *outlineImage = &mOutlineImage;
+
+  return true;
+}
+
+bool FleshDetector::CalcConfidence(Image* imagePtr, int xScale, int yScale)
+{
+  int x, y;
+  int imageWidth, imageHeight, numConfidencePoints, numFeatures, pixelsPerPoint;
+  int xIncrement, yIncrement, leftOffset, upOffset, diagOffset, classIndex;
+  double* tmpPtr;
+  double* integralBuffer;
+  double* integralPixel;
+  double* confPoint;
+  Matrix pixelFeatures;
+  double featureRatio, confidence;
+
+  if ( !imagePtr || (xScale <= 0) || (yScale <= 0) )
+    return false;
+
+  imageWidth = imagePtr->GetWidth();
+  imageHeight = imagePtr->GetHeight();
+  pixelsPerPoint = xScale * yScale;
+  featureRatio = 1.0 / pixelsPerPoint;
+
+  if ( (imageWidth % xScale) || (imageHeight % yScale) )
+    return false;
+
+  mConfidenceBufferWidth = imageWidth / xScale;
+  mConfidenceBufferHeight = imageHeight / yScale;
+  numConfidencePoints = mConfidenceBufferWidth * mConfidenceBufferHeight;
+  if ( numConfidencePoints > mConfidenceBufferAlloc )
+  {
+    tmpPtr = (double*)realloc(mConfidenceBuffer, numConfidencePoints * sizeof(double));
+    if ( !tmpPtr )
+      return false;
+    mConfidenceBuffer = tmpPtr;
+    mConfidenceBufferAlloc = numConfidencePoints;
+  }
+
+  numFeatures = mFeatureList.size();
+  if ( !pixelFeatures.SetSize(numFeatures, 1) )
+    return false;
+
+  integralBuffer = imagePtr->GetCustomIntegralBuffer(mFeatureList);
+  integralPixel = integralBuffer + (imageWidth * (yScale - 1) + xScale - 1) * numFeatures;
+  xIncrement = numFeatures * xScale;
+  yIncrement = numFeatures * imageWidth * (yScale - 1);
+  leftOffset = -xIncrement;
+  upOffset = -numFeatures * imageWidth * yScale;
+  diagOffset = leftOffset + upOffset;
+  confPoint = mConfidenceBuffer;
+  for (y = 0; y < mConfidenceBufferHeight; y++, integralPixel += yIncrement)
+  {
+    for (x = 0; x < mConfidenceBufferWidth; x++, integralPixel += xIncrement, confPoint++)
+    {
+      /* Get the feature sum for the rectangle */
+      pixelFeatures.Set(integralPixel);
+      if ( x > 0 )
+        pixelFeatures -= integralPixel + leftOffset;
+      if ( y > 0 )
+      {
+        pixelFeatures -= integralPixel + upOffset;
+        if ( x > 0 )
+          pixelFeatures += integralPixel + diagOffset;
+      }
+
+      /* Use the average feature values for classification */
+      pixelFeatures *= featureRatio;
+      mClassifier.Classify(pixelFeatures, classIndex, confidence);
+
+      if ( classIndex == 0 )
+      {
+        // Pixel is flesh colored
+        *confPoint = confidence;
+      }
+      else
+        *confPoint = 1 - confidence;
+    }
+  }
 
   return true;
 }

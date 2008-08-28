@@ -457,12 +457,32 @@ Matrix& Matrix::operator+=(Matrix& m)
   return *this;
 }
 
+Matrix& Matrix::operator+=(double* values)
+{
+  int i;
+
+  for (i = 0; i < mCells; i++)
+    mData[i] += values[i];
+
+  return *this;
+}
+
 Matrix& Matrix::operator-=(Matrix& m)
 {
   int i;
 
   for (i = 0; i < mCells; i++)
     mData[i] -= m.mData[i];
+
+  return *this;
+}
+
+Matrix& Matrix::operator-=(double* values)
+{
+  int i;
+
+  for (i = 0; i < mCells; i++)
+    mData[i] -= values[i];
 
   return *this;
 }

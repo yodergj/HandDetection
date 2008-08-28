@@ -22,12 +22,17 @@ class FleshDetector
     int GetBlocks(unsigned char* ignoreColor, Image* imagePtr, std::vector<BlockType*> &blockList);
     bool GetOutlineImage(unsigned char* backgroundColor, unsigned char* outlineColor, Image* imagePtr, Image* fleshImagePtr, Image** outlineImage);
   private:
+    bool CalcConfidence(Image* imagePtr, int xScale, int yScale);
     std::string mFeatureList;
     BayesianClassifier mClassifier;
     Image mConfidenceImage;
     Image mFleshImage;
     Image mNonFleshImage;
     Image mOutlineImage;
+    double* mConfidenceBuffer;
+    int mConfidenceBufferAlloc;
+    int mConfidenceBufferWidth;
+    int mConfidenceBufferHeight;
 };
 
 #endif
