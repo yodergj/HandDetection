@@ -16,6 +16,8 @@ class Image
     double* GetScaledRGBBuffer();
     double* GetCustomBuffer(std::string &featureList);    
     double* GetCustomIntegralBuffer(std::string &featureList);    
+    bool GetConfidenceBuffer(double* &buffer, int &bufferWidth, int &bufferHeight, int &bufferAlloc);
+    bool SetConfidenceBuffer(double* buffer, int bufferWidth, int bufferHeight, int bufferAlloc);
     bool CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth);
     bool CopyARGBBuffer(int width, int height, int* buffer, int bufferWidth);
     bool CopyRGBBuffer(int width, int height, unsigned char* buffer, int bufferWidth);
@@ -40,6 +42,11 @@ class Image
     int mCustomAlloc;
     bool mCustomValid;
     std::string mCustomString;
+
+    double* mConfidenceBuffer;
+    int mConfidenceBufferAlloc;
+    int mConfidenceBufferWidth;
+    int mConfidenceBufferHeight;
 
     double* mCustomIntegralBuffer;
     int mCustomIntegralAlloc;

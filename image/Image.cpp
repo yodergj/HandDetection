@@ -27,6 +27,10 @@ Image::Image()
   mCustomIntegralBuffer = NULL;
   mCustomIntegralAlloc = 0;
   mCustomIntegralValid = false;
+  mConfidenceBuffer = NULL;
+  mConfidenceBufferAlloc = 0;
+  mConfidenceBufferWidth = 0;
+  mConfidenceBufferHeight = 0;
 }
 
 Image::~Image()
@@ -41,6 +45,8 @@ Image::~Image()
     free(mCustomBuffer);
   if ( mCustomIntegralBuffer )
     free(mCustomIntegralBuffer);
+  if ( mConfidenceBuffer )
+    free(mConfidenceBuffer);
 }
 
 bool Image::Create(int width, int height)
@@ -342,6 +348,29 @@ double* Image::GetCustomIntegralBuffer(std::string &featureList)
   mCustomIntegralValid = true;
 
   return mCustomIntegralBuffer;
+}
+
+bool Image::GetConfidenceBuffer(double* &buffer, int &bufferWidth, int &bufferHeight, int &bufferAlloc)
+{
+  buffer = mConfidenceBuffer;
+  bufferWidth = mConfidenceBufferWidth;
+  bufferHeight = mConfidenceBufferHeight;
+  bufferAlloc = mConfidenceBufferAlloc;
+
+  return true;
+}
+
+bool Image::SetConfidenceBuffer(double* buffer, int bufferWidth, int bufferHeight, int bufferAlloc)
+{
+  if ( buffer != mConfidenceBuffer )
+    free(mConfidenceBuffer);
+
+  mConfidenceBuffer = buffer;
+  mConfidenceBufferWidth = bufferWidth;
+  mConfidenceBufferHeight = bufferHeight;
+  mConfidenceBufferAlloc = bufferAlloc;
+
+  return true;
 }
 
 bool Image::CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth)

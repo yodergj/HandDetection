@@ -13,16 +13,10 @@
 
 FleshDetector::FleshDetector()
 {
-  mConfidenceBuffer = NULL;
-  mConfidenceBufferAlloc = 0;
-  mConfidenceBufferWidth = 0;
-  mConfidenceBufferHeight = 0;
 }
 
 FleshDetector::~FleshDetector()
 {
-  if ( mConfidenceBuffer )
-    free(mConfidenceBuffer);
 }
 
 bool FleshDetector::Load(const char* filename)
@@ -107,6 +101,8 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
   unsigned char* srcPixel;
   unsigned char* fleshDestPixel;
   int yOffset;
+  double* confidenceBuffer;
+  int bufferAlloc, bufferWidth, bufferHeight;
 
   if ( !imagePtr || !fleshImage )
     return false;
@@ -114,8 +110,12 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
   width = imagePtr->GetWidth();
   height = imagePtr->GetHeight();
 
-  xScale = width / mConfidenceBufferWidth;
-  yScale = height / mConfidenceBufferHeight;
+  imagePtr->GetConfidenceBuffer(confidenceBuffer, bufferWidth, bufferHeight, bufferAlloc);
+  if ( !confidenceBuffer )
+    return false;
+
+  xScale = width / bufferWidth;
+  yScale = height / bufferHeight;
 
   srcPixel = imagePtr->GetRGBBuffer();
 
@@ -126,10 +126,10 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
 
   for (y = 0; y < height; y++)
   {
-    yOffset = (y / yScale) * mConfidenceBufferWidth;
+    yOffset = (y / yScale) * bufferWidth;
     for (x = 0; x < width; x++, srcPixel += 3, fleshDestPixel += 3)
     {
-      if ( mConfidenceBuffer[yOffset + x / xScale] >= .50 )
+      if ( confidenceBuffer[yOffset + x / xScale] >= .50 )
       {
         // Pixel is flesh colored
         fleshDestPixel[0] = srcPixel[0];
@@ -159,6 +159,8 @@ bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage
   double confidence;
   unsigned char* destPixel;
   int yOffset;
+  double* confidenceBuffer;
+  int bufferAlloc, bufferWidth, bufferHeight;
 
   if ( !imagePtr || !outputImage )
     return false;
@@ -166,8 +168,12 @@ bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage
   width = imagePtr->GetWidth();
   height = imagePtr->GetHeight();
 
-  xScale = width / mConfidenceBufferWidth;
-  yScale = height / mConfidenceBufferHeight;
+  imagePtr->GetConfidenceBuffer(confidenceBuffer, bufferWidth, bufferHeight, bufferAlloc);
+  if ( !confidenceBuffer )
+    return false;
+
+  xScale = width / bufferWidth;
+  yScale = height / bufferHeight;
 
   if ( !mConfidenceImage.Create(width, height) )
     return false;
@@ -176,10 +182,10 @@ bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage
 
   for (y = 0; y < height; y++)
   {
-    yOffset = (y / yScale) * mConfidenceBufferWidth;
+    yOffset = (y / yScale) * bufferWidth;
     for (x = 0; x < width; x++, destPixel += 3)
     {
-      confidence = mConfidenceBuffer[yOffset + x / xScale];
+      confidence = confidenceBuffer[yOffset + x / xScale];
 
       if ( confidence >= .50 )
       {
@@ -393,12 +399,13 @@ bool FleshDetector::CalcConfidence(Image* imagePtr, int xScale, int yScale)
   int x, y;
   int imageWidth, imageHeight, numConfidencePoints, numFeatures, pixelsPerPoint;
   int xIncrement, yIncrement, leftOffset, upOffset, diagOffset, classIndex;
-  double* tmpPtr;
   double* integralBuffer;
   double* integralPixel;
   double* confPoint;
   Matrix pixelFeatures;
   double featureRatio, confidence;
+  double* confidenceBuffer;
+  int bufferAlloc, bufferWidth, bufferHeight, scaledWidth, scaledHeight;
 
   if ( !imagePtr || (xScale <= 0) || (yScale <= 0) )
     return false;
@@ -411,17 +418,20 @@ bool FleshDetector::CalcConfidence(Image* imagePtr, int xScale, int yScale)
   if ( (imageWidth % xScale) || (imageHeight % yScale) )
     return false;
 
-  mConfidenceBufferWidth = imageWidth / xScale;
-  mConfidenceBufferHeight = imageHeight / yScale;
-  numConfidencePoints = mConfidenceBufferWidth * mConfidenceBufferHeight;
-  if ( numConfidencePoints > mConfidenceBufferAlloc )
+  scaledWidth = imageWidth / xScale;
+  scaledHeight = imageHeight / yScale;
+  numConfidencePoints = scaledWidth * scaledHeight;
+
+  imagePtr->GetConfidenceBuffer(confidenceBuffer, bufferWidth, bufferHeight, bufferAlloc);
+  if ( !confidenceBuffer || (numConfidencePoints > bufferAlloc) )
   {
-    tmpPtr = (double*)realloc(mConfidenceBuffer, numConfidencePoints * sizeof(double));
-    if ( !tmpPtr )
+    confidenceBuffer = (double*)malloc(numConfidencePoints * sizeof(double));
+    if ( !confidenceBuffer )
       return false;
-    mConfidenceBuffer = tmpPtr;
-    mConfidenceBufferAlloc = numConfidencePoints;
+    bufferAlloc = numConfidencePoints;
   }
+  bufferWidth = scaledWidth;
+  bufferHeight = scaledHeight;
 
   numFeatures = mFeatureList.size();
   if ( !pixelFeatures.SetSize(numFeatures, 1) )
@@ -434,10 +444,10 @@ bool FleshDetector::CalcConfidence(Image* imagePtr, int xScale, int yScale)
   leftOffset = -xIncrement;
   upOffset = -numFeatures * imageWidth * yScale;
   diagOffset = leftOffset + upOffset;
-  confPoint = mConfidenceBuffer;
-  for (y = 0; y < mConfidenceBufferHeight; y++, integralPixel += yIncrement)
+  confPoint = confidenceBuffer;
+  for (y = 0; y < bufferHeight; y++, integralPixel += yIncrement)
   {
-    for (x = 0; x < mConfidenceBufferWidth; x++, integralPixel += xIncrement, confPoint++)
+    for (x = 0; x < bufferWidth; x++, integralPixel += xIncrement, confPoint++)
     {
       /* Get the feature sum for the rectangle */
       pixelFeatures.Set(integralPixel);
@@ -463,6 +473,7 @@ bool FleshDetector::CalcConfidence(Image* imagePtr, int xScale, int yScale)
         *confPoint = 1 - confidence;
     }
   }
+  imagePtr->SetConfidenceBuffer(confidenceBuffer, bufferWidth, bufferHeight, bufferAlloc);
 
   return true;
 }

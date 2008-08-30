@@ -28,10 +28,6 @@ class FleshDetector
     Image mConfidenceImage;
     Image mFleshImage;
     Image mOutlineImage;
-    double* mConfidenceBuffer;
-    int mConfidenceBufferAlloc;
-    int mConfidenceBufferWidth;
-    int mConfidenceBufferHeight;
 };
 
 #endif
