@@ -1,4 +1,5 @@
 #include "Image.h"
+#include "ConnectedRegion.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -31,6 +32,7 @@ Image::Image()
   mConfidenceBufferAlloc = 0;
   mConfidenceBufferWidth = 0;
   mConfidenceBufferHeight = 0;
+  mConfidenceRegionsValid = false;
 }
 
 Image::~Image()
@@ -47,6 +49,7 @@ Image::~Image()
     free(mCustomIntegralBuffer);
   if ( mConfidenceBuffer )
     free(mConfidenceBuffer);
+  ClearRegions();
 }
 
 bool Image::Create(int width, int height)
@@ -144,7 +147,7 @@ double* Image::GetScaledRGBBuffer()
   return mScaledRGBBuffer;
 }
 
-double* Image::GetCustomBuffer(std::string &featureList)
+double* Image::GetCustomBuffer(string &featureList)
 {
   int i, j;
   unsigned char* srcPixel;
@@ -309,7 +312,7 @@ double* Image::GetCustomBuffer(std::string &featureList)
   return mCustomBuffer;
 }
 
-double* Image::GetCustomIntegralBuffer(std::string &featureList)
+double* Image::GetCustomIntegralBuffer(string &featureList)
 {
   int i, y;
   double* feature;
@@ -370,7 +373,77 @@ bool Image::SetConfidenceBuffer(double* buffer, int bufferWidth, int bufferHeigh
   mConfidenceBufferHeight = bufferHeight;
   mConfidenceBufferAlloc = bufferAlloc;
 
+  mConfidenceRegionsValid = false;
+
   return true;
+}
+
+vector<ConnectedRegion*>* Image::GetRegionsFromConfidenceBuffer()
+{
+  int i, j, x, y, xStart, numRegions;
+  double* confidence;
+  ConnectedRegion* region = NULL;
+  bool regionsCombined;
+
+  if ( mConfidenceRegionsValid )
+    return &mConfidenceRegions;
+
+  if ( !mConfidenceBuffer )
+    return NULL;
+
+  ClearRegions();
+
+  /* Create regions out of each horizontal run of connected confidences */
+  confidence = mConfidenceBuffer;
+  for (y = 0; y < mConfidenceBufferHeight; y++)
+  {
+    xStart = -1;
+    for (x = 0; x < mConfidenceBufferWidth; x++, confidence++)
+    {
+      if ( *confidence >= .50 )
+      {
+        if ( xStart == -1 )
+        {
+          xStart = x;
+          region = new ConnectedRegion;
+        }
+      }
+      else
+      {
+        if ( xStart != -1 )
+        {
+          region->AddRun(xStart, y, x - xStart);
+          xStart = -1;
+          mConfidenceRegions.push_back(region);
+        }
+      }
+    }
+  }
+
+  /* Merge the runs into proper connected regions */
+  do
+  {
+    regionsCombined = false;
+    numRegions = mConfidenceRegions.size();
+    for (i = 0; i < numRegions; i++)
+    {
+      for (j = i + 1; j < numRegions; j++)
+      {
+        if ( mConfidenceRegions[i]->TouchesRegion(*mConfidenceRegions[j]) )
+        {
+          mConfidenceRegions[i]->MergeInRegion(*mConfidenceRegions[j]);
+          delete mConfidenceRegions[j];
+          mConfidenceRegions.erase(mConfidenceRegions.begin() + j);
+          j--;
+          numRegions--;
+          regionsCombined = true;
+        }
+      }
+    }
+  } while ( regionsCombined );
+
+  mConfidenceRegionsValid = true;
+  return &mConfidenceRegions;
 }
 
 bool Image::CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth)
@@ -553,4 +626,15 @@ void Image::InvalidateBuffers()
   mScaledRGBValid = false;
   mCustomValid = false;
   mCustomIntegralValid = false;
+}
+
+void Image::ClearRegions()
+{
+  int i, numRegions;
+
+  numRegions = mConfidenceRegions.size();
+  for (i = 0; i < numRegions; i++)
+    delete mConfidenceRegions[i];
+
+  mConfidenceRegions.clear();
 }

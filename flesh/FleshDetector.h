@@ -4,6 +4,7 @@
 #include "BayesianClassifier.h"
 #include "Image.h"
 #include <string>
+using std::string;
 
 typedef struct
 {
@@ -20,10 +21,9 @@ class FleshDetector
   private:
     bool GetFleshImage(Image* imagePtr, unsigned char* backgroundColor, Image** fleshImage);
     bool GetFleshConfidenceImage(Image* imagePtr, Image** outputImage);
-    int GetBlocks(unsigned char* ignoreColor, Image* imagePtr, std::vector<BlockType*> &blockList);
-    bool GetOutlineImage(unsigned char* backgroundColor, unsigned char* outlineColor, Image* imagePtr, Image* fleshImagePtr, Image** outlineImage);
+    bool GetOutlineImage(unsigned char* backgroundColor, unsigned char* outlineColor, Image* imagePtr, Image** outlineImage);
     bool CalcConfidence(Image* imagePtr, int xScale, int yScale);
-    std::string mFeatureList;
+    string mFeatureList;
     BayesianClassifier mClassifier;
     Image mConfidenceImage;
     Image mFleshImage;

@@ -1,7 +1,11 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
+#include "ConnectedRegion.h"
 #include <string>
+#include <vector>
+using std::string;
+using std::vector;
 
 class Image
 {
@@ -14,10 +18,11 @@ class Image
     unsigned char* GetRGBBuffer();
     double* GetYIQBuffer();
     double* GetScaledRGBBuffer();
-    double* GetCustomBuffer(std::string &featureList);    
-    double* GetCustomIntegralBuffer(std::string &featureList);    
+    double* GetCustomBuffer(string &featureList);    
+    double* GetCustomIntegralBuffer(string &featureList);    
     bool GetConfidenceBuffer(double* &buffer, int &bufferWidth, int &bufferHeight, int &bufferAlloc);
     bool SetConfidenceBuffer(double* buffer, int bufferWidth, int bufferHeight, int bufferAlloc);
+    vector<ConnectedRegion*>* GetRegionsFromConfidenceBuffer();
     bool CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth);
     bool CopyARGBBuffer(int width, int height, int* buffer, int bufferWidth);
     bool CopyRGBBuffer(int width, int height, unsigned char* buffer, int bufferWidth);
@@ -27,6 +32,7 @@ class Image
     bool SetSize(int width, int height);
     bool ResizeBuffer(double** buffer, int* bufferAlloc, int numFeatures);
     void InvalidateBuffers();
+    void ClearRegions();
 
     int mWidth;
     int mHeight;
@@ -41,12 +47,14 @@ class Image
     double* mCustomBuffer;
     int mCustomAlloc;
     bool mCustomValid;
-    std::string mCustomString;
+    string mCustomString;
 
     double* mConfidenceBuffer;
     int mConfidenceBufferAlloc;
     int mConfidenceBufferWidth;
     int mConfidenceBufferHeight;
+    vector<ConnectedRegion*> mConfidenceRegions;
+    bool mConfidenceRegionsValid;
 
     double* mCustomIntegralBuffer;
     int mCustomIntegralAlloc;

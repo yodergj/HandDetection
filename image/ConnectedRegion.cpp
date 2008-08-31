@@ -1,4 +1,5 @@
 #include "ConnectedRegion.h"
+#include <stdio.h>
 
 #ifndef MIN
 #define MIN(a, b) ( (a) < (b) ? (a) : (b) )
@@ -80,8 +81,8 @@ bool ConnectedRegion::TouchesRegion(ConnectedRegion& refRegion)
 
   xMin = refRegion.mXMin - 1;
   xMax = refRegion.mXMax + 1;
-  yMin = refRegion.mXMin - 1;
-  yMax = refRegion.mXMax + 1;
+  yMin = refRegion.mYMin - 1;
+  yMax = refRegion.mYMax + 1;
 
   if ( (mXMin > xMax) || (mXMax < xMin) || (mYMin > yMax) || (mYMax < yMin) )
     return false;
@@ -119,4 +120,17 @@ bool ConnectedRegion::TouchesRegion(ConnectedRegion& refRegion)
   }
 
   return false;
+}
+
+bool ConnectedRegion::GetBounds(int& left, int& right, int& top, int& bottom)
+{
+  if ( mXMax == -1 )
+    return false;
+
+  left = mXMin;
+  right = mXMax;
+  top = mYMin;
+  bottom = mYMax;
+  
+  return true;
 }

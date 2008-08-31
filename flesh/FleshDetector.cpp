@@ -77,7 +77,7 @@ bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fl
   if ( outlineImageOut )
   {
     TimingAnalyzer_Start(2);
-    if ( !GetOutlineImage(backgroundColor, outlineColor, imagePtr, fleshImage, outlineImageOut) )
+    if ( !GetOutlineImage(backgroundColor, outlineColor, imagePtr, outlineImageOut) )
       return false;
     TimingAnalyzer_Stop(2);
   }
@@ -207,146 +207,19 @@ bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage
   return true;
 }
 
-int FleshDetector::GetBlocks(unsigned char* ignoreColor, Image* imagePtr, std::vector<BlockType*> &blockList)
+bool FleshDetector::GetOutlineImage(unsigned char* backgroundColor, unsigned char* outlineColor, Image* imagePtr, Image** outlineImage)
 {
   int i, j;
   int x, y;
-  int width, height;
-  int numClusters = 0;
-  bool blockFound;
-  unsigned char* pixel;
-  BlockType* rect;
-  int numHits = 0;
-  int numBlocks;
-
-  width = imagePtr->GetWidth();
-  height = imagePtr->GetHeight();
-
-  pixel = imagePtr->GetRGBBuffer();
-  for (y = 0; y < height; y++)
-  {
-    for (x = 0; x < width; x++, pixel += 3)
-    {
-      if ( (pixel[0] != ignoreColor[0]) ||
-           (pixel[1] != ignoreColor[1]) ||
-           (pixel[2] != ignoreColor[2]) )
-      {
-#if DEBUG_BLOCKS
-        printf("Hit (%d,%d)\n",x,y);
-#endif
-        numHits++;
-        blockFound = false;
-        for (i = 0; (i < numClusters) && !blockFound; i++)
-        {
-          if ( (x >= blockList[i]->left - PROXIMITY_THRESH) &&
-               (x <= blockList[i]->right + PROXIMITY_THRESH) &&
-               (y >= blockList[i]->top - PROXIMITY_THRESH) &&
-               (y <= blockList[i]->bottom + PROXIMITY_THRESH) )
-          {
-            if ( x < blockList[i]->left )
-              blockList[i]->left = x;
-            if ( x > blockList[i]->right )
-              blockList[i]->right = x;
-            if ( y < blockList[i]->top )
-              blockList[i]->top = y;
-            if ( y > blockList[i]->bottom )
-              blockList[i]->bottom = y;
-            blockFound = true;
-          }
-        }
-        if ( !blockFound )
-        {
-#if DEBUG_BLOCKS
-          printf("New block\n");
-#endif
-          rect = (BlockType*) malloc(sizeof(BlockType));
-          if ( !rect )
-            return -1;
-          rect->left = x;
-          rect->right = x;
-          rect->top = y;
-          rect->bottom = y;
-          blockList.push_back(rect);
-          numClusters++;
-        }
-      }
-    }
-  }
-
-  numBlocks = blockList.size();
-  for (i = 0; i < numBlocks; i++)
-  {
-    if ( (blockList[i]->right - blockList[i]->left + 1 < 5) ||
-         (blockList[i]->bottom - blockList[i]->top + 1 < 5) )
-      continue;
-    j = i + 1;
-    while (j < numBlocks)
-    {
-      if ( (blockList[j]->right - blockList[j]->left + 1 < 5) ||
-           (blockList[j]->bottom - blockList[j]->top + 1 < 5) )
-      {
-        j++;
-        continue;
-      }
-#if DEBUG_BLOCKS
-      printf("Block (%d %d %d %d) vs (%d %d %d %d)\n",
-          blockList[i]->left,
-          blockList[i]->right,
-          blockList[i]->top,
-          blockList[i]->bottom,
-          blockList[j]->left,
-          blockList[j]->right,
-          blockList[j]->top,
-          blockList[j]->bottom);
-#endif
-      if ( ( ( (blockList[i]->left >= blockList[j]->left - PROXIMITY_THRESH) &&
-               (blockList[i]->left <= blockList[j]->right + PROXIMITY_THRESH) ) ||
-             ( (blockList[i]->right >= blockList[j]->left - PROXIMITY_THRESH) &&
-               (blockList[i]->right <= blockList[j]->right + PROXIMITY_THRESH) ) ) &&
-           ( ( (blockList[i]->top >= blockList[j]->top - PROXIMITY_THRESH) &&
-               (blockList[i]->top <= blockList[j]->bottom + PROXIMITY_THRESH) ) ||
-             ( (blockList[i]->bottom >= blockList[j]->top - PROXIMITY_THRESH) &&
-               (blockList[i]->bottom <= blockList[j]->bottom + PROXIMITY_THRESH) ) ) )
-      {
-        blockList[i]->left = MIN(blockList[i]->left, blockList[j]->left);
-        blockList[i]->right = MAX(blockList[i]->right, blockList[j]->right);
-        blockList[i]->top = MIN(blockList[i]->top, blockList[j]->top);
-        blockList[i]->bottom = MAX(blockList[i]->bottom, blockList[j]->bottom);
-        free(blockList[j]);
-        blockList.erase(blockList.begin() + j);
-        numBlocks--;
-        numClusters--;
-#if DEBUG_BLOCKS
-        printf("Merge\n");
-#endif
-      }
-      else
-      {
-#if DEBUG_BLOCKS
-        printf("Skip\n");
-#endif
-        j++;
-      }
-    }
-  }
-#if DEBUG_BLOCKS
-  printf("%d hits %d clusters\n",numHits,numClusters);
-#endif
-
-  return numClusters;
-}
-
-bool FleshDetector::GetOutlineImage(unsigned char* backgroundColor, unsigned char* outlineColor, Image* imagePtr, Image* fleshImagePtr, Image** outlineImage)
-{
-  int i, j;
-  int x, y;
-  int numBlocks;
+  int numRegions;
   int left, right, top, bottom;
   int width, height;
-  std::vector<BlockType*> blocklist;
+  double* confidenceBuffer;
+  int bufferWidth, bufferHeight, bufferAlloc, xScale, yScale;
+  vector<ConnectedRegion*>* regionList;
   unsigned char* buffer;
 
-  if ( !backgroundColor || !outlineColor || !imagePtr || !fleshImagePtr || !outlineImage )
+  if ( !backgroundColor || !outlineColor || !imagePtr || !outlineImage )
     return false;
 
   width = imagePtr->GetWidth();
@@ -356,17 +229,30 @@ bool FleshDetector::GetOutlineImage(unsigned char* backgroundColor, unsigned cha
 
   buffer = mOutlineImage.GetRGBBuffer();
 
-  numBlocks = GetBlocks(backgroundColor, fleshImagePtr, blocklist);
-  for (i = 0; i < numBlocks; i++)
+  if ( !imagePtr->GetConfidenceBuffer(confidenceBuffer, bufferWidth, bufferHeight, bufferAlloc) )
+    return false;
+
+  xScale = width / bufferWidth;
+  yScale = height / bufferHeight;
+  regionList = imagePtr->GetRegionsFromConfidenceBuffer();
+
+  if ( !regionList )
+    return false;
+
+  numRegions = regionList->size();
+  for (i = 0; i < numRegions; i++)
   {
-    if ( (blocklist[i]->right - blocklist[i]->left + 1 < 20) ||
-         (blocklist[i]->bottom - blocklist[i]->top + 1 < 20) )
+    (*regionList)[i]->GetBounds(left, right, top, bottom);
+    left *= xScale;
+    right *= xScale;
+    right += xScale - 1;
+    top *= yScale;
+    bottom *= yScale;
+    bottom += yScale - 1;
+
+    if ( (right - left + 1 < 20) || (bottom - top + 1 < 20) )
       continue;
 
-    left = blocklist[i]->left;
-    right = blocklist[i]->right;
-    top = blocklist[i]->top;
-    bottom = blocklist[i]->bottom;
 
     for (x = left; x <= right; x++)
     {
@@ -385,9 +271,6 @@ bool FleshDetector::GetOutlineImage(unsigned char* backgroundColor, unsigned cha
       }
     }
   }
-
-  for (i = 0; i < numBlocks; i++)
-    free(blocklist[i]);
 
   *outlineImage = &mOutlineImage;
 

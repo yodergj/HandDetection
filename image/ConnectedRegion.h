@@ -19,6 +19,7 @@ class ConnectedRegion
     void AddRun(int xstart, int y, int length);
     bool MergeInRegion(ConnectedRegion& refRegion);
     bool TouchesRegion(ConnectedRegion& refRegion);
+    bool GetBounds(int& left, int& right, int& top, int& bottom);
   private:
     vector<PixelRun> mRuns;
     int mXMin;
