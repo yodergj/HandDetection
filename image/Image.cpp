@@ -418,6 +418,11 @@ vector<ConnectedRegion*>* Image::GetRegionsFromConfidenceBuffer()
         }
       }
     }
+    if ( xStart != -1 )
+    {
+      region->AddRun(xStart, y, x - xStart);
+      mConfidenceRegions.push_back(region);
+    }
   }
 
   /* Merge the runs into proper connected regions */
