@@ -20,12 +20,15 @@ class ConnectedRegion
     bool MergeInRegion(ConnectedRegion& refRegion);
     bool TouchesRegion(ConnectedRegion& refRegion);
     bool GetBounds(int& left, int& right, int& top, int& bottom);
+    double GetDensity();
+    double GetAverageRunsPerRow();
   private:
     vector<PixelRun> mRuns;
     int mXMin;
     int mYMin;
     int mXMax;
     int mYMax;
+    int mNumPixels;
 };
 
 #endif

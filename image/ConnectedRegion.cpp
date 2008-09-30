@@ -14,6 +14,7 @@ ConnectedRegion::ConnectedRegion()
   mYMin = -1;
   mXMax = -1;
   mYMax = -1;
+  mNumPixels = 0;
 }
 
 ConnectedRegion::~ConnectedRegion()
@@ -29,6 +30,7 @@ void ConnectedRegion::AddRun(int xStart, int y, int length)
   run.y = y;
   run.length = length;
   mRuns.push_back(run);
+  mNumPixels += length;
 
   rightEdge = xStart + length - 1;
 
@@ -50,6 +52,7 @@ bool ConnectedRegion::MergeInRegion(ConnectedRegion& refRegion)
   if ( &refRegion == this )
     return false;
 
+  mNumPixels += refRegion.mNumPixels;
   numRuns = refRegion.mRuns.size();
 
   if ( numRuns == 0 )
@@ -133,4 +136,26 @@ bool ConnectedRegion::GetBounds(int& left, int& right, int& top, int& bottom)
   bottom = mYMax;
   
   return true;
+}
+
+double ConnectedRegion::GetDensity()
+{
+  int area;
+
+  area = (mXMax - mXMin + 1) * (mYMax - mYMin + 1);
+  if ( area == 0 )
+    return 0;
+
+  return (double)mNumPixels / area;
+}
+
+double ConnectedRegion::GetAverageRunsPerRow()
+{
+  int height;
+
+  height = mYMax - mYMin + 1;
+  if ( height == 0 )
+    return 0;
+
+  return (double)mRuns.size() / height;
 }
