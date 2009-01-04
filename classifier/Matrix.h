@@ -19,7 +19,6 @@ class Matrix
     bool SetAsInverse(Matrix& m);
     bool SetFromDifference(Matrix& a, Matrix& b);
     bool GetDeterminant(double &determinant);
-    bool RowReduce();
     void Clear();
     bool Save(FILE* file);
     bool Load(FILE* file);
@@ -38,11 +37,17 @@ class Matrix
     bool operator!=(Matrix& m);
     bool operator<(Matrix& m); // For sorting purposes only
   private:
+    bool RowReduce();
+    bool CalculateRowEchelonForm();
+
     int mRows;
     int mColumns;
     int mCells;
     double *mData;
     int mDataAlloc;
+    double *mRowEchelonData;
+    int mRowEchelonDataAlloc;
+    int mNumRowEchelonSwaps;
 };
 
 #endif

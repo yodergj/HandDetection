@@ -4,12 +4,20 @@
 #include "BayesianClassifier.h"
 #include "Image.h"
 #include <string>
+#include <vector>
+#include <map>
 using std::string;
+using std::vector;
+using std::map;
 
-typedef struct
+class ConfidenceRevision
 {
-  int left, right, top, bottom;
-} BlockType;
+  public:
+    int imageRevision;
+    int xScale;
+    int yScale;
+    bool operator==(const ConfidenceRevision& ref) {return (imageRevision == ref.imageRevision) && (xScale = ref.xScale) && (yScale = ref.yScale);};
+};
 
 class FleshDetector
 {
@@ -18,6 +26,7 @@ class FleshDetector
     ~FleshDetector();
     bool Load(const char* filename);
     bool Process(Image* imagePtr, Image** outlineImageOut, Image** fleshImageOut, Image** confidenceImageOut);
+    vector<ConnectedRegion*>* GetFleshRegions(Image* imagePtr, int &xScale, int &yScale);
   private:
     bool GetFleshImage(Image* imagePtr, unsigned char* backgroundColor, Image** fleshImage);
     bool GetFleshConfidenceImage(Image* imagePtr, Image** outputImage);
@@ -28,6 +37,7 @@ class FleshDetector
     Image mConfidenceImage;
     Image mFleshImage;
     Image mOutlineImage;
+    map<Image*,ConfidenceRevision> mConfidenceRevisions;
 };
 
 #endif

@@ -23,7 +23,10 @@ bool BayesianClassifier::Create(int numDimensions, int numClasses, int* classCom
   int numComponents;
 
   if ( (numDimensions < 1) || (numClasses < 2) )
+  {
+    fprintf(stderr, "BayesianClassifier::Create - Invalid parameter\n");
     return false;
+  }
 
   mNumDimensions = numDimensions;
   mNumClasses = numClasses;
@@ -47,7 +50,10 @@ bool BayesianClassifier::Create(int numDimensions, int numClasses, int* classCom
       numComponents = 1;
 
     if ( !mModels[i].Create(numDimensions, numComponents) )
+    {
+      fprintf(stderr, "BayesianClassifier::Create - Failed creating model %d\n", i);
       return false;
+    }
   }
 
   return true;
@@ -56,7 +62,10 @@ bool BayesianClassifier::Create(int numDimensions, int numClasses, int* classCom
 bool BayesianClassifier::AddTrainingData(Matrix& data, int classIndex)
 {
   if ( (classIndex < 0) || (classIndex >= mNumClasses) )
+  {
+    fprintf(stderr, "BayesianClassifier::AddTrainingData - Invalid parameter\n");
     return false;
+  }
 
   mClassCounts[classIndex]++;
   return mModels[classIndex].AddTrainingData(data);
@@ -65,7 +74,10 @@ bool BayesianClassifier::AddTrainingData(Matrix& data, int classIndex)
 int* BayesianClassifier::Get2dDataHistogram(int classIndex, int binsPerSide, double scaleFactor)
 {
   if ( (classIndex < 0) || (classIndex >= mNumClasses) )
+  {
+    fprintf(stderr, "BayesianClassifier::Get2dDataHistogram - Invalid parameter\n");
     return NULL;
+  }
   return mModels[classIndex].Get2dDataHistogram(binsPerSide, scaleFactor);
 }
 
@@ -77,7 +89,10 @@ bool BayesianClassifier::Classify(Matrix& data, int& classIndex, double& confide
   double sum = 0;
 
   if ( mNumClasses < 2 )
+  {
+    fprintf(stderr, "BayesianClassifier::Classify - Classifier is not initialized\n");
     return false;
+  }
 
   for (i = 0; i < mNumClasses; i++)
   {
@@ -100,13 +115,19 @@ bool BayesianClassifier::Train()
   double totalData = 0;
 
   if ( mNumClasses < 2 )
+  {
+    fprintf(stderr, "BayesianClassifier::Train - Classifier is not initialized\n");
     return false;
+  }
 
   for (i = 0; i < mNumClasses; i++)
   {
     totalData += mClassCounts[i];
     if ( !mModels[i].Train() )
+    {
+      fprintf(stderr, "BayesianClassifier::Train - Failed training model %d\n", i);
       return false;
+    }
   }
 
   for (i = 0; i < mNumClasses; i++)
@@ -122,7 +143,10 @@ bool BayesianClassifier::Save(FILE* file)
   int i;
 
   if ( !file )
+  {
+    fprintf(stderr, "BayesianClassifier::Save - Invalid parameter\n");
     return false;
+  }
 
   fprintf(file, "%s %d %d\n", LABEL, mNumDimensions, mNumClasses);
   for (i = 0; i < mNumClasses; i++)

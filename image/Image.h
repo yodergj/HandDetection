@@ -16,6 +16,8 @@ class Image
     int GetWidth();
     int GetHeight();
     unsigned char* GetRGBBuffer();
+    void MarkBufferAsUpdated();
+    int GetBufferUpdateIndex();
     double* GetYIQBuffer();
     double* GetScaledRGBBuffer();
     double* GetCustomBuffer(string &featureList);    
@@ -26,7 +28,10 @@ class Image
     bool CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth);
     bool CopyARGBBuffer(int width, int height, int* buffer, int bufferWidth);
     bool CopyRGBBuffer(int width, int height, unsigned char* buffer, int bufferWidth);
+    bool DrawBox(const unsigned char* color, int lineWidth, int left, int top, int right, int bottom);
+    bool DrawLine(const unsigned char* color, int lineWidth, int x1, int y1, int x2, int y2);
     bool Save(const char* filename);
+    Image& operator=(const Image& ref);
   private:
     bool SavePPM(const char* filename);
     bool SetSize(int width, int height);
@@ -59,6 +64,8 @@ class Image
     double* mCustomIntegralBuffer;
     int mCustomIntegralAlloc;
     bool mCustomIntegralValid;
+
+    int mBufferUpdateIndex;
 };
 
 #endif

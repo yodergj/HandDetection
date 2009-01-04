@@ -23,7 +23,10 @@ int Gaussian::GetNumDimensions()
 bool Gaussian::SetNumDimensions(int dimensions)
 {
   if ( dimensions <= 0 )
+  {
+    fprintf(stderr, "Gaussian::SetNumDimensions - Invalid parameter\n");
     return false;
+  }
 
   mDimensions = dimensions;
 
@@ -44,7 +47,10 @@ bool Gaussian::SetNumDimensions(int dimensions)
 bool Gaussian::SetMean(Matrix& mean)
 {
   if ( (mDimensions == 0) || (mean.GetRows() != mDimensions) || (mean.GetColumns() != 1) )
+  {
+    fprintf(stderr, "Gaussian::SetMean - Invalid parameter\n");
     return false;
+  }
 
   mMean = mean;
 
@@ -58,7 +64,7 @@ bool Gaussian::UpdateMean(Matrix& mean, double& maxDifference)
 
   if ( (mDimensions == 0) || (mean.GetRows() != mDimensions) || (mean.GetColumns() != 1) )
   {
-    fprintf(stderr, "UpdateMean: Invalid parameter\n");
+    fprintf(stderr, "Gaussian::UpdateMean - Invalid parameter\n");
     return false;
   }
 
@@ -81,7 +87,10 @@ bool Gaussian::SetVariance(Matrix& variance)
   double determinant, piComponent;
 
   if ( (mDimensions == 0) || (variance.GetRows() != mDimensions) || (variance.GetColumns() != mDimensions) )
+  {
+    fprintf(stderr, "Gaussian::SetVariance - Invalid parameter\n");
     return false;
+  }
 
   mVariance = variance;
 
@@ -92,13 +101,13 @@ bool Gaussian::SetVariance(Matrix& variance)
   /* Precompute the scaling factor to save time on the probability function */
   if ( !mVariance.GetDeterminant(determinant) )
   {
-    fprintf(stderr, "SetVariance: GetDeterrminant failed\n");
+    fprintf(stderr, "Gaussian::SetVariance - GetDeterrminant failed\n");
     return false;
   }
 
   if ( determinant < MIN_DETERMINANT )
   {
-    fprintf(stderr, "SetVariance: Determinant is not positive.\n");
+    fprintf(stderr, "Gaussian::SetVariance - Determinant is not positive.\n");
     return false;
   }
 
@@ -121,7 +130,7 @@ bool Gaussian::UpdateVariance(Matrix& variance, double& maxDifference)
 
   if ( (mDimensions == 0) || (variance.GetRows() != mDimensions) || (variance.GetColumns() != mDimensions) )
   {
-    fprintf(stderr, "UpdateVariance: Invalid parameter\n");
+    fprintf(stderr, "Gaussian::UpdateVariance - Invalid parameter\n");
     return false;
   }
 
@@ -131,7 +140,7 @@ bool Gaussian::UpdateVariance(Matrix& variance, double& maxDifference)
   {
     if ( !variance.GetDeterminant(determinant) )
     {
-      fprintf(stderr, "UpdateVariance: GetDeterminant failed\n");
+      fprintf(stderr, "Gaussian::UpdateVariance - GetDeterminant failed\n");
       return false;
     }
 
@@ -140,7 +149,7 @@ bool Gaussian::UpdateVariance(Matrix& variance, double& maxDifference)
       adjustment = fabs(determinant);
       if ( adjustment < .00001 )
         adjustment = .00001;
-      fprintf(stderr, "UpdateVariance: Determinant is not positive - adjusting diagonal by %f\n", adjustment);
+      fprintf(stderr, "Gaussian::UpdateVariance - Determinant is not positive - adjusting diagonal by %f\n", adjustment);
       for (i = 0; i < mDimensions; i++)
       {
         value = variance.GetValue(i, i);
@@ -163,7 +172,7 @@ bool Gaussian::UpdateVariance(Matrix& variance, double& maxDifference)
   }
   if ( !SetVariance(variance) )
   {
-    fprintf(stderr, "UpdateVariance: SetVariance failed.\n");
+    fprintf(stderr, "Gaussian::UpdateVariance - SetVariance failed.\n");
     return false;
   }
 
@@ -176,7 +185,10 @@ double Gaussian::Probability(Matrix& input)
   double result, fullProduct;
 
   if ( (mDimensions == 0) || (input.GetRows() != mDimensions) || (input.GetColumns() != 1) )
+  {
+    fprintf(stderr, "Gaussian::Probability - Invalid parameter\n");
     return -1;
+  }
 
   mDiffMatrix.SetFromDifference(input, mMean);
   mTranspose.SetAsTranspose(mDiffMatrix);
@@ -199,7 +211,10 @@ double Gaussian::Probability(Matrix& input)
 bool Gaussian::Save(FILE* file)
 {
   if ( !file )
+  {
+    fprintf(stderr, "Gaussian::Save - Invalid parameter\n");
     return false;
+  }
 
   fprintf(file, "%s %d\n", GAUSSIAN_LABEL, mDimensions);
   fprintf(file, "%s ", MEAN_LABEL);

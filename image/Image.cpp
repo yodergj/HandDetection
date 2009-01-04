@@ -33,6 +33,7 @@ Image::Image()
   mConfidenceBufferWidth = 0;
   mConfidenceBufferHeight = 0;
   mConfidenceRegionsValid = false;
+  mBufferUpdateIndex = 0;
 }
 
 Image::~Image()
@@ -73,6 +74,17 @@ int Image::GetHeight()
 unsigned char* Image::GetRGBBuffer()
 {
   return mBuffer;
+}
+
+void Image::MarkBufferAsUpdated()
+{
+  mBufferUpdateIndex++;
+  InvalidateBuffers();
+}
+
+int Image::GetBufferUpdateIndex()
+{
+  return mBufferUpdateIndex;
 }
 
 double* Image::GetYIQBuffer()
@@ -461,7 +473,7 @@ bool Image::CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth)
   if ( (width <= 0) || (height <= 0) || !buffer || (bufferWidth <= 0) )
     return false;
 
-  InvalidateBuffers();
+  MarkBufferAsUpdated();
 
   if ( !SetSize(width, height) )
     return false;
@@ -495,7 +507,7 @@ bool Image::CopyARGBBuffer(int width, int height, int* buffer, int bufferWidth)
   if ( (width <= 0) || (height <= 0) || !buffer || (bufferWidth <= 0) )
     return false;
 
-  InvalidateBuffers();
+  MarkBufferAsUpdated();
 
   if ( !SetSize(width, height) )
     return false;
@@ -529,7 +541,7 @@ bool Image::CopyRGBBuffer(int width, int height, unsigned char* buffer, int buff
   if ( (width <= 0) || (height <= 0) || !buffer || (bufferWidth <= 0) )
     return false;
 
-  InvalidateBuffers();
+  MarkBufferAsUpdated();
 
   if ( !SetSize(width, height) )
     return false;
@@ -543,6 +555,98 @@ bool Image::CopyRGBBuffer(int width, int height, unsigned char* buffer, int buff
     memcpy(destLine, srcLine, lineWidth);
     srcLine += bufferWidth;
     destLine += lineWidth;
+  }
+
+  return true;
+}
+
+bool Image::DrawBox(const unsigned char* color, int lineWidth,
+                    int left, int top, int right, int bottom)
+{
+  bool retCode = true;
+
+  if ( !color || (lineWidth < 1) )
+  {
+    fprintf(stderr, "Image::DrawBox - Invalid parameter\n");
+    return false;
+  }
+
+  retCode = DrawLine(color, lineWidth, left, top, right, top);
+  if ( retCode )
+    retCode = DrawLine(color, lineWidth, left, top, left, bottom);
+  if ( retCode )
+    retCode = DrawLine(color, lineWidth, right, top, right, bottom);
+  if ( retCode )
+    retCode = DrawLine(color, lineWidth, left, bottom, right, bottom);
+
+  return retCode;
+}
+
+bool Image::DrawLine(const unsigned char* color, int lineWidth, int x1, int y1, int x2, int y2)
+{
+  int x, y;
+  int left, right, top, bottom;
+  int bufferWidth;
+  unsigned char* destRow;
+  unsigned char* destPixel;
+
+  if ( !color || (lineWidth < 1) )
+  {
+    fprintf(stderr, "Image::DrawLine - Invalid parameter\n");
+    return false;
+  }
+
+  // TODO Add Bresenham algorithm for arbitrary angles
+  if ( (x1 != x2) && (y1 != y2) )
+  {
+    fprintf(stderr, "Image::DrawLine - Only horizontal and vertical lines are currently supported\n");
+    return false;
+  }
+
+  if ( x1 < x2 )
+  {
+    left = x1 - lineWidth / 2;
+    right = x2 + lineWidth / 2;
+  }
+  else
+  {
+    left = x2 - lineWidth / 2;
+    right = x1 + lineWidth / 2;
+  }
+  if ( y1 < y2 )
+  {
+    top = y1 - lineWidth / 2;
+    bottom = y2 + lineWidth / 2;
+  }
+  else
+  {
+    top = y2 - lineWidth / 2;
+    bottom = y1 + lineWidth / 2;
+  }
+
+  if ( (left >= mWidth) || (right < 0) || (top >= mHeight) || (bottom < 0) )
+    return true;
+
+  if ( left < 0 )
+    left = 0;
+  if ( right >= mWidth )
+    right = mWidth - 1;
+  if ( top < 0 )
+    top = 0;
+  if ( bottom >= mHeight )
+    bottom = mHeight - 1;
+
+  bufferWidth = mWidth * 3;
+  destRow = mBuffer + top * bufferWidth + left * 3;
+  for (y = top; y <= bottom; y++, destRow += bufferWidth)
+  {
+    destPixel = destRow;
+    for (x = left; x <= right; x++, destPixel += 3)
+    {
+      destPixel[0] = color[0];
+      destPixel[1] = color[1];
+      destPixel[2] = color[2];
+    }
   }
 
   return true;
@@ -563,6 +667,13 @@ bool Image::Save(const char* filename)
     return SavePPM(filename);
 
   return false;
+}
+
+Image& Image::operator=(const Image& ref)
+{
+  CopyRGBBuffer(ref.mWidth, ref.mHeight, ref.mBuffer, ref.mWidth * 3);
+
+  return *this;
 }
 
 bool Image::SavePPM(const char* filename)
@@ -631,6 +742,8 @@ void Image::InvalidateBuffers()
   mScaledRGBValid = false;
   mCustomValid = false;
   mCustomIntegralValid = false;
+
+  mConfidenceRegionsValid = false;
 }
 
 void Image::ClearRegions()

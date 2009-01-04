@@ -11,12 +11,17 @@ Matrix::Matrix()
   mDataAlloc = 0;
   mRows = 0;
   mColumns = 0;
+  mRowEchelonData = NULL;
+  mRowEchelonDataAlloc = 0;
+  mNumRowEchelonSwaps = 0;
 }
 
 Matrix::~Matrix()
 {
   if ( mData )
     free(mData);
+  if ( mRowEchelonData )
+    free(mRowEchelonData);
 }
 
 bool Matrix::SetSize(int rows, int columns, bool clear)
@@ -25,7 +30,10 @@ bool Matrix::SetSize(int rows, int columns, bool clear)
   int cells;
 
   if ( (rows < 0) || (columns < 0) )
+  {
+    fprintf(stderr, "Matrix::SetSize - Invalid parameter\n");
     return false;
+  }
 
   cells = rows * columns;
   if ( cells )
@@ -34,7 +42,10 @@ bool Matrix::SetSize(int rows, int columns, bool clear)
     {
       tmp = (double *)realloc(mData, cells * sizeof(double));
       if ( !tmp )
+      {
+        fprintf(stderr, "Matrix::SetSize - Failed allocating mData\n");
         return false;
+      }
 
       mData = tmp;
       mDataAlloc = cells;
@@ -64,7 +75,10 @@ double Matrix::GetValue(int row, int column)
 {
   if ( (row >= mRows) || (row < 0) ||
        (column >= mColumns) || (column < 0) )
+  {
+    fprintf(stderr, "Matrix::GetValue - Invalid parameter\n");
     return 0;
+  }
 
   return mData[row * mColumns + column];
 }
@@ -73,7 +87,10 @@ bool Matrix::SetValue(int row, int column, double value)
 {
   if ( (row >= mRows) || (row < 0) ||
        (column >= mColumns) || (column < 0) )
+  {
+    fprintf(stderr, "Matrix::SetValue - Invalid parameter\n");
     return false;
+  }
 
   mData[row * mColumns + column] = value;
 
@@ -83,7 +100,10 @@ bool Matrix::SetValue(int row, int column, double value)
 bool Matrix::Set(double* values)
 {
   if ( !values )
+  {
+    fprintf(stderr, "Matrix::SetValues - Invalid parameter\n");
     return false;
+  }
 
   memcpy(mData, values, mCells * sizeof(double));
 
@@ -92,14 +112,12 @@ bool Matrix::Set(double* values)
 
 bool Matrix::GetDeterminant(double &determinant)
 {
-  int i;
-  int row, column;
-  int sign = 1;
-  double subDeterminant;
+  int row;
+  double product;
 
   if ( (mRows != mColumns) || (mRows == 0) )
   {
-    fprintf(stderr, "GetDeterminant: Matrix is not square (%d rows, %d columns\n", mRows, mColumns);
+    fprintf(stderr, "Matrix::GetDeterminant - Matrix is not square (%d rows, %d columns\n", mRows, mColumns);
     return false;
   }
 
@@ -107,8 +125,13 @@ bool Matrix::GetDeterminant(double &determinant)
     determinant = mData[0];
   else if ( mRows == 2 )
     determinant = mData[0] * mData[3] - mData[1] * mData[2];
+#if 0
   else
   {
+    /* Naive implementation - O(n!) */
+    int i, column;
+    int sign = 1;
+    double subDeterminant;
     Matrix subMatrix;
     subMatrix.SetSize(mRows - 1, mRows - 1, false);
     determinant = 0;
@@ -129,6 +152,31 @@ bool Matrix::GetDeterminant(double &determinant)
       sign *= -1;
     }
   }
+#else
+  else if ( mRows == 3 )
+  {
+    determinant = (mData[0] * mData[4] * mData[8] +
+                   mData[1] * mData[5] * mData[6] +
+                   mData[2] * mData[3] * mData[7]) -
+                  (mData[6] * mData[4] * mData[2] +
+                   mData[7] * mData[5] * mData[0] +
+                   mData[8] * mData[3] * mData[1]);
+  }
+  else
+  {
+    if ( CalculateRowEchelonForm() )
+    {
+      product = mRowEchelonData[0];
+      for (row = 1; row < mRows; row++)
+        product *= mRowEchelonData[row * mColumns + row];
+      determinant = product;
+      if ( mNumRowEchelonSwaps % 2 )
+        determinant *= -1;
+    }
+    else
+      determinant = 0;
+  }
+#endif
 
   return true;
 }
@@ -181,7 +229,10 @@ bool Matrix::SetAsInverse(Matrix& m)
   int row, column;
 
   if ( m.mRows != m.mColumns )
+  {
+    fprintf(stderr, "Matrix::SetAsInverse - Invalid parameter\n");
     return false;
+  }
 
   if ( (m.mRows == 2) && (m.mColumns == 2) )
   {
@@ -195,7 +246,10 @@ bool Matrix::SetAsInverse(Matrix& m)
       mData[3] = m.mData[0] / determinant;
     }
     else
+    {
+      fprintf(stderr, "Matrix::SetAsInverse - Determinant is non-positive\n");
       return false;
+    }
     return true;
   }
 
@@ -220,7 +274,74 @@ bool Matrix::SetAsInverse(Matrix& m)
         mData[row * mColumns + column] = workMatrix.mData[row * mColumns * 2 + mColumns + column];
   }
   else
+  {
+    fprintf(stderr, "Matrix::SetAsInverse - Row reduce failed\n");
     return false;
+  }
+
+  return true;
+}
+
+bool Matrix::CalculateRowEchelonForm()
+{
+  double *tmp;
+  double pivotValue, swapVal, ratio;
+  int row, refRow, column, pos1, pos2;
+
+  if ( !mCells )
+    return false;
+
+  if ( mCells > mRowEchelonDataAlloc )
+  {
+    tmp = (double *)realloc(mRowEchelonData, mCells * sizeof(double));
+    if ( !tmp )
+    {
+      fprintf(stderr, "Matrix::CalculateRowEchelonForm - Failed allocating mRowEchelonData\n");
+      return false;
+    }
+
+    mRowEchelonData = tmp;
+    mRowEchelonDataAlloc = mCells;
+  }
+
+  memcpy(mRowEchelonData, mData, mCells * sizeof(double));
+  mNumRowEchelonSwaps = 0;
+
+  for (row = 0; row < mRows; row++)
+  {
+    pivotValue = mRowEchelonData[row * mColumns + row];
+
+    /* Need to record the number of row swaps since each time effectively multiplies
+       the determinant by -1 */
+    if ( pivotValue == 0 )
+    {
+      for (refRow = row + 1; (refRow < mRows) && (pivotValue == 0); refRow++)
+      {
+        if ( mRowEchelonData[refRow * mColumns + row] != 0 )
+        {
+          mNumRowEchelonSwaps++;
+          pos1 = row * mColumns;
+          pos2 = refRow * mColumns;
+          for (column = 0; column < mColumns; column++, pos1++, pos2++)
+          {
+            swapVal = mRowEchelonData[pos1];
+            mRowEchelonData[pos1] = mRowEchelonData[pos2];
+            mRowEchelonData[pos2] = swapVal;
+          }
+          pivotValue = mRowEchelonData[row * mColumns + row];
+        }
+      }
+      if ( pivotValue == 0 )
+        return false;
+    }
+
+    for (refRow = row + 1; refRow < mRows; refRow++)
+    {
+      ratio = -mRowEchelonData[refRow * mColumns + row] / pivotValue;
+      for (column = 0; column < mColumns; column++)
+        mRowEchelonData[refRow * mColumns + column] += mRowEchelonData[row * mColumns + column] * ratio;
+    }
+  }
 
   return true;
 }
@@ -233,7 +354,7 @@ bool Matrix::RowReduce()
 
   if ( mRows > mColumns )
   {
-    fprintf(stderr, "RowReduce - Matrix is too narrow\n");
+    fprintf(stderr, "Matrix::RowReduce - Matrix is too narrow\n");
     return false;
   }
 
@@ -242,7 +363,10 @@ bool Matrix::RowReduce()
   {
     pivotValue = mData[currentRow * mColumns + currentRow];
     if ( pivotValue == 0 )
+    {
+      fprintf(stderr, "Matrix::RowReduce - Pivot is zero\n");
       return false;
+    }
     for (refRow = 0; refRow < mRows; refRow++)
     {
       if ( refRow == currentRow )
@@ -258,7 +382,10 @@ bool Matrix::RowReduce()
   {
     pivotValue = mData[currentRow * mColumns + currentRow];
     if ( pivotValue == 0 )
+    {
+      fprintf(stderr, "Matrix::RowReduce - Pivot is zero\n");
       return false;
+    }
     for (column = 0; column < mColumns; column++)
       mData[currentRow * mColumns + column] /= pivotValue;
   }
@@ -298,7 +425,10 @@ bool Matrix::SetFromDifference(Matrix& a, Matrix& b)
   int i;
 
   if ( (a.mRows != b.mRows) || (a.mColumns != b.mColumns) )
+  {
+    fprintf(stderr, "Matrix::SetFromDifference - Invalid paremeter\n");
     return false;
+  }
 
   SetSize(a.mRows, a.mColumns, false);
   if ( mCells == 2 )
@@ -338,7 +468,10 @@ bool Matrix::SetFromProduct(Matrix& a, Matrix& b)
   int dest, aRowStart, bRowStart, bPos;
 
   if ( a.mColumns != b.mRows )
+  {
+    fprintf(stderr, "Matrix::SetFromProduct - Invalid paremeter\n");
     return false;
+  }
 
   if ( a.mRows == 1 )
   {
@@ -525,7 +658,10 @@ bool Matrix::Save(FILE* file)
   int i, j;
 
   if ( !file )
+  {
+    fprintf(stderr, "Matrix::Save - Invalid paremeter\n");
     return false;
+  }
 
   fprintf(file, "%s %d %d\n", LABEL, mRows, mColumns);
   for (i = 0; i < mRows; i++)

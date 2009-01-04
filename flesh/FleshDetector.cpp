@@ -27,11 +27,17 @@ bool FleshDetector::Load(const char* filename)
   int numFeatures;
 
   if ( !filename || !*filename )
+  {
+    fprintf(stderr, "FleshDetector::Load - Invalid filename\n");
     return false;
+  }
 
   filePtr = fopen(filename, "r");
   if ( !filePtr )
+  {
+    fprintf(stderr, "FleshDetector::Load - Unable to open %s\n", filename);
     return false;
+  }
 
   retCode = fgets(buffer, MAX_FEATURES, filePtr);
 
@@ -58,17 +64,25 @@ bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fl
   unsigned char outlineColor[] = {0, 255, 0};
 
   if ( !imagePtr || (!outlineImageOut && !fleshImageOut && !confidenceImageOut) )
+  {
+    fprintf(stderr, "FleshDetector::Process - Invalid parameter\n");
     return false;
+  }
 
-  // TODO : Make sure this gets cached and is made available if we just want to call one of the other public functions
   TimingAnalyzer_Start(4);
   if ( !CalcConfidence(imagePtr, 8, 8) )
+  {
+    fprintf(stderr, "FleshDetector::Process - CalcConfidence failed\n");
     return false;
+  }
   TimingAnalyzer_Stop(4);
 
   TimingAnalyzer_Start(1);
   if ( !GetFleshImage(imagePtr, backgroundColor, &fleshImage) )
+  {
+    fprintf(stderr, "FleshDetector::Process - GetFleshImage failed\n");
     return false;
+  }
   TimingAnalyzer_Stop(1);
 
   if ( fleshImageOut )
@@ -78,7 +92,10 @@ bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fl
   {
     TimingAnalyzer_Start(2);
     if ( !GetOutlineImage(backgroundColor, outlineColor, imagePtr, outlineImageOut) )
+    {
+      fprintf(stderr, "FleshDetector::Process - GetOutlineImage failed\n");
       return false;
+    }
     TimingAnalyzer_Stop(2);
   }
 
@@ -86,12 +103,47 @@ bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fl
   {
     TimingAnalyzer_Start(3);
     if ( !GetFleshConfidenceImage(imagePtr, &confidenceImage) )
+    {
+      fprintf(stderr, "FleshDetector::Process - GetFleshConfidenceImage failed\n");
       return false;
+    }
     TimingAnalyzer_Stop(3);
     *confidenceImageOut = confidenceImage;
   }
 
   return true;
+}
+
+vector<ConnectedRegion*>* FleshDetector::GetFleshRegions(Image* imagePtr, int &xScale, int &yScale)
+{
+  double* confidenceBuffer;
+  int bufferAlloc, bufferWidth, bufferHeight;
+
+  if ( !imagePtr )
+  {
+    fprintf(stderr, "FleshDetector::GetFleshRegions - Invalid parameter\n");
+    return false;
+  }
+
+  TimingAnalyzer_Start(4);
+  if ( !CalcConfidence(imagePtr, 8, 8) )
+  {
+    fprintf(stderr, "FleshDetector::GetFleshRegions - CalcConfidence failed\n");
+    return false;
+  }
+  TimingAnalyzer_Stop(4);
+
+  imagePtr->GetConfidenceBuffer(confidenceBuffer, bufferWidth, bufferHeight, bufferAlloc);
+  if ( !confidenceBuffer )
+  {
+    fprintf(stderr, "FleshDetector::GetFleshRegions - Failed getting confidence buffer\n");
+    return false;
+  }
+
+  xScale = imagePtr->GetWidth() / bufferWidth;
+  yScale = imagePtr->GetHeight() / bufferHeight;
+
+  return imagePtr->GetRegionsFromConfidenceBuffer();
 }
 
 bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColor, Image** fleshImage)
@@ -105,14 +157,20 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
   int bufferAlloc, bufferWidth, bufferHeight;
 
   if ( !imagePtr || !fleshImage )
+  {
+    fprintf(stderr, "FleshDetector::GetFleshImage - Invalid parameter\n");
     return false;
+  }
 
   width = imagePtr->GetWidth();
   height = imagePtr->GetHeight();
 
   imagePtr->GetConfidenceBuffer(confidenceBuffer, bufferWidth, bufferHeight, bufferAlloc);
   if ( !confidenceBuffer )
+  {
+    fprintf(stderr, "FleshDetector::GetFleshImage - Failed getting confidence buffer\n");
     return false;
+  }
 
   xScale = width / bufferWidth;
   yScale = height / bufferHeight;
@@ -120,7 +178,10 @@ bool FleshDetector::GetFleshImage(Image* imagePtr, unsigned char* backgroundColo
   srcPixel = imagePtr->GetRGBBuffer();
 
   if ( !mFleshImage.Create(width, height) )
+  {
+    fprintf(stderr, "FleshDetector::GetFleshImage - Failed creating flesh image\n");
     return false;
+  }
 
   fleshDestPixel = mFleshImage.GetRGBBuffer();
 
@@ -163,20 +224,29 @@ bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage
   int bufferAlloc, bufferWidth, bufferHeight;
 
   if ( !imagePtr || !outputImage )
+  {
+    fprintf(stderr, "FleshDetector::GetFleshConfidenceImage - Invalid parameter\n");
     return false;
+  }
 
   width = imagePtr->GetWidth();
   height = imagePtr->GetHeight();
 
   imagePtr->GetConfidenceBuffer(confidenceBuffer, bufferWidth, bufferHeight, bufferAlloc);
   if ( !confidenceBuffer )
+  {
+    fprintf(stderr, "FleshDetector::GetFleshConfidenceImage - Failed getting confidence buffer\n");
     return false;
+  }
 
   xScale = width / bufferWidth;
   yScale = height / bufferHeight;
 
   if ( !mConfidenceImage.Create(width, height) )
+  {
+    fprintf(stderr, "FleshDetector::GetFleshConfidenceImage - Failed creating confidence image\n");
     return false;
+  }
 
   destPixel = mConfidenceImage.GetRGBBuffer();
 
@@ -220,24 +290,36 @@ bool FleshDetector::GetOutlineImage(unsigned char* backgroundColor, unsigned cha
   unsigned char* buffer;
 
   if ( !backgroundColor || !outlineColor || !imagePtr || !outlineImage )
+  {
+    fprintf(stderr, "FleshDetector::GetOutlineImage - Invalid parameter\n");
     return false;
+  }
 
   width = imagePtr->GetWidth();
   height = imagePtr->GetHeight();
   if ( !mOutlineImage.CopyRGBBuffer(width, height, imagePtr->GetRGBBuffer(), 3 * width) )
+  {
+    fprintf(stderr, "FleshDetector::GetOutlineImage - Failed copying image\n");
     return false;
+  }
 
   buffer = mOutlineImage.GetRGBBuffer();
 
   if ( !imagePtr->GetConfidenceBuffer(confidenceBuffer, bufferWidth, bufferHeight, bufferAlloc) )
+  {
+    fprintf(stderr, "FleshDetector::GetOutlineImage - Failed getting confidence buffer\n");
     return false;
+  }
 
   xScale = width / bufferWidth;
   yScale = height / bufferHeight;
   regionList = imagePtr->GetRegionsFromConfidenceBuffer();
 
   if ( !regionList )
+  {
+    fprintf(stderr, "FleshDetector::GetOutlineImage - Failed getting regions\n");
     return false;
+  }
 
   numRegions = regionList->size();
   for (i = 0; i < numRegions; i++)
@@ -252,7 +334,6 @@ bool FleshDetector::GetOutlineImage(unsigned char* backgroundColor, unsigned cha
 
     if ( (right - left + 1 < 20) || (bottom - top + 1 < 20) )
       continue;
-
 
     for (x = left; x <= right; x++)
     {
@@ -277,6 +358,7 @@ bool FleshDetector::GetOutlineImage(unsigned char* backgroundColor, unsigned cha
   return true;
 }
 
+/*! Calculates the confidence buffer of the image.  This keeps track of whether the image has been modified and only recomputes when necessary. */
 bool FleshDetector::CalcConfidence(Image* imagePtr, int xScale, int yScale)
 {
   int x, y;
@@ -289,9 +371,21 @@ bool FleshDetector::CalcConfidence(Image* imagePtr, int xScale, int yScale)
   double featureRatio, confidence;
   double* confidenceBuffer;
   int bufferAlloc, bufferWidth, bufferHeight, scaledWidth, scaledHeight;
+  ConfidenceRevision confRevision;
+  map<Image*,ConfidenceRevision>::iterator mapPos;
 
   if ( !imagePtr || (xScale <= 0) || (yScale <= 0) )
+  {
+    fprintf(stderr, "FleshDetector::CalcConfidence - Invalid parameter\n");
     return false;
+  }
+
+  confRevision.imageRevision = imagePtr->GetBufferUpdateIndex();
+  confRevision.xScale = xScale;
+  confRevision.yScale = yScale;
+  mapPos = mConfidenceRevisions.find(imagePtr);
+  if ( (mapPos != mConfidenceRevisions.end()) && (confRevision == mapPos->second) )
+    return true;
 
   imageWidth = imagePtr->GetWidth();
   imageHeight = imagePtr->GetHeight();
@@ -299,7 +393,10 @@ bool FleshDetector::CalcConfidence(Image* imagePtr, int xScale, int yScale)
   featureRatio = 1.0 / pixelsPerPoint;
 
   if ( (imageWidth % xScale) || (imageHeight % yScale) )
+  {
+    fprintf(stderr, "FleshDetector::CalcConfidence - Scale doesn't evenly divide image\n");
     return false;
+  }
 
   scaledWidth = imageWidth / xScale;
   scaledHeight = imageHeight / yScale;
@@ -310,7 +407,10 @@ bool FleshDetector::CalcConfidence(Image* imagePtr, int xScale, int yScale)
   {
     confidenceBuffer = (double*)malloc(numConfidencePoints * sizeof(double));
     if ( !confidenceBuffer )
+    {
+      fprintf(stderr, "FleshDetector::CalcConfidence - Failed getting confidence buffer\n");
       return false;
+    }
     bufferAlloc = numConfidencePoints;
   }
   bufferWidth = scaledWidth;
@@ -318,7 +418,10 @@ bool FleshDetector::CalcConfidence(Image* imagePtr, int xScale, int yScale)
 
   numFeatures = mFeatureList.size();
   if ( !pixelFeatures.SetSize(numFeatures, 1) )
+  {
+    fprintf(stderr, "FleshDetector::CalcConfidence - Failed setting feature size\n");
     return false;
+  }
 
   integralBuffer = imagePtr->GetCustomIntegralBuffer(mFeatureList);
   integralPixel = integralBuffer + (imageWidth * (yScale - 1) + xScale - 1) * numFeatures;
@@ -357,6 +460,11 @@ bool FleshDetector::CalcConfidence(Image* imagePtr, int xScale, int yScale)
     }
   }
   imagePtr->SetConfidenceBuffer(confidenceBuffer, bufferWidth, bufferHeight, bufferAlloc);
+
+  if ( mapPos != mConfidenceRevisions.end() )
+    mapPos->second = confRevision;
+  else
+    mConfidenceRevisions[imagePtr] = confRevision;
 
   return true;
 }

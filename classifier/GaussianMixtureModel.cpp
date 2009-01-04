@@ -43,7 +43,10 @@ void GaussianMixtureModel::Clear()
 bool GaussianMixtureModel::Create(int numDimensions, int numComponents)
 {
   if ( (numDimensions <= 0) || (numComponents <= 0) )
+  {
+    fprintf(stderr, "GaussianMixtureModel::Create - Invalid parameter\n");
     return false;
+  }
 
   Clear();
 
@@ -63,7 +66,10 @@ bool GaussianMixtureModel::AddTrainingData(Matrix& data)
   double val;
 
   if ( (data.GetRows() != mNumDimensions) || (data.GetColumns() != 1) )
+  {
+    fprintf(stderr, "GaussianMixtureModel::AddTrainingData - Size mismatch got %dx%d expected %dx%d\n", data.GetRows(), data.GetColumns(), mNumDimensions, 1);
     return false;
+  }
 
   if ( mTrainingData.empty() )
   {
@@ -124,14 +130,20 @@ int* GaussianMixtureModel::Get2dDataHistogram(int binsPerSide, double scaleFacto
   int* tmpPtr;
 
   if ( binsPerSide <= 0 )
+  {
+    fprintf(stderr, "GaussianMixtureModel::Get2dDataHistogram - Invalid parameter\n");
     return NULL;
+  }
 
   sizeNeeded = binsPerSide * binsPerSide;
   if ( sizeNeeded > m2dDataHistogramSize )
   {
     tmpPtr = (int *)realloc(m2dDataHistogram, sizeNeeded * sizeof(int));
     if ( !tmpPtr )
+    {
+      fprintf(stderr, "GaussianMixtureModel::Get2dDataHistogram - Failed allocating memory.\n");
       return NULL;
+    }
     m2dDataHistogram = tmpPtr;
     m2dDataHistogramSize = sizeNeeded;
   }
@@ -157,7 +169,10 @@ int* GaussianMixtureModel::Get2dDataHistogram(int binsPerSide, double scaleFacto
 double GaussianMixtureModel::Probability(Matrix& data)
 {
   if ( (data.GetRows() != mNumDimensions) || (data.GetColumns() != 1) )
+  {
+    fprintf(stderr, "GaussianMixtureModel::Probability - Size mismatch got %dx%d expected %dx%d\n", data.GetRows(), data.GetColumns(), mNumDimensions, 1);
     return -1;
+  }
 
   return Probability(data, mComponents, mComponentWeights);
 }
@@ -181,7 +196,10 @@ double GaussianMixtureModel::Probability(Matrix& data,
 bool GaussianMixtureModel::Train()
 {
   if ( mTrainingData.empty() )
+  {
+    fprintf(stderr, "GaussianMixtureModel::Train - No training data\n");
     return false;
+  }
 
 #ifdef TRAIN_DEBUG
   unsigned int i;
@@ -403,7 +421,10 @@ bool GaussianMixtureModel::Save(FILE* file)
   int i;
 
   if ( !file || mComponents.empty() || mComponentWeights.empty() )
+  {
+    fprintf(stderr, "GaussianMixtureModel::Save - NULL file or empty model\n");
     return false;
+  }
 
   fprintf(file, "%s %d %d\n", LABEL, mNumDimensions, mNumComponents);
   for (i = 0; i < mNumComponents; i++)
