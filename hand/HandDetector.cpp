@@ -108,6 +108,7 @@ bool HandDetector::Process(Image* imagePtr, int left, int right, int top, int bo
 
     if ( classIndex == 0 )
     {
+      printf("Hand Confidnece %f\n", confidence);
       hand = new Hand;
       hand->SetBounds(left, right, top, bottom);
       results.push_back(hand);
@@ -169,7 +170,7 @@ bool HandDetector::Train()
 bool HandDetector::FillFeatureVector(Image* imagePtr, int left, int right, int top, int bottom,
                                      Matrix& featureVector)
 {
-  int i, j, k, numFeatures, fillPos;
+  int i, j, k, numFeatures, fillPos, imageWidth;
   double width, height;
   int sampleTop, sampleBottom, sampleLeft, sampleRight, samplePixels;
   double* integralBuffer;
@@ -197,6 +198,7 @@ bool HandDetector::FillFeatureVector(Image* imagePtr, int left, int right, int t
 
   width = right - left + 1;
   height = bottom - top + 1;
+  imageWidth = imagePtr->GetWidth();
 
   fillPos = 0;
   integralBuffer = imagePtr->GetCustomIntegralBuffer(mFeatureList);
@@ -216,17 +218,26 @@ bool HandDetector::FillFeatureVector(Image* imagePtr, int left, int right, int t
       sampleBottom = MAX(top + (int)((j + 1) * height / mYResolution) - 1, sampleTop);
       samplePixels = (sampleRight - sampleLeft + 1) * (sampleBottom - sampleTop + 1);
 
-      integralPixel = integralBuffer + (int)(sampleBottom * numFeatures * width + sampleRight * numFeatures);
+      integralPixel = integralBuffer + numFeatures * (sampleBottom * imageWidth + sampleRight);
       sampleVector.Set(integralPixel);
 
-      integralPixel = integralBuffer + (int)(sampleTop * numFeatures * width + sampleRight * numFeatures);
-      sampleVector -= integralPixel;
+      if ( sampleTop > 0 )
+      {
+        integralPixel = integralBuffer + numFeatures * ( (sampleTop - 1) * imageWidth + sampleRight);
+        sampleVector -= integralPixel;
 
-      integralPixel = integralBuffer + (int)(sampleBottom * numFeatures * width + sampleLeft * numFeatures);
-      sampleVector -= integralPixel;
+        if ( sampleLeft > 0 )
+        {
+          integralPixel = integralBuffer + numFeatures * ( (sampleTop - 1) * imageWidth + sampleLeft - 1);
+          sampleVector += integralPixel;
+        }
+      }
 
-      integralPixel = integralBuffer + (int)(sampleTop * numFeatures * width + sampleLeft * numFeatures);
-      sampleVector += integralPixel;
+      if ( sampleLeft > 0 )
+      {
+        integralPixel = integralBuffer + numFeatures * (sampleBottom * imageWidth + sampleLeft - 1);
+        sampleVector -= integralPixel;
+      }
 
       sampleVector *= 1.0 / samplePixels;
       for (k = 0; k < numFeatures; k++, fillPos++)

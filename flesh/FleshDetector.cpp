@@ -61,7 +61,7 @@ bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fl
   Image* fleshImage;
   Image* confidenceImage;
   unsigned char backgroundColor[] = {255, 255, 255};
-  unsigned char outlineColor[] = {0, 255, 0};
+  unsigned char outlineColor[] = {0, 0, 0};
 
   if ( !imagePtr || (!outlineImageOut && !fleshImageOut && !confidenceImageOut) )
   {
@@ -279,15 +279,12 @@ bool FleshDetector::GetFleshConfidenceImage(Image* imagePtr, Image** outputImage
 
 bool FleshDetector::GetOutlineImage(unsigned char* backgroundColor, unsigned char* outlineColor, Image* imagePtr, Image** outlineImage)
 {
-  int i, j;
-  int x, y;
-  int numRegions;
+  int i;
+  int numRegions, width, height;
   int left, right, top, bottom;
-  int width, height;
   double* confidenceBuffer;
   int bufferWidth, bufferHeight, bufferAlloc, xScale, yScale;
   vector<ConnectedRegion*>* regionList;
-  unsigned char* buffer;
 
   if ( !backgroundColor || !outlineColor || !imagePtr || !outlineImage )
   {
@@ -302,8 +299,6 @@ bool FleshDetector::GetOutlineImage(unsigned char* backgroundColor, unsigned cha
     fprintf(stderr, "FleshDetector::GetOutlineImage - Failed copying image\n");
     return false;
   }
-
-  buffer = mOutlineImage.GetRGBBuffer();
 
   if ( !imagePtr->GetConfidenceBuffer(confidenceBuffer, bufferWidth, bufferHeight, bufferAlloc) )
   {
@@ -326,31 +321,18 @@ bool FleshDetector::GetOutlineImage(unsigned char* backgroundColor, unsigned cha
   {
     (*regionList)[i]->GetBounds(left, right, top, bottom);
     left *= xScale;
-    right *= xScale;
-    right += xScale - 1;
+    right = (right + 1) * xScale - 1;
     top *= yScale;
-    bottom *= yScale;
-    bottom += yScale - 1;
-
+    bottom = (bottom + 1) * yScale - 1;
+#if 0
     if ( (right - left + 1 < 20) || (bottom - top + 1 < 20) )
       continue;
+#else
+    if ( (right - left + 1 < 20) || (bottom - top + 1 < 40) )
+      continue;
+#endif
 
-    for (x = left; x <= right; x++)
-    {
-      for (j = 0; j < 3; j++)
-      {
-        buffer[3 * width * top + 3 * x + j] = outlineColor[j];
-        buffer[3 * width * bottom + 3 * x + j] = outlineColor[j];
-      }
-    }
-    for (y = top + 1; y < bottom; y++)
-    {
-      for (j = 0; j < 3; j++)
-      {
-        buffer[3 * width * y + 3 * left + j] = outlineColor[j];
-        buffer[3 * width * y + 3 * right + j] = outlineColor[j];
-      }
-    }
+    mOutlineImage.DrawBox(outlineColor, 3, left, top, right, bottom);
   }
 
   *outlineImage = &mOutlineImage;

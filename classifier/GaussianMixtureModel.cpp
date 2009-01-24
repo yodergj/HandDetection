@@ -200,6 +200,10 @@ bool GaussianMixtureModel::Train()
     fprintf(stderr, "GaussianMixtureModel::Train - No training data\n");
     return false;
   }
+  /* TODO Consider scaling all training values by something like 100 if the magnitude is between 0 and 1.
+     This would help avoid the determinant becoming too small for higher dimensionalites.  This would need to be
+     stored and applied to input values before probability calculation.  Use independent scaling factors for each
+     dimension.  May need to having scaling to reduce the magnitude for values with large ranges. */
 
 #ifdef TRAIN_DEBUG
   unsigned int i;
@@ -284,7 +288,8 @@ bool GaussianMixtureModel::TrainEM()
       variance.SetValue(dimension, dimension, val);
     }
     currentGaussian->SetMean(mean);
-    currentGaussian->SetVariance(variance);
+    /* Use UpdateVariance since it will automatically compensate if the determinant is too small */
+    currentGaussian->UpdateVariance(variance, varianceDiff);
     components.push_back(currentGaussian);
     componentWeights.push_back(1.0 / mNumComponents);
   }

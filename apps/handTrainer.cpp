@@ -1,3 +1,4 @@
+#include "FleshDetector.h"
 #include "HandDetector.h"
 #include "Image.h"
 #include <qapplication.h>
@@ -10,7 +11,7 @@ int main(int argc, char* argv[])
   QApplication app(argc,argv);
   QImage inputImage;
   QRgb* srcPixel;
-  int i;
+  int i, j;
   int x, y;
   int width, height;
   int left, right, top, bottom, xCenter, yCenter;
@@ -18,17 +19,20 @@ int main(int argc, char* argv[])
   int classIndex = 0;
   char filename[256];
   FILE *file;
-  int xResolution = 8;
-  int yResolution = 8;
+  int xResolution = 2;
+  int yResolution = 2;
   int handGaussians = 2;
   int nonHandGaussians = 2;
   int revNumber = 0;
   Image image;
   std::string featureList;
+  FleshDetector fleshDetector;
+  vector<ConnectedRegion*>* fleshRegionVector;
+  int xScale, yScale, numFleshRegions;  
 
-  if ( argc < 5 )
+  if ( argc < 6 )
   {
-    printf("Usage: handTrainer <feature string> <hand Image> [...] -x <non-hand image> [...]\n");
+    printf("Usage: %s <feature string> <flesh classifier file> <hand Image> [...] -x <non-hand image> [...]\n", argv[0]);
     return 0;
   }
 
@@ -39,7 +43,13 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  for (i = 2; i < argc; i++)
+  if ( !fleshDetector.Load(argv[2]) )
+  {
+    printf("Failed loading flesh detector %s\n", argv[2]);
+    return 1;
+  }
+
+  for (i = 3; i < argc; i++)
   {
     if ( !strcmp(argv[i], "-x") )
     {
@@ -58,6 +68,7 @@ int main(int argc, char* argv[])
       image.CopyARGBBuffer(width, height, (int*)srcPixel, width);
       if ( classIndex == 0 )
       {
+#if 1
         left = width - 1;
         right = 0;
         top = height - 1;
@@ -80,6 +91,12 @@ int main(int argc, char* argv[])
             }
           }
         }
+#else
+        left = 0;
+        right = width - 1;
+        top = 0;
+        bottom = height - 1;
+#endif
         if ( !detector.AddTrainingSample(&image, left, right, top, bottom, true) )
         {
           printf("Failed adding sample\n");
@@ -88,6 +105,7 @@ int main(int argc, char* argv[])
       }
       else
       {
+#if 0
         left = 0;
         right = width - 1;
         top = 0;
@@ -97,6 +115,7 @@ int main(int argc, char* argv[])
         /* Load the full image as a sample */
         detector.AddTrainingSample(&image, left, right, top, bottom, false);
 
+#if 0
         /* Load horizontal and vertical halves as samples */
         detector.AddTrainingSample(&image, left, xCenter - 1, top, bottom, false);
         detector.AddTrainingSample(&image, xCenter, right, top, bottom, false);
@@ -108,6 +127,29 @@ int main(int argc, char* argv[])
         detector.AddTrainingSample(&image, left, xCenter - 1, yCenter, bottom, false);
         detector.AddTrainingSample(&image, xCenter, right, top, yCenter - 1, false);
         detector.AddTrainingSample(&image, xCenter, right, yCenter, bottom, false);
+#endif
+#else
+        /* Load samples from flesh false-positives */
+        fleshRegionVector = fleshDetector.GetFleshRegions(&image, xScale, yScale);
+        if ( fleshRegionVector )
+        {
+          numFleshRegions = fleshRegionVector->size();
+          for (j = 0; j < numFleshRegions; j++)
+          {
+            if ( !(*fleshRegionVector)[j]->GetBounds(left, right, top, bottom) )
+            {
+              fprintf(stderr, "Error getting flesh block %d bounds\n", i);
+              return 1;
+            }
+            left *= xScale;
+            right = (right + 1) * xScale - 1;
+            top *= yScale;
+            bottom = (bottom + 1) * yScale - 1;
+
+            detector.AddTrainingSample(&image, left, right, top, bottom, false);
+          }
+        }
+#endif
       }
     }
   }

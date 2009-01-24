@@ -24,6 +24,7 @@ int main(int argc, char* argv[])
   HandDetector handDetector;
   vector<Hand*> hands;
   unsigned char boxColor[] = {255, 255, 255};
+  int numLargeRegions;
 
   if ( argc < 4 )
   {
@@ -66,6 +67,7 @@ int main(int argc, char* argv[])
       if ( fleshRegionVector )
       {
         numFleshRegions = fleshRegionVector->size();
+        numLargeRegions = 0;
         for (i = 0; i < numFleshRegions; i++)
         {
           if ( !(*fleshRegionVector)[i]->GetBounds(left, right, top, bottom) )
@@ -79,18 +81,20 @@ int main(int argc, char* argv[])
           bottom = (bottom + 1) * yScale - 1;
           if ( (right - left + 1 < 20) || (bottom - top + 1 < 20) )
             continue;
+          numLargeRegions++;
 
           if ( !handDetector.Process(&image, left, right, top, bottom, hands) )
           {
             fprintf(stderr, "Error detecting hand in flesh block %d\n", i);
             return 1;
           }
-          numHands = hands.size();
-          for (j = 0; j < numHands; j++)
-          {
-            hands[j]->GetBounds(left, right, top, bottom);
-            outlineImage.DrawBox(boxColor, 3, left, top, right, bottom);
-          }
+        }
+        numHands = hands.size();
+        printf("Num Flesh Regions %d of %d\nNum Hands %d\n", numLargeRegions, numFleshRegions, numHands);
+        for (j = 0; j < numHands; j++)
+        {
+          hands[j]->GetBounds(left, right, top, bottom);
+          outlineImage.DrawBox(boxColor, 3, left, top, right, bottom);
         }
       }
 
