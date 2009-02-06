@@ -10,6 +10,10 @@
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
 #endif
 
+#define NUM_DIM_STR "NumDimensions"
+#define NUM_GAUSSIAN_STR "NumGaussians"
+#define WEIGHT_STR "Weight"
+
 GaussianMixtureModel::GaussianMixtureModel()
 {
   mNumDimensions = 0;
@@ -324,8 +328,8 @@ bool GaussianMixtureModel::TrainEM()
         printf("Sample %d Component %d Prob %f\n", sample, component,
             components[component]->Probability(*(mTrainingData[sample])) );
 #endif
-        sampleWeights.SetValue(sample, component, 
-            MAX(MIN_PROB, 
+        sampleWeights.SetValue(sample, component,
+            MAX(MIN_PROB,
                 componentWeights[component] * components[component]->Probability(*(mTrainingData[sample])) / sampleProb) );
       }
     }
@@ -419,81 +423,172 @@ bool GaussianMixtureModel::TrainEM()
   return true;
 }
 
-#define LABEL "GaussianMixtureModel"
-#define LABEL_LEN 20
-bool GaussianMixtureModel::Save(FILE* file)
+bool GaussianMixtureModel::Print(FILE* file)
 {
   int i;
 
   if ( !file || mComponents.empty() || mComponentWeights.empty() )
   {
-    fprintf(stderr, "GaussianMixtureModel::Save - NULL file or empty model\n");
+    fprintf(stderr, "GaussianMixtureModel::Print - NULL file or empty model\n");
     return false;
   }
 
-  fprintf(file, "%s %d %d\n", LABEL, mNumDimensions, mNumComponents);
+  fprintf(file, "%s %d %d\n", GMM_STR, mNumDimensions, mNumComponents);
   for (i = 0; i < mNumComponents; i++)
   {
     fprintf(file, "%f\n", mComponentWeights[i]);
-    mComponents[i]->Save(file);
+    mComponents[i]->Print(file);
   }
 
   return true;
 }
 
-#define MAX_STR_LEN 32
-bool GaussianMixtureModel::Load(FILE* file)
+bool GaussianMixtureModel::Save(const char* filename)
 {
-  int i;
-  int dimensions, numComponents;
-  double weight;
-  Gaussian* gaussian;
-  char buf[MAX_STR_LEN];
+  FILE* file;
+  xmlDocPtr document;
+  xmlNodePtr rootNode;
+  bool retCode = true;
 
+  if ( !filename || !*filename )
+  {
+    fprintf(stderr, "GaussianMixtureModel::Save - Invalid parameter\n");
+    return false;
+  }
+
+  file = fopen(filename, "w");
   if ( !file )
   {
-    fprintf(stderr, "GaussianMixtureModel::Load - NULL file\n");
+    fprintf(stderr, "GaussianMixtureModel::Save - Failed opening %s\n", filename);
     return false;
   }
 
-  Clear();
+  document = xmlNewDoc(NULL);
+  rootNode = xmlNewDocNode(document, NULL, (const xmlChar *)GMM_STR, NULL);
+  xmlDocSetRootElement(document, rootNode);
 
-  fgets(buf, LABEL_LEN + 1, file);
-  if ( strncmp(LABEL, buf, LABEL_LEN) )
+  retCode = Save(rootNode);
+
+  xmlDocFormatDump(file, document, 1);
+  fclose(file);
+  xmlFreeDoc(document);
+
+  return retCode;
+}
+
+bool GaussianMixtureModel::Save(xmlNodePtr modelNode)
+{
+  int i;
+  bool retCode = true;
+  xmlNodePtr gaussianNode;
+
+  SetIntValue(modelNode, NUM_DIM_STR, mNumDimensions);
+  SetIntValue(modelNode, NUM_GAUSSIAN_STR, mNumComponents);
+
+  for (i = 0; (i < mNumComponents) && retCode; i++)
   {
-    fprintf(stderr, "GaussianMixtureModel::Load - Header string didn't match\n");
+    gaussianNode = xmlNewNode(NULL, (const xmlChar*)GAUSSIAN_STR);
+    xmlAddChild(modelNode, gaussianNode);
+    SetDoubleValue(gaussianNode, WEIGHT_STR, mComponentWeights[i]);
+    retCode = mComponents[i]->Save(gaussianNode);
+  }
+
+  return retCode;
+}
+
+bool GaussianMixtureModel::Load(const char* filename)
+{
+  bool retCode = true;
+  xmlDocPtr document;
+  xmlNodePtr node;
+
+  if ( !filename || !*filename )
+  {
+    fprintf(stderr, "GaussianMixtureModel:Load - Bad filename\n");
     return false;
   }
 
-  if ( !fscanf(file, "%d %d", &dimensions, &numComponents) )
+  document = xmlParseFile(filename);
+
+  if ( !document )
   {
-    fprintf(stderr, "GaussianMixtureModel::Load - Failed getting dimensions and components\n");
+    fprintf(stderr, "GaussianMixtureModel::Load - Failed parsing %s\n", filename);
     return false;
   }
 
-  if ( !Create(dimensions, numComponents) )
+  node = xmlDocGetRootElement(document);
+  if ( !node )
   {
-    fprintf(stderr, "GaussianMixtureModel::Load - Failed Create(%d, %d)\n", dimensions, numComponents);
+    xmlFreeDoc(document);
+    fprintf(stderr, "GaussianMixtureModel::Load - No root node in %s\n", filename);
     return false;
   }
 
-  for (i = 0; i < mNumComponents; i++)
+  retCode = Load(node);
+
+  xmlFreeDoc(document);
+
+  return retCode;
+}
+
+bool GaussianMixtureModel::Load(xmlNodePtr modelNode)
+{
+  int numGaussiansFound, dimensions, numGaussians;
+  xmlNodePtr node;
+  double weight;
+  Gaussian* gaussian;
+  bool retCode = true;
+
+  dimensions = GetIntValue(modelNode, NUM_DIM_STR, 0);
+  numGaussians = GetIntValue(modelNode, NUM_GAUSSIAN_STR, 0);
+  if ( (dimensions < 1) || (numGaussians < 1) )
   {
-    if ( !fscanf(file, "%lf\n", &weight) )
+    fprintf(stderr, "GaussianMixtureModel::Load - Invalid property\n");
+    return false;
+  }
+
+  if ( !Create(dimensions, numGaussians) )
+  {
+    fprintf(stderr, "GaussianMixtureModel::Load - Failed Create(%d, %d)\n", dimensions, numGaussians);
+    return false;
+  }
+
+  numGaussiansFound = 0;
+  node = modelNode->children;
+  while ( node && retCode )
+  {
+    if ( !strcmp((char *)node->name, GAUSSIAN_STR) )
     {
-      fprintf(stderr, "GaussianMixtureModel::Load - Failed getting component weight %d\n", i);
-      return false;
+      if ( numGaussiansFound == mNumComponents )
+      {
+        fprintf(stderr, "GaussianMixtureModel::Load - Too many gaussians found\n");
+        retCode = false;
+      }
+      else
+      {
+        weight = GetDoubleValue(node, WEIGHT_STR, 1.0 / mNumComponents);
+        gaussian = new Gaussian;
+        if ( gaussian->Load(node) )
+        {
+          mComponents.push_back(gaussian);
+          mComponentWeights.push_back(weight);
+          numGaussiansFound++;
+        }
+        else
+        {
+          delete gaussian;
+          fprintf(stderr, "GaussianMixtureModel::Load - Failed loading gaussian %d\n", numGaussiansFound);
+          retCode = false;
+        }
+      }
     }
-    gaussian = new Gaussian;
-    if ( !gaussian->Load(file) )
+    else if ( strcmp((char *)node->name, "text") )
     {
-      delete gaussian;
-      fprintf(stderr, "GaussianMixtureModel::Load - Failed loading gaussian %d\n", i);
-      return false;
+      fprintf(stderr, "GaussianMixtureModel::Load - Found unknown node %s\n", (char*)node->name);
+      retCode = false;
     }
-    mComponents.push_back(gaussian);
-    mComponentWeights.push_back(weight);
+    node = node->next;
   }
 
-  return true;
+  return retCode;
 }

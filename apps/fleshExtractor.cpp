@@ -4,8 +4,6 @@
 #include <qimage.h>
 #include <stdlib.h>
 
-#define MAX_FEATURES 512
-
 int main(int argc, char* argv[])
 {
   QApplication app(argc,argv);
@@ -21,35 +19,26 @@ int main(int argc, char* argv[])
   Matrix input;
   int classIndex;
   double confidence;
-  FILE *file;
 
   Image image;
   double* featureBuffer;
   double* featurePixel;
-  char buf[MAX_FEATURES];
-  std::string featureList;
+  string featureList;
   int numFeatures;
 
   if ( argc < 3 )
+  {
+    printf("Usage: %s <classifier> <image> [<image> ...]\n", argv[0]);
     return 0;
-
-  file = fopen(argv[1], "r");
-  fgets(buf, MAX_FEATURES, file);
-  numFeatures = strlen(buf);
-  if ( buf[numFeatures - 1] == '\n' )
-  {
-    buf[numFeatures - 1] = 0;
-    numFeatures--;
   }
-  if ( !classifier.Load(file) )
+
+  if ( !classifier.Load(argv[1]) )
   {
-    fclose(file);
     fprintf(stderr, "Error loading %s\n", argv[1]);
     exit(1);
   }
-  fclose(file);
 
-  featureList = buf;
+  featureList = classifier.GetFeatureString();
   numFeatures = featureList.size();
 
   input.SetSize(numFeatures, 1);

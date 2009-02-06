@@ -23,12 +23,12 @@ int main(int argc, char* argv[])
   Image image;
   double* featureBuffer;
   double* pixel;
-  std::string featureList;
+  string featureList;
   int numFeatures;
 
   if ( argc < 5 )
   {
-    printf("Usage: fleshTrainer <feature string> <flesh Image> [...] -x <non-flesh image> [...]\n");
+    printf("Usage: %s <feature string> <flesh Image> [...] -x <non-flesh image> [...]\n", argv[0]);
     return 0;
   }
 
@@ -36,6 +36,7 @@ int main(int argc, char* argv[])
   numFeatures = featureList.size();
   input.SetSize(numFeatures, 1);
   classifier.Create(numFeatures, 2, classComponents);
+  classifier.SetFeatureString(featureList);
 
   for (i = 2; i < argc; i++)
   {
@@ -75,7 +76,7 @@ int main(int argc, char* argv[])
   printf("Starting training\n");
   classifier.Train();
 
-  do 
+  do
   {
     sprintf(filename, "flesh-%d-%d.rev%d.cfg", classComponents[0], classComponents[1], revNumber);
     file = fopen(filename, "r");
@@ -84,10 +85,7 @@ int main(int argc, char* argv[])
     revNumber++;
   } while ( file );
 
-  file = fopen(filename, "w");
-  fprintf(file, "%s\n", featureList.c_str());
-  classifier.Save(file);
-  fclose(file);
+  classifier.Save(filename);
 
   return 0;
 }

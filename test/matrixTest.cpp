@@ -8,18 +8,18 @@ int main(int argc, char* argv[])
   a.SetSize(2, 1);
   a.SetValue(0, 0, 1);
   a.SetValue(1, 0, 2);
-  a.Save(stdout);
+  a.Print(stdout);
 
   b.SetSize(1, 2);
   b.SetValue(0, 0, 3);
   b.SetValue(0, 1, 4);
-  b.Save(stdout);
+  b.Print(stdout);
 
   c = a * b;
-  c.Save(stdout);
+  c.Print(stdout);
 
   d = c * 3.0;
-  d.Save(stdout);
+  d.Print(stdout);
 
   e.SetSize(3, 3);
   e.SetValue(0, 0, 1);
@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
   e.SetValue(2, 1, 8);
   e.SetValue(2, 2, 9);
   e.GetDeterminant(determinant);
-  e.Save(stdout);
+  e.Print(stdout);
   printf("Determinant = %f\n", determinant);
 
   f.SetSize(3, 3);
@@ -45,16 +45,16 @@ int main(int argc, char* argv[])
   f.SetValue(2, 0, 3);
   f.SetValue(2, 1, 2);
   f.SetValue(2, 2, 1);
-  f.Save(stdout);
+  f.Print(stdout);
 
   g = f - e;
-  g.Save(stdout);
+  g.Print(stdout);
 
   h = g.Transpose();
-  h.Save(stdout);
-  
+  h.Print(stdout);
+
   i = a.Transpose();
-  i.Save(stdout);
+  i.Print(stdout);
 
   printf("Orig\n");
   j.SetSize(2, 2);
@@ -62,17 +62,17 @@ int main(int argc, char* argv[])
   j.SetValue(0, 1, 2);
   j.SetValue(1, 0, 1);
   j.SetValue(1, 1, 3);
-  j.Save(stdout);
+  j.Print(stdout);
 
   printf("Inverse\n");
   k = j.Inverse();
-  k.Save(stdout);
+  k.Print(stdout);
 
   l = j * k;
-  l.Save(stdout);
+  l.Print(stdout);
 
   j *= 2;
-  j.Save(stdout);
+  j.Print(stdout);
 
   printf("Orig\n");
   m.SetSize(3, 3);
@@ -85,15 +85,15 @@ int main(int argc, char* argv[])
   m.SetValue(2, 0, 1);
   m.SetValue(2, 1, 3);
   m.SetValue(2, 2, 2);
-  m.Save(stdout);
+  m.Print(stdout);
 
   printf("Inverse\n");
   n = m.Inverse();
-  n.Save(stdout);
+  n.Print(stdout);
 
   printf("Product\n");
   o = m * n;
-  o.Save(stdout);
+  o.Print(stdout);
 
   return 0;
 }

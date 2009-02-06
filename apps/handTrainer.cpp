@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
       image.CopyARGBBuffer(width, height, (int*)srcPixel, width);
       if ( classIndex == 0 )
       {
-#if 1
+#if 0
         left = width - 1;
         right = 0;
         top = height - 1;
@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
       }
       else
       {
-#if 0
+#if 1
         left = 0;
         right = width - 1;
         top = 0;

@@ -5,6 +5,11 @@
 
 #define IDENTITY_THRESH .001
 
+#define NUM_ROWS_STR "NumRows"
+#define NUM_COLS_STR "NumColumns"
+#define NUMBER_STR "Number"
+#define VALUE_STR "Value"
+
 Matrix::Matrix()
 {
   mData = NULL;
@@ -651,9 +656,7 @@ bool Matrix::operator<(Matrix& m)
   return false;
 }
 
-#define LABEL "Matrix"
-#define LABEL_LEN 6
-bool Matrix::Save(FILE* file)
+bool Matrix::Print(FILE* file)
 {
   int i, j;
 
@@ -663,7 +666,7 @@ bool Matrix::Save(FILE* file)
     return false;
   }
 
-  fprintf(file, "%s %d %d\n", LABEL, mRows, mColumns);
+  fprintf(file, "Matrix %d %d\n", mRows, mColumns);
   for (i = 0; i < mRows; i++)
   {
     for (j = 0; j < mColumns; j++)
@@ -674,49 +677,141 @@ bool Matrix::Save(FILE* file)
   return true;
 }
 
-#define MAX_STR_LEN 16
-bool Matrix::Load(FILE* file)
+bool Matrix::Save(const char* filename)
 {
-  int i, j;
-  char buf[MAX_STR_LEN];
-  int rows, columns;
+  FILE* file;
+  xmlDocPtr document;
+  xmlNodePtr rootNode;
+  bool retCode = true;
 
+  if ( !filename || !*filename )
+  {
+    fprintf(stderr, "Matrix::Save - Invalid parameter\n");
+    return false;
+  }
+
+  file = fopen(filename, "w");
   if ( !file )
   {
-    fprintf(stderr, "Matrix::Load - NULL file\n");
+    fprintf(stderr, "Matrix::Save - Failed opening %s\n", filename);
     return false;
   }
 
-  fgets(buf, LABEL_LEN + 1, file);
-  if ( strncmp(LABEL, buf, LABEL_LEN) )
-  {
-    fprintf(stderr, "Matrix::Load - Header string didn't match\n");
-    return false;
-  }
+  document = xmlNewDoc(NULL);
+  rootNode = xmlNewDocNode(document, NULL, (const xmlChar *)MATRIX_STR, NULL);
+  xmlDocSetRootElement(document, rootNode);
 
-  if ( fscanf(file, "%d %d", &rows, &columns) != 2 )
-  {
-    fprintf(stderr, "Matrix::Load - Failed getting rows and columns\n");
-    return false;
-  }
+  retCode = Save(rootNode);
 
-  if ( !SetSize(rows, columns, false) )
-  {
-    fprintf(stderr, "Matrix::Load - Failed SetSize(%d, %d)\n", rows, columns);
-    return false;
-  }
+  xmlDocFormatDump(file, document, 1);
+  fclose(file);
+  xmlFreeDoc(document);
+
+  return retCode;
+}
+
+bool Matrix::Save(xmlNodePtr matrixNode)
+{
+  int i, j;
+  xmlNodePtr numberNode;
+
+  SetIntValue(matrixNode, NUM_ROWS_STR, mRows);
+  SetIntValue(matrixNode, NUM_COLS_STR, mColumns);
 
   for (i = 0; i < mRows; i++)
   {
     for (j = 0; j < mColumns; j++)
     {
-      if ( !fscanf(file, "%lf ", &mData[i * mColumns + j]) )
-      {
-        fprintf(stderr, "Matrix::Load - Failed getting data at (%d, %d)\n", i, j);
-        return false;
-      }
+      numberNode = xmlNewNode(NULL, (const xmlChar*)NUMBER_STR);
+      xmlAddChild(matrixNode, numberNode);
+      SetDoubleValue(numberNode, VALUE_STR, mData[i * mColumns + j]);
     }
   }
 
   return true;
+}
+
+bool Matrix::Load(const char* filename)
+{
+  bool retCode = true;
+  xmlDocPtr document;
+  xmlNodePtr node;
+
+  if ( !filename || !*filename )
+  {
+    fprintf(stderr, "Matrix::Load - Bad filename\n");
+    return false;
+  }
+
+  document = xmlParseFile(filename);
+
+  if ( !document )
+  {
+    fprintf(stderr, "Matrix::Load - Failed parsing %s\n", filename);
+    return false;
+  }
+
+  node = xmlDocGetRootElement(document);
+  if ( !node )
+  {
+    xmlFreeDoc(document);
+    fprintf(stderr, "Matrix::Load - No root node in %s\n", filename);
+    return false;
+  }
+
+  retCode = Load(node);
+
+  xmlFreeDoc(document);
+
+  return retCode;
+}
+
+bool Matrix::Load(xmlNodePtr matrixNode)
+{
+  int rows, cols, cellsFilled;
+  xmlNodePtr node;
+  Matrix matrix;
+  string matrixID;
+  bool retCode = true;
+
+  rows = GetIntValue(matrixNode, NUM_ROWS_STR, 0);
+  cols = GetIntValue(matrixNode, NUM_COLS_STR, 0);
+  if ( (rows < 1) || (cols < 1) )
+  {
+    fprintf(stderr, "Matrix::Load - Invalid property\n");
+    return false;
+  }
+
+  if ( !SetSize(rows, cols, false) )
+  {
+    fprintf(stderr, "Matrix::Load - Failed setting size %d %d\n", rows, cols);
+    return false;
+  }
+
+  cellsFilled = 0;
+  node = matrixNode->children;
+  while ( node && retCode )
+  {
+    if ( !strcmp((char *)node->name, NUMBER_STR) )
+    {
+      if ( cellsFilled == mCells )
+      {
+        fprintf(stderr, "Matrix::Load - Found extra value\n");
+        retCode = false;
+      }
+      else
+      {
+        mData[cellsFilled] = GetDoubleValue(node, VALUE_STR, 0);
+        cellsFilled++;
+      }
+    }
+    else if ( strcmp((char *)node->name, "text") )
+    {
+      fprintf(stderr, "Matrix::Load - Found unknown node %s\n", (char*)node->name);
+      retCode = false;
+    }
+    node = node->next;
+  }
+
+  return retCode;
 }

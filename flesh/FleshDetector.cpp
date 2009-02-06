@@ -21,39 +21,21 @@ FleshDetector::~FleshDetector()
 
 bool FleshDetector::Load(const char* filename)
 {
-  FILE* filePtr;
-  bool retCode;
-  char buffer[MAX_FEATURES];
-  int numFeatures;
-
   if ( !filename || !*filename )
   {
     fprintf(stderr, "FleshDetector::Load - Invalid filename\n");
     return false;
   }
 
-  filePtr = fopen(filename, "r");
-  if ( !filePtr )
+  if ( !mClassifier.Load(filename) )
   {
     fprintf(stderr, "FleshDetector::Load - Unable to open %s\n", filename);
     return false;
   }
 
-  retCode = fgets(buffer, MAX_FEATURES, filePtr);
+  mFeatureList = mClassifier.GetFeatureString();
 
-  if ( retCode )
-  {
-    numFeatures = strlen(buffer);
-    if ( buffer[numFeatures - 1] == '\n' )
-      buffer[numFeatures - 1] = 0;
-
-    mFeatureList = buffer;
-
-    retCode = mClassifier.Load(filePtr);
-  }
-  fclose(filePtr);
-
-  return retCode;
+  return true;
 }
 
 bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fleshImageOut, Image** confidenceImageOut)

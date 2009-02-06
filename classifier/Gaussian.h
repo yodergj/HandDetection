@@ -2,8 +2,11 @@
 #define GAUUSIAN_H
 
 #include "Matrix.h"
+#include "XMLUtils.h"
 
 #define MIN_PROB .000001
+
+#define GAUSSIAN_STR "Gaussian"
 
 class Gaussian
 {
@@ -17,8 +20,11 @@ class Gaussian
     bool SetVariance(Matrix& variance);
     bool UpdateVariance(Matrix& variance, double& maxDifference);
     double Probability(Matrix& input);
-    bool Save(FILE* file);
-    bool Load(FILE* file);
+    bool Print(FILE* file);
+    bool Save(const char* filename);
+    bool Save(xmlNodePtr gaussianNode);
+    bool Load(const char* filename);
+    bool Load(xmlNodePtr gaussianNode);
   private:
     int mDimensions;
     Matrix mMean;

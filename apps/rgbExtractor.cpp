@@ -20,19 +20,15 @@ int main(int argc, char* argv[])
   Matrix input;
   int classIndex;
   double confidence;
-  FILE *file;
 
   if ( argc < 3 )
     return 0;
 
-  file = fopen(argv[1], "r");
-  if ( !classifier.Load(file) )
+  if ( !classifier.Load(argv[1]) )
   {
-    fclose(file);
     fprintf(stderr, "Error loading %s\n", argv[1]);
     exit(1);
   }
-  fclose(file);
 
   input.SetSize(3, 1);
 

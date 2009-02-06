@@ -1,7 +1,10 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
+#include "XMLUtils.h"
 #include <stdio.h>
+
+#define MATRIX_STR "Matrix"
 
 class Matrix
 {
@@ -20,8 +23,11 @@ class Matrix
     bool SetFromDifference(Matrix& a, Matrix& b);
     bool GetDeterminant(double &determinant);
     void Clear();
-    bool Save(FILE* file);
-    bool Load(FILE* file);
+    bool Print(FILE* file);
+    bool Save(const char* filename);
+    bool Save(xmlNodePtr matrixNode);
+    bool Load(const char* filename);
+    bool Load(xmlNodePtr matrixNode);
     Matrix& Transpose();
     Matrix& Inverse();
     Matrix& operator-(Matrix& m);

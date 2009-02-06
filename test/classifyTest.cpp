@@ -6,7 +6,6 @@ int main(int argc, char* argv[])
   Matrix input;
   int classIndex;
   double confidence;
-  FILE *file;
   int classComponents[] = {2, 5};  
 
   input.SetSize(2, 1);
@@ -33,9 +32,7 @@ int main(int argc, char* argv[])
 
   classifier.Train();
 
-  file = fopen("test.cfg", "w");
-  classifier.Save(file);
-  fclose(file);
+  classifier.Save("test.cfg");
 
   classifier.Classify(input, classIndex, confidence);
   printf("Point (%f, %f) is class %d, confidence %f\n", input.GetValue(0, 0), input.GetValue(1, 0), classIndex, confidence);

@@ -15,7 +15,6 @@ int main(int argc, char* argv[])
   BayesianClassifier classifier;
   Matrix input;
   int classIndex = 0;
-  FILE *file;
   int classComponents[] = {2, 5};
 
   if ( argc < 4 )
@@ -62,9 +61,7 @@ int main(int argc, char* argv[])
 
   printf("Starting training\n");
   classifier.Train();
-  file = fopen("hand.cfg", "w");
-  classifier.Save(file);
-  fclose(file);
+  classifier.Save("hand.cfg");
 
   return 0;
 }

@@ -48,7 +48,7 @@ double GetDoubleValue(xmlNodePtr node, const char* propertyName,
 void SetDoubleValue(xmlNodePtr node,const char* propertyName, double value)
 {
   char buf[32];
-  sprintf(buf,"%f",value);
+  sprintf(buf,"%.15e",value);
   xmlNewProp(node, (const xmlChar*)propertyName, (const xmlChar*)buf);
 }
 

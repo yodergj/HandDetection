@@ -5,6 +5,12 @@
 
 #define MIN_DIAG_VARIANCE .000000001
 #define MIN_DETERMINANT   .000000000001
+#define MIN_VARIANCE_ADJUST .000001
+
+#define NUM_DIM_STR "NumDimensions"
+#define MEAN_STR "Mean"
+#define VARIANCE_STR "Variance"
+#define ID_STR "Identifier"
 
 Gaussian::Gaussian()
 {
@@ -147,8 +153,8 @@ bool Gaussian::UpdateVariance(Matrix& variance, double& maxDifference)
     if ( determinant < MIN_DETERMINANT )
     {
       adjustment = fabs(determinant);
-      if ( adjustment < .00001 )
-        adjustment = .00001;
+      if ( adjustment < MIN_VARIANCE_ADJUST )
+        adjustment = MIN_VARIANCE_ADJUST;
       fprintf(stderr, "Gaussian::UpdateVariance - Determinant is not positive - adjusting diagonal by %f\n", adjustment);
       for (i = 0; i < mDimensions; i++)
       {
@@ -202,13 +208,7 @@ double Gaussian::Probability(Matrix& input)
   return result;
 }
 
-#define GAUSSIAN_LABEL "Gaussian"
-#define GAUSSIAN_LABEL_LEN 8
-#define MEAN_LABEL "Mean"
-#define MEAN_LABEL_LEN 4
-#define VARIANCE_LABEL "Variance"
-#define VARIANCE_LABEL_LEN 8
-bool Gaussian::Save(FILE* file)
+bool Gaussian::Print(FILE* file)
 {
   if ( !file )
   {
@@ -216,86 +216,198 @@ bool Gaussian::Save(FILE* file)
     return false;
   }
 
-  fprintf(file, "%s %d\n", GAUSSIAN_LABEL, mDimensions);
-  fprintf(file, "%s ", MEAN_LABEL);
-  mMean.Save(file);
-  fprintf(file, "%s ", VARIANCE_LABEL);
-  mVariance.Save(file);
+  fprintf(file, "Gaussian %d\n", mDimensions);
+  fprintf(file, "Mean ");
+  mMean.Print(file);
+  fprintf(file, "Variance ");
+  mVariance.Print(file);
 
   return true;
 }
 
-#define MAX_STR_LEN 16
-bool Gaussian::Load(FILE* file)
+bool Gaussian::Save(const char* filename)
 {
-  char buf[MAX_STR_LEN];
-  int dimensions;
-  Matrix matrix;
+  FILE* file;
+  xmlDocPtr document;
+  xmlNodePtr rootNode;
+  bool retCode = true;
 
+  if ( !filename || !*filename )
+  {
+    fprintf(stderr, "Gaussian::Save - Invalid parameter\n");
+    return false;
+  }
+
+  file = fopen(filename, "w");
   if ( !file )
   {
-    fprintf(stderr, "Gaussian::Load - NULL file\n");
+    fprintf(stderr, "Gaussian::Save - Failed opening %s\n", filename);
     return false;
   }
 
-  fgets(buf, GAUSSIAN_LABEL_LEN + 1, file);
-  if ( strncmp(GAUSSIAN_LABEL, buf, GAUSSIAN_LABEL_LEN) )
+  document = xmlNewDoc(NULL);
+  rootNode = xmlNewDocNode(document, NULL, (const xmlChar *)GAUSSIAN_STR, NULL);
+  xmlDocSetRootElement(document, rootNode);
+
+  retCode = Save(rootNode);
+
+  xmlDocFormatDump(file, document, 1);
+  fclose(file);
+  xmlFreeDoc(document);
+
+  return retCode;
+}
+
+bool Gaussian::Save(xmlNodePtr gaussianNode)
+{
+  xmlNodePtr meanNode;
+  xmlNodePtr varianceNode;
+
+  SetIntValue(gaussianNode, NUM_DIM_STR, mDimensions);
+
+  meanNode = xmlNewNode(NULL, (const xmlChar*)MATRIX_STR);
+  xmlAddChild(gaussianNode, meanNode);
+  SetStringValue(meanNode, ID_STR, MEAN_STR);
+  if ( !mMean.Save(meanNode) )
   {
-    fprintf(stderr, "Gaussian::Load - Header string didn't match\n");
+    fprintf(stderr, "Gaussian::Save - Failed saving mean\n");
     return false;
   }
 
-  if ( !fscanf(file, "%d\n", &dimensions) )
+  varianceNode = xmlNewNode(NULL, (const xmlChar*)MATRIX_STR);
+  xmlAddChild(gaussianNode, varianceNode);
+  SetStringValue(varianceNode, ID_STR, VARIANCE_STR);
+  if ( !mVariance.Save(varianceNode) )
   {
-    fprintf(stderr, "Gaussian::Load - Faild getting dimensions\n");
+    fprintf(stderr, "Gaussian::Save - Failed saving covariance\n");
+    return false;
+  }
+
+  return true;
+}
+
+bool Gaussian::Load(const char* filename)
+{
+  bool retCode = true;
+  xmlDocPtr document;
+  xmlNodePtr node;
+
+  if ( !filename || !*filename )
+  {
+    fprintf(stderr, "Gaussian::Load - Bad filename\n");
+    return false;
+  }
+
+  document = xmlParseFile(filename);
+
+  if ( !document )
+  {
+    fprintf(stderr, "Gaussian::Load - Failed parsing %s\n", filename);
+    return false;
+  }
+
+  node = xmlDocGetRootElement(document);
+  if ( !node )
+  {
+    xmlFreeDoc(document);
+    fprintf(stderr, "Gaussian::Load - No root node in %s\n", filename);
+    return false;
+  }
+
+  retCode = Load(node);
+
+  xmlFreeDoc(document);
+
+  return retCode;
+}
+
+bool Gaussian::Load(xmlNodePtr gaussianNode)
+{
+  int dimensions;
+  xmlNodePtr node;
+  Matrix matrix;
+  string matrixID;
+  bool meanFound = false;
+  bool varianceFound = false;
+  bool retCode = true;
+
+  dimensions = GetIntValue(gaussianNode, NUM_DIM_STR, 0);
+  if ( dimensions < 1 )
+  {
+    fprintf(stderr, "Gaussian::Load - Invalid property\n");
     return false;
   }
 
   if ( !SetNumDimensions(dimensions) )
   {
-    fprintf(stderr, "Gaussian::Load - Faild setting dimensions %d\n", dimensions);
+    fprintf(stderr, "Gaussian::Load - Failed setting dimensions %d\n", dimensions);
+
     return false;
   }
 
-  fgets(buf, MEAN_LABEL_LEN + 1, file);
-  if ( strncmp(MEAN_LABEL, buf, MEAN_LABEL_LEN) )
+  node = gaussianNode->children;
+  while ( node && retCode )
   {
-    fprintf(stderr, "Gaussian::Load - Mean header string didn't match\n");
-    return false;
+    if ( !strcmp((char *)node->name, MATRIX_STR) )
+    {
+      matrixID = GetStringValue(node, ID_STR);
+      if ( matrixID == MEAN_STR )
+      {
+        if ( meanFound )
+        {
+          fprintf(stderr, "Gaussian::Load - Found extra mean matrix\n");
+          retCode = false;
+        }
+        else
+        {
+          if ( !matrix.Load(node) )
+          {
+            fprintf(stderr, "Gaussian::Load - Failed loading mean\n");
+            retCode = false;
+          }
+          else if ( !SetMean(matrix) )
+          {
+            fprintf(stderr, "Gaussian::Load - Failed setting mean\n");
+            retCode = false;
+          }
+        }
+        meanFound = true;
+      }
+      else if ( matrixID == VARIANCE_STR )
+      {
+        if ( varianceFound )
+        {
+          fprintf(stderr, "Gaussian::Load - Found extra variance matrix\n");
+          retCode = false;
+        }
+        else
+        {
+          if ( !matrix.Load(node) )
+          {
+            fprintf(stderr, "Gaussian::Load - Failed loading variance\n");
+            retCode = false;
+          }
+          else if ( !SetVariance(matrix) )
+          {
+            fprintf(stderr, "Gaussian::Load - Failed setting variance\n");
+            retCode = false;
+          }
+        }
+        varianceFound = true;
+      }
+      else
+      {
+        fprintf(stderr, "Gaussian::Load - Found unknown matrix with ID %s\n", matrixID.c_str());
+        retCode = false;
+      }
+    }
+    else if ( strcmp((char *)node->name, "text") )
+    {
+      fprintf(stderr, "Gaussian::Load - Found unknown node %s\n", (char*)node->name);
+      retCode = false;
+    }
+    node = node->next;
   }
-  fgetc(file); // Skip the space between Mean and Matrix
 
-  if ( !matrix.Load(file) )
-  {
-    fprintf(stderr, "Gaussian::Load - Failed loading mean\n");
-    return false;
-  }
-
-  if ( !SetMean(matrix) )
-  {
-    fprintf(stderr, "Gaussian::Load - Failed setting mean\n");
-    return false;
-  }
-
-  fgets(buf, VARIANCE_LABEL_LEN + 1, file);
-  if ( strncmp(VARIANCE_LABEL, buf, VARIANCE_LABEL_LEN) )
-  {
-    fprintf(stderr, "Gaussian::Load - Variance header string didn't match\n");
-    return false;
-  }
-  fgetc(file); // Skip the space between Variance and Matrix
-
-  if ( !matrix.Load(file) )
-  {
-    fprintf(stderr, "Gaussian::Load - Failed loading variance\n");
-    return false;
-  }
-
-  if ( !SetVariance(matrix) )
-  {
-    fprintf(stderr, "Gaussian::Load - Failed setting variance\n");
-    return false;
-  }
-
-  return true;
+  return retCode;
 }

@@ -8,7 +8,6 @@ int main(int argc, char* argv[])
   QRgb* scanline;
   VideoDecoder decoder;
   BayesianClassifier classifier;
-  FILE* file;
   Matrix input;
   QImage* inputImage;
   QImage fleshImage;
@@ -33,13 +32,11 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  file = fopen(argv[1], "r");
-  if ( !classifier.Load(file) )
+  if ( !classifier.Load(argv[1]) )
   {
     fprintf(stderr, "Error loading classifier %s\n", argv[1]);
     return 1;
   }
-  fclose(file);
 
   vidFilename = argv[2];
   decoder.SetFilename(vidFilename);

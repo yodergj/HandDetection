@@ -28,7 +28,7 @@ int main(int argc, char* argv[])
 
   if ( argc < 4 )
   {
-    printf("Usage: %s <flesh classifier file> <hand classifier file> <image file> [ <image file> ... ]", argv[0]);
+    printf("Usage: %s <flesh classifier file> <hand classifier file> <image file> [ <image file> ... ]\n", argv[0]);
     return 1;
   }
 

@@ -7,16 +7,12 @@ int main(int argc, char* argv[])
   Matrix input;
   int classIndex;
   double confidence;
-  FILE *file;
 
-  file = fopen("test.cfg", "r");
-  if ( !classifier.Load(file) )
+  if ( !classifier.Load("test.cfg") )
   {
-    fclose(file);
     fprintf(stderr, "Error loading test.cfg\n");
     exit(1);
   }
-  fclose(file);
 
   input.SetSize(2, 1);
 

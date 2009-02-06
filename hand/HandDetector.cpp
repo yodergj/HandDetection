@@ -1,9 +1,15 @@
 #include "HandDetector.h"
+#include "XMLUtils.h"
 #include <stdio.h>
 #include <string.h>
 
 #define MAX_FEATURES 512
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
+
+#define HAND_DETECTOR_STR "HandDetector"
+#define X_RES_STR "XResolution"
+#define Y_RES_STR "YResolution"
+#define FEATURE_STR "Features"
 
 HandDetector::HandDetector()
 {
@@ -15,10 +21,9 @@ HandDetector::~HandDetector()
 
 bool HandDetector::Load(const char* filename)
 {
-  FILE* filePtr;
   bool retCode = true;
-  char buffer[MAX_FEATURES];
-  int numFeatures;
+  xmlDocPtr document;
+  xmlNodePtr node;
 
   if ( !filename || !*filename )
   {
@@ -26,30 +31,37 @@ bool HandDetector::Load(const char* filename)
     return false;
   }
 
-  filePtr = fopen(filename, "r");
-  if ( !filePtr )
+  document = xmlParseFile(filename);
+
+  if ( !document )
   {
-    fprintf(stderr, "HandDetector::Load - Failed opening %s\n", filename);
+    fprintf(stderr, "HandDetector::Load - Failed parsing %s\n", filename);
     return false;
   }
 
-  if ( fscanf(filePtr, "%d %d ", &mXResolution, &mYResolution) != 2 )
-    retCode = false;
-
-  if ( retCode && !fgets(buffer, MAX_FEATURES, filePtr) )
-    retCode = false;
-
-  if ( retCode )
+  node = xmlDocGetRootElement(document);
+  if ( !node )
   {
-    numFeatures = strlen(buffer);
-    if ( buffer[numFeatures - 1] == '\n' )
-      buffer[numFeatures - 1] = 0;
-
-    mFeatureList = buffer;
-
-    retCode = mClassifier.Load(filePtr);
+    xmlFreeDoc(document);
+    fprintf(stderr, "HandDetector::Load - No root node in %s\n", filename);
+    return false;
   }
-  fclose(filePtr);
+
+  mXResolution = GetIntValue(node, X_RES_STR, 1);
+  mYResolution = GetIntValue(node, Y_RES_STR, 1);
+  mFeatureList = GetStringValue(node, FEATURE_STR);
+
+  node = node->children;
+  while ( node && retCode )
+  {
+    if ( !strcmp((char *)node->name, BAYESIAN_CLASSIFIER_STR) )
+      retCode = mClassifier.Load(node);
+    else if ( strcmp((char *)node->name, "text") )
+      retCode = false;
+    node = node->next;
+  }
+
+  xmlFreeDoc(document);
 
   return retCode;
 }
@@ -58,6 +70,9 @@ bool HandDetector::Save(const char* filename)
 {
   FILE* filePtr;
   bool retCode;
+  xmlDocPtr document;
+  xmlNodePtr rootNode;
+  xmlNodePtr classifierNode;
 
   if ( !filename || !*filename )
   {
@@ -72,9 +87,21 @@ bool HandDetector::Save(const char* filename)
     return false;
   }
 
-  fprintf(filePtr, "%d %d %s\n", mXResolution, mYResolution, mFeatureList.c_str());
-  retCode = mClassifier.Save(filePtr);
+  document = xmlNewDoc(NULL);
+  rootNode = xmlNewDocNode(document, NULL, (const xmlChar *)HAND_DETECTOR_STR, NULL);
+  xmlDocSetRootElement(document, rootNode);
+
+  SetIntValue(rootNode, X_RES_STR, mXResolution);
+  SetIntValue(rootNode, Y_RES_STR, mYResolution);
+  SetStringValue(rootNode, FEATURE_STR, mFeatureList);
+
+  classifierNode = xmlNewNode(NULL, (const xmlChar*)BAYESIAN_CLASSIFIER_STR);
+  xmlAddChild(rootNode, classifierNode);
+  retCode = mClassifier.Save(classifierNode);
+
+  xmlDocFormatDump(filePtr, document, 1);
   fclose(filePtr);
+  xmlFreeDoc(document);
 
   return retCode;
 }
@@ -108,7 +135,7 @@ bool HandDetector::Process(Image* imagePtr, int left, int right, int top, int bo
 
     if ( classIndex == 0 )
     {
-      printf("Hand Confidnece %f\n", confidence);
+      printf("Hand Confidence %f\n", confidence);
       hand = new Hand;
       hand->SetBounds(left, right, top, bottom);
       results.push_back(hand);
@@ -140,7 +167,13 @@ bool HandDetector::Create(string featureList, int xResolution, int yResolution,
   numFeatures = featureList.size();
   classComponents[0] = numHandGaussians;
   classComponents[1] = numNonHandGaussians;
-  return mClassifier.Create(xResolution * yResolution * numFeatures, 2, classComponents);
+  if ( !mClassifier.Create(xResolution * yResolution * numFeatures, 2, classComponents) )
+  {
+    fprintf(stderr, "HandDetector::Create - Failed creating classifier\n");
+    return false;
+  }
+
+  return true;
 }
 
 bool HandDetector::AddTrainingSample(Image* imagePtr, int left, int right, int top, int bottom, bool isHand)

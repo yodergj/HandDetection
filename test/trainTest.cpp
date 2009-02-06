@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 #endif
 
   model.Train();
-  model.Save(stdout);
+  model.Print(stdout);
 
 #if 0
   printf("Multivariate Result %f\n", gaussian.Probability(input));

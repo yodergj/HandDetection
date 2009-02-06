@@ -2,7 +2,10 @@
 #define GAUSSIAN_MIXTURE_MODEL_H
 
 #include "Gaussian.h"
+#include "XMLUtils.h"
 #include <vector>
+
+#define GMM_STR "GaussianMixtureModel"
 
 class GaussianMixtureModel
 {
@@ -14,8 +17,11 @@ class GaussianMixtureModel
     int* Get2dDataHistogram(int binsPerSide, double scaleFactor);
     double Probability(Matrix& data);
     bool Train();
-    bool Save(FILE* file);
-    bool Load(FILE* file);
+    bool Print(FILE* file);
+    bool Save(const char* filename);
+    bool Save(xmlNodePtr modelNode);
+    bool Load(const char* filename);
+    bool Load(xmlNodePtr modelNode);
   private:
     void Clear();
     bool TrainEM();
