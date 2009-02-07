@@ -1,32 +1,33 @@
-#include <qapplication.h>
-#include <qimage.h>
+#include <stdlib.h>
+#include <string.h>
 #include <avifile.h>
 #include <avm_fourcc.h>
+#include "Image.h"
 
 #define FRAME_RATE 10
 
-void InsertFrame(QImage* image, avm::IVideoWriteStream* outVidStr)
+void InsertFrame(Image* image, avm::IVideoWriteStream* outVidStr)
 {
   int x, y;
   int width, height;
   unsigned char* data;
-  unsigned char* outputLine;
-  QRgb* scanline;
+  unsigned char* srcPixel;
+  unsigned char* destPixel;
 
-  width = image->width();
-  height = image->height();
+  width = image->GetWidth();
+  height = image->GetHeight();
   printf("width %d height %d\n", width, height);
-  data = (unsigned char*)malloc(3* width * height);
+  data = (unsigned char*)malloc(3 * width * height);
 
+  srcPixel = image->GetRGBBuffer();
+  destPixel = data;
   for (y = 0; y < height; y++)
   {
-    scanline = (QRgb*)image->scanLine(y);
-    outputLine = data + y * width * 3;
-    for (x = 0; x < width; x++)
+    for (x = 0; x < width; x++, srcPixel += 3, destPixel += 3)
     {
-      outputLine[3 * x] = qBlue(scanline[x]);
-      outputLine[3 * x + 1] = qGreen(scanline[x]);
-      outputLine[3 * x + 2] = qRed(scanline[x]);
+      destPixel[0] = srcPixel[2];
+      destPixel[1] = srcPixel[1];
+      destPixel[2] = srcPixel[0];
     }
   }
 
@@ -38,8 +39,7 @@ void InsertFrame(QImage* image, avm::IVideoWriteStream* outVidStr)
 
 int main(int argc, char* argv[])
 {
-  QApplication app(argc,argv);
-  QImage inputImage;
+  Image inputImage;
   int i;
   int width = 0;
   int height = 0;
@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
 
   for (i = 1; i < argc; i++)
   {
-    if ( !inputImage.load(argv[i]) )
+    if ( !inputImage.Load(argv[i]) )
     {
       fprintf(stderr, "Error loading %s\n", argv[i]);
       return 1;
@@ -64,8 +64,8 @@ int main(int argc, char* argv[])
 
     if ( i == 1 )
     {
-      width = inputImage.width();
-      height = inputImage.height();
+      width = inputImage.GetWidth();
+      height = inputImage.GetHeight();
 
       memset(&bi, 0, sizeof(BITMAPINFOHEADER));
       bi.biSize = sizeof(BITMAPINFOHEADER);

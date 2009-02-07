@@ -1,16 +1,17 @@
-#include "BayesianClassifier.h"
-#include <qapplication.h>
-#include <qimage.h>
 #include <stdlib.h>
+#include <string.h>
+#include <string>
+#include "Image.h"
+#include "BayesianClassifier.h"
+
+using std::string;
 
 int main(int argc, char* argv[])
 {
-  QApplication app(argc,argv);
-  QImage inputImage;
-  QColor color;
-  QString basename;
-  QImage histogramImage;
-  QImage fleshImage, nonFleshImage;
+  Image inputImage;
+  string basename;
+  Image histogramImage;
+  Image fleshImage, nonFleshImage;
   int j;
   int u, v;
   int width, height;
@@ -30,8 +31,13 @@ int main(int argc, char* argv[])
   int totalPixels;
 //  int totalBins, currentLevel, currentBinLimit, currentFreqBin;
   int red, green, blue;
+  int dotPos;
   double ratio;
   int classComponents[] = {2, 5};
+  unsigned char* pixel;
+  unsigned char* fleshPixel;
+  unsigned char* nonFleshPixel;
+  unsigned char white[] = {255, 255, 255};
 
   if ( argc < 4 )
     return 0;
@@ -40,36 +46,42 @@ int main(int argc, char* argv[])
 
   input.SetSize(2, 1);
   classifier.Create(2, 2, classComponents);
-  histogramImage.create(256, 256, 32);
+  histogramImage.Create(256, 256);
 
-  for (j=1; j<argc; j++)
+  for (j = 1; j < argc; j++)
   {
     if ( !strcmp(argv[j], "-x") )
     {
       classIndex = 1;
       continue;
     }
-    if ( inputImage.load(argv[j]) )
+    if ( inputImage.Load(argv[j]) )
     {
       if ( classIndex == 0 )
         printf("Processing hand image %s\n", argv[j]);
       else
         printf("Processing other image %s\n", argv[j]);
       basename = argv[j];
-      basename.truncate( basename.findRev('.') );
-      width = inputImage.width();
-      height = inputImage.height();
+      dotPos = basename.rfind('.');
+      if ( dotPos != (int)string::npos )
+        basename = basename.substr(0, dotPos);
+      width = inputImage.GetWidth();
+      height = inputImage.GetHeight();
       if ( classIndex == 0 )
       {
-        fleshImage.create(width, height, 32);
-        nonFleshImage.create(width, height, 32);
+        fleshImage.Create(width, height);
+        nonFleshImage.Create(width, height);
       }
+      pixel = inputImage.GetRGBBuffer();
+      fleshPixel = fleshImage.GetRGBBuffer();
+      nonFleshPixel = nonFleshImage.GetRGBBuffer();
       for (v = 0; v < height; v++)
       {
-        for (u = 0; u < width; u++)
+        for (u = 0; u < width; u++, pixel += 3, fleshPixel += 3, nonFleshPixel += 3)
         {
-          color = inputImage.pixel(u,v);
-          color.getRgb(&r, &g, &b);
+          r = pixel[0];
+          g = pixel[1];
+          b = pixel[2];
           y =   r * .299 + g *  .587 + b *  .114;
           i = ((r * .596 + g * -.275 + b * -.321)/.596 + 255)/2;
           q = ((r * .212 + g * -.523 + b *  .311)/.523 + 255)/2;
@@ -79,14 +91,14 @@ int main(int argc, char* argv[])
             if (y <= 50)
             {
               // Pixel is not flesh colored
-              fleshImage.setPixel(u, v, qRgb(255, 255, 255));
-              nonFleshImage.setPixel(u, v, qRgb(r, g, b));
+              memcpy(fleshPixel, white, 3);
+              memcpy(nonFleshPixel, pixel, 3);
             }
             else
             {
               // Pixel is flesh colored
-              fleshImage.setPixel(u, v, qRgb(r, g, b));
-              nonFleshImage.setPixel(u, v, qRgb(255, 255, 255));              
+              memcpy(fleshPixel, pixel, 3);
+              memcpy(nonFleshPixel, white, 3);
             }
           }
 
@@ -100,8 +112,8 @@ int main(int argc, char* argv[])
       }
       if ( classIndex == 0 )
       {
-        fleshImage.save(basename + "_flesh.png", "PNG");
-        nonFleshImage.save(basename + "_nonflesh.png", "PNG");
+        fleshImage.Save(basename + "_flesh.png");
+        nonFleshImage.Save(basename + "_nonflesh.png");
       }
     }
   }
@@ -140,9 +152,10 @@ int main(int argc, char* argv[])
 
   printf("Flesh Max Freq %d\n", maxFreq);
 
+  pixel = histogramImage.GetRGBBuffer();
   for (v = 0; v < 256; v++)
   {
-    for (u = 0; u < 256; u++)
+    for (u = 0; u < 256; u++, pixel += 3)
     {
 #if 1
 #if 0
@@ -151,7 +164,9 @@ int main(int argc, char* argv[])
 #endif
 #if 0
       intensity = (int)(histogram[v * numBins + u] / (double)maxFreq * 255 + .5);
-      histogramImage.setPixel(u, v, qRgb(intensity, intensity, intensity));
+      pixel[0] = (unsigned char)intensity;
+      pixel[1] = (unsigned char)intensity;
+      pixel[2] = (unsigned char)intensity;
 #else
       ratio = histogram[v * numBins + u] / (double)maxFreq * 0xffffff;
       red = (int)(ratio / 0x10000 + .5);
@@ -163,7 +178,9 @@ int main(int argc, char* argv[])
         blue = 255;
       else
         blue = (int)(ratio + .5);
-      histogramImage.setPixel(u, v, qRgb(red, green, blue));
+      pixel[0] = (unsigned char)red;
+      pixel[1] = (unsigned char)green;
+      pixel[2] = (unsigned char)blue;
 #endif
 #else
       for (currentLevel = 0; currentLevel < equalizationLevels; currentLevel++)
@@ -177,7 +194,7 @@ int main(int argc, char* argv[])
 #endif
     }
   }
-  histogramImage.save("FleshCluster.png", "PNG");
+  histogramImage.Save("FleshCluster.png");
 
   maxFreq = 0;
   totalPixels = 0;
@@ -192,13 +209,16 @@ int main(int argc, char* argv[])
 
   printf("Non Flesh Max Freq %d\n", maxFreq);
 
+  pixel = histogramImage.GetRGBBuffer();
   for (v = 0; v < 256; v++)
   {
-    for (u = 0; u < 256; u++)
+    for (u = 0; u < 256; u++, pixel += 3)
     {
 #if 0
       intensity = (int)(histogram[v * numBins + u] / (double)maxFreq * 255 + .5);
-      histogramImage.setPixel(u, v, qRgb(intensity, intensity, intensity));
+      pixel[0] = (unsigned char)intensity;
+      pixel[1] = (unsigned char)intensity;
+      pixel[2] = (unsigned char)intensity;
 #else
       ratio = histogram[v * numBins + u] / (double)maxFreq * 0xffffff;
       red = (int)(ratio / 0x10000 + .5);
@@ -210,11 +230,13 @@ int main(int argc, char* argv[])
         blue = 255;
       else
         blue = (int)(ratio + .5);
-      histogramImage.setPixel(u, v, qRgb(red, green, blue));
+      pixel[0] = (unsigned char)red;
+      pixel[1] = (unsigned char)green;
+      pixel[2] = (unsigned char)blue;
 #endif
     }
   }
-  histogramImage.save("NonFleshClusterl.png", "PNG");
+  histogramImage.Save("NonFleshClusterl.png");
 
   free(frequencyLevels);
   return 0;

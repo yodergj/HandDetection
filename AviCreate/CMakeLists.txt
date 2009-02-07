@@ -1,0 +1,5 @@
+PROJECT(HandDetection)
+FIND_PACKAGE(Qt3)
+INCLUDE_DIRECTORIES(/usr/include/avifile-0.7)
+ADD_EXECUTABLE(imgtoavi imgtoavi.cpp)
+TARGET_LINK_LIBRARIES(imgtoavi image ${QT_LIBRARIES} aviplay)

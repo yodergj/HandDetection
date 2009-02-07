@@ -20,8 +20,8 @@ class Image
     int GetBufferUpdateIndex();
     double* GetYIQBuffer();
     double* GetScaledRGBBuffer();
-    double* GetCustomBuffer(string &featureList);    
-    double* GetCustomIntegralBuffer(string &featureList);    
+    double* GetCustomBuffer(string &featureList);
+    double* GetCustomIntegralBuffer(string &featureList);
     bool GetConfidenceBuffer(double* &buffer, int &bufferWidth, int &bufferHeight, int &bufferAlloc);
     bool SetConfidenceBuffer(double* buffer, int bufferWidth, int bufferHeight, int bufferAlloc);
     vector<ConnectedRegion*>* GetRegionsFromConfidenceBuffer();
@@ -31,6 +31,9 @@ class Image
     bool DrawBox(const unsigned char* color, int lineWidth, int left, int top, int right, int bottom);
     bool DrawLine(const unsigned char* color, int lineWidth, int x1, int y1, int x2, int y2);
     bool Save(const char* filename);
+    bool Save(const string& filename);
+    bool Load(const char* filename);
+    bool Load(const string& filename);
     Image& operator=(const Image& ref);
   private:
     bool SavePPM(const char* filename);

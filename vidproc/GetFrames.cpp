@@ -1,19 +1,19 @@
+#include <string>
 #include "VideoDecoder.h"
-#include <qapplication.h>
+
+using std::string;
 
 int main(int argc, char* argv[])
 {
-  QApplication app(argc,argv);
-  QColor color;
   VideoDecoder decoder;
-  QImage* inputImage;
+  Image* inputImage;
   int frameNumber = 0;
-  QString vidFilename;
+  string vidFilename;
   char outputFilename[1024];
 
   if ( argc < 3 )
   {
-    printf("Usage: getframes <video file> <output directory>\n");
+    printf("Usage: %s <video file> <output directory>\n", argv[0]);
     return 1;
   }
 
@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
   {
     inputImage = decoder.GetFrame();
     sprintf(outputFilename, "%s/frame%05d.png", argv[2], frameNumber);
-    inputImage->save(outputFilename, "PNG");
+    inputImage->Save(outputFilename);
 
     frameNumber++;
   }

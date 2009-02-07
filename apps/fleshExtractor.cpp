@@ -1,26 +1,29 @@
+#include <stdlib.h>
+#include <string.h>
+#include <string>
 #include "BayesianClassifier.h"
 #include "Image.h"
-#include <qapplication.h>
-#include <qimage.h>
-#include <stdlib.h>
+
+using std::string;
 
 int main(int argc, char* argv[])
 {
-  QApplication app(argc,argv);
-  QImage inputImage;
-  QImage fleshImage, nonFleshImage;
-  QString basename;
-  QRgb* srcPixel;
+  Image image;
+  Image fleshImage, nonFleshImage;
+  string basename;
+  unsigned char* srcPixel;
+  unsigned char* fleshPixel;
+  unsigned char* nonFleshPixel;
   int i;
   int x, y;
   int width, height;
-  int imageIndex;
+  int imageIndex, dotPos;
   BayesianClassifier classifier;
   Matrix input;
   int classIndex;
   double confidence;
+  unsigned char white[] = {255, 255, 255};
 
-  Image image;
   double* featureBuffer;
   double* featurePixel;
   string featureList;
@@ -45,28 +48,32 @@ int main(int argc, char* argv[])
 
   for (imageIndex = 2; imageIndex < argc; imageIndex++)
   {
-    if ( !inputImage.load(argv[imageIndex]) )
+    if ( !image.Load(argv[imageIndex]) )
     {
       fprintf(stderr, "Error loading %s\n", argv[2]);
       exit(1);
     }
 
     basename = argv[imageIndex];
-    basename.truncate( basename.findRev('.') );
+    dotPos = basename.rfind('.');
+    if ( dotPos != (int)string::npos )
+      basename = basename.substr(0, dotPos);
 
-    width = inputImage.width();
-    height = inputImage.height();
+    width = image.GetWidth();
+    height = image.GetHeight();
 
-    srcPixel = (QRgb*)inputImage.bits();
-    image.CopyARGBBuffer(width, height, (int*)srcPixel, width);
     featureBuffer = image.GetCustomBuffer(featureList);
     featurePixel = featureBuffer;
 
-    fleshImage.create(width, height, 32);
-    nonFleshImage.create(width, height, 32);
+    fleshImage.Create(width, height);
+    nonFleshImage.Create(width, height);
+
+    srcPixel = image.GetRGBBuffer();
+    fleshPixel = fleshImage.GetRGBBuffer();
+    nonFleshPixel = nonFleshImage.GetRGBBuffer();
     for (y = 0; y < height; y++)
     {
-      for (x = 0; x < width; x++, srcPixel++, featurePixel += numFeatures)
+      for (x = 0; x < width; x++, srcPixel += 3, fleshPixel += 3, nonFleshPixel += 3, featurePixel += numFeatures)
       {
         for (i = 0; i < numFeatures; i++)
           input.SetValue(i, 0, featurePixel[i]);
@@ -75,20 +82,20 @@ int main(int argc, char* argv[])
         if ( classIndex == 0 )
         {
           // Pixel is flesh colored
-          fleshImage.setPixel(x, y, *srcPixel);
-          nonFleshImage.setPixel(x, y, qRgb(255, 255, 255));
+          memcpy(fleshPixel, srcPixel, 3);
+          memcpy(nonFleshPixel, white, 3);
         }
         else
         {
           // Pixel is not flesh colored
-          fleshImage.setPixel(x, y, qRgb(255, 255, 255));
-          nonFleshImage.setPixel(x, y, *srcPixel);
+          memcpy(fleshPixel, white, 3);
+          memcpy(nonFleshPixel, srcPixel, 3);
         }
       }
     }
 
-    fleshImage.save(basename + "_flesh.png", "PNG");
-    nonFleshImage.save(basename + "_nonflesh.png", "PNG");
+    fleshImage.Save(basename + "_flesh.png");
+    nonFleshImage.Save(basename + "_nonflesh.png");
   }
 
   return 0;

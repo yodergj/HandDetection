@@ -1,11 +1,13 @@
 #ifndef VIDEO_DECODER_H
 #define VIDEO_DECODER_H
 
+#include <string>
 #include "Image.h"
-#include <qimage.h>
 extern "C" {
 #include <ffmpeg/avformat.h>
 }
+
+using std::string;
 
 class VideoDecoder
 {
@@ -13,11 +15,11 @@ class VideoDecoder
     VideoDecoder();
     ~VideoDecoder();
     bool SetStartFrame(int frame);
-    void SetFilename(QString filename);
+    void SetFilename(const string& filename);
+    void SetFilename(const char* filename);
     bool Load();
     void Reset();
-    QImage* GetFrame();
-    Image* GetMyFrame();
+    Image* GetFrame();
     bool UpdateFrame();
   private:
     bool GetNextFrame();
@@ -29,10 +31,9 @@ class VideoDecoder
     AVPacket mPacket;
     int mVideoStream;
     uint8_t *mBuffer;
-    QImage mQImage;
     Image mImage;
     int mStartFrame;
-    QString mFilename;
+    string mFilename;
     bool mDoneReading;
 };
 

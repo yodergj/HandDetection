@@ -1,5 +1,5 @@
-#include "VideoDecoder.h"
 #include <stdlib.h>
+#include "VideoDecoder.h"
 
 static bool AVRegistered = false;
 
@@ -38,14 +38,7 @@ VideoDecoder::~VideoDecoder()
     free(mBuffer);
 }
 
-QImage* VideoDecoder::GetFrame()
-{
-  if ( mDoneReading )
-    return NULL;
-  return &mQImage;
-}
-
-Image* VideoDecoder::GetMyFrame()
+Image* VideoDecoder::GetFrame()
 {
   if ( mDoneReading )
     return NULL;
@@ -61,7 +54,12 @@ bool VideoDecoder::SetStartFrame(int frame)
   return true;
 }
 
-void VideoDecoder::SetFilename(QString filename)
+void VideoDecoder::SetFilename(const string& filename)
+{
+  mFilename = filename;
+}
+
+void VideoDecoder::SetFilename(const char* filename)
 {
   mFilename = filename;
 }
@@ -104,31 +102,8 @@ bool VideoDecoder::GetNextFrame()
 
 bool VideoDecoder::UpdateFrame()
 {
-  int *pixel;
-  int srcWidth, srcHeight;
-  int x,y;
-  uint8_t *srcData = NULL;
-
   if ( !GetNextFrame() )
     return false;
-
-  if ( !mQImage.isNull() )
-  {
-    srcWidth = mCodecContext->width;
-    srcHeight = mCodecContext->height;
-    pixel = (int *)mQImage.bits();
-
-    for (y=0; y<srcHeight; y++)
-    {
-      srcData = mFrameRGB->data[0] + y * mFrameRGB->linesize[0];
-      for (x=0; x<srcWidth; x++)
-      {
-        *pixel = srcData[2] | (srcData[1] << 8) | (srcData[0] << 16);
-        pixel++;
-        srcData += 3;
-      }
-    }
-  }
 
   return mImage.CopyRGBBuffer(mCodecContext->width, mCodecContext->height, mFrameRGB->data[0], mFrameRGB->linesize[0]);
 }
@@ -139,16 +114,16 @@ bool VideoDecoder::Load()
   int numBytes;
   uint8_t *tmp;
 
-  if ( av_open_input_file(&mFormatContext, mFilename.ascii(), NULL, 0, NULL) != 0 )
+  if ( av_open_input_file(&mFormatContext, mFilename.c_str(), NULL, 0, NULL) != 0 )
     return false;
 
   if ( av_find_stream_info(mFormatContext) < 0 )
     return false;
 
   /* Some debug info */
-  dump_format(mFormatContext, 0, mFilename.ascii(), false);
+  dump_format(mFormatContext, 0, mFilename.c_str(), false);
 
-  for (i=0; i < mFormatContext->nb_streams; i++)
+  for (i = 0; i < mFormatContext->nb_streams; i++)
   {
     if ( mFormatContext->streams[i]->codec->codec_type == CODEC_TYPE_VIDEO )
     {
@@ -184,10 +159,6 @@ bool VideoDecoder::Load()
   mBuffer = tmp;
 
   avpicture_fill((AVPicture *)mFrameRGB, mBuffer, PIX_FMT_RGB24, mCodecContext->width, mCodecContext->height);
-
-  /* Have to use 32-bit depth since 24-bit isn't supported anymore */
-  if ( !mQImage.create(mCodecContext->width, mCodecContext->height, 32) )
-    return false;
 
   mDoneReading = false;
 

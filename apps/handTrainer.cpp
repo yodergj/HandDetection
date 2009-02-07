@@ -1,21 +1,19 @@
+#include <string.h>
+#include <string>
 #include "FleshDetector.h"
 #include "HandDetector.h"
 #include "Image.h"
-#include <qapplication.h>
-#include <qimage.h>
+
+using std::string;
 
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
 
 int main(int argc, char* argv[])
 {
-  QApplication app(argc,argv);
-  QImage inputImage;
-  QRgb* srcPixel;
   int i, j;
   int x, y;
   int width, height;
   int left, right, top, bottom, xCenter, yCenter;
-  HandDetector detector;
   int classIndex = 0;
   char filename[256];
   FILE *file;
@@ -25,10 +23,12 @@ int main(int argc, char* argv[])
   int nonHandGaussians = 2;
   int revNumber = 0;
   Image image;
-  std::string featureList;
+  unsigned char* srcPixel;
+  string featureList;
+  HandDetector detector;
   FleshDetector fleshDetector;
   vector<ConnectedRegion*>* fleshRegionVector;
-  int xScale, yScale, numFleshRegions;  
+  int xScale, yScale, numFleshRegions;
 
   if ( argc < 6 )
   {
@@ -56,16 +56,15 @@ int main(int argc, char* argv[])
       classIndex = 1;
       continue;
     }
-    if ( inputImage.load(argv[i]) )
+    if ( image.Load(argv[i]) )
     {
       if ( classIndex == 0 )
         printf("Processing hand image %s\n", argv[i]);
       else
         printf("Processing other image %s\n", argv[i]);
-      width = inputImage.width();
-      height = inputImage.height();
-      srcPixel = (QRgb*)inputImage.bits();
-      image.CopyARGBBuffer(width, height, (int*)srcPixel, width);
+      width = image.GetWidth();
+      height = image.GetHeight();
+      srcPixel = image.GetRGBBuffer();
       if ( classIndex == 0 )
       {
 #if 0
@@ -78,7 +77,7 @@ int main(int argc, char* argv[])
         {
           for (x = 0; x < width; x++, srcPixel++)
           {
-            if ( (MAX(qRed(*srcPixel), MAX(qGreen(*srcPixel), qBlue(*srcPixel))) > 55) )
+            if ( (MAX(srcPixel[0], MAX(srcPixel[1], srcPixel[2])) > 55) )
             {
               if ( x < left )
                 left = x;
@@ -161,7 +160,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  do 
+  do
   {
     sprintf(filename, "hand-%d-%d.rev%d.cfg", handGaussians, nonHandGaussians, revNumber);
     file = fopen(filename, "r");

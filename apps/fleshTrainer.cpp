@@ -1,15 +1,13 @@
+#include <string.h>
 #include "BayesianClassifier.h"
 #include "Image.h"
-#include <qapplication.h>
-#include <qimage.h>
 
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
 
 int main(int argc, char* argv[])
 {
-  QApplication app(argc,argv);
-  QImage inputImage;
-  QRgb* srcPixel;
+  Image inputImage;
+  unsigned char* srcPixel;
   int i, j;
   int x, y;
   int width, height;
@@ -45,24 +43,25 @@ int main(int argc, char* argv[])
       classIndex = 1;
       continue;
     }
-    if ( inputImage.load(argv[i]) )
+    if ( inputImage.Load(argv[i]) )
     {
       if ( classIndex == 0 )
         printf("Processing flesh image %s\n", argv[i]);
       else
         printf("Processing other image %s\n", argv[i]);
-      width = inputImage.width();
-      height = inputImage.height();
-      srcPixel = (QRgb*)inputImage.bits();
+      width = inputImage.GetWidth();
+      height = inputImage.GetHeight();
+      srcPixel = inputImage.GetRGBBuffer();
       image.CopyARGBBuffer(width, height, (int*)srcPixel, width);
       featureBuffer = image.GetCustomBuffer(featureList);
       pixel = featureBuffer;
       for (y = 0; y < height; y++)
       {
-        for (x = 0; x < width; x++, srcPixel++, pixel += numFeatures)
+        for (x = 0; x < width; x++, srcPixel += 3, pixel += numFeatures)
         {
           if ( (classIndex == 0) &&
-               (MAX(qRed(*srcPixel), MAX(qGreen(*srcPixel), qBlue(*srcPixel))) <= 55) )
+               (MAX(srcPixel[0],
+                    MAX(srcPixel[1], srcPixel[2]) ) <= 55) )
             continue;
 
           for (j = 0; j < numFeatures; j++)

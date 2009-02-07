@@ -6,9 +6,28 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <qimage.h>
 
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
 #define MIN(a,b) ( (a) < (b) ? (a) : (b) )
+
+QImage* gQImage = NULL;
+
+bool SaveImageViaQt(string filename, const char* format, unsigned char* buffer, int width, int height)
+{
+  int x, y;
+  unsigned char* pixel;
+
+  if ( !gQImage )
+    gQImage = new QImage;
+
+  gQImage->create(width, height, 32);
+  pixel = buffer;
+  for (y = 0; y < height; y++)
+    for (x = 0; x < width; x++, pixel += 3)
+      gQImage->setPixel(x, y, qRgb(pixel[0], pixel[1], pixel[2]));
+  return gQImage->save(filename, format);
+}
 
 Image::Image()
 {
@@ -666,7 +685,57 @@ bool Image::Save(const char* filename)
   if ( !strcmp(extStart, ".ppm") )
     return SavePPM(filename);
 
+  if ( !strcmp(extStart, ".bmp") )
+    return SaveImageViaQt(filename, "BMP", mBuffer, mWidth, mHeight);
+
+  if ( !strcmp(extStart, ".jpg") )
+    return SaveImageViaQt(filename, "JPG", mBuffer, mWidth, mHeight);
+
+  if ( !strcmp(extStart, ".jpeg") )
+    return SaveImageViaQt(filename, "JPEG", mBuffer, mWidth, mHeight);
+
+  if ( !strcmp(extStart, ".png") )
+    return SaveImageViaQt(filename, "PNG", mBuffer, mWidth, mHeight);
+
+  if ( !strcmp(extStart, ".tif") || !strcmp(extStart, ".tiff") )
+    return SaveImageViaQt(filename, "TIFF", mBuffer, mWidth, mHeight);
+
+  if ( !strcmp(extStart, ".xbm") )
+    return SaveImageViaQt(filename, "XBM", mBuffer, mWidth, mHeight);
+
+  if ( !strcmp(extStart, ".xpm") )
+    return SaveImageViaQt(filename, "XPM", mBuffer, mWidth, mHeight);
+
   return false;
+}
+
+bool Image::Save(const string& filename)
+{
+  return Save(filename.c_str());
+}
+
+bool Image::Load(const char* filename)
+{
+  if ( !filename )
+    return false;
+
+  if ( !gQImage )
+    gQImage = new QImage;
+
+  if ( !gQImage->load(filename) )
+  {
+    fprintf(stderr, "Image::Load - Qt failed to load the image %s\n", filename);
+    return false;
+  }
+
+  *gQImage = gQImage->convertDepth(32);
+
+  return CopyARGBBuffer(gQImage->width(), gQImage->height(), (int*)gQImage->bits(), gQImage->width());
+}
+
+bool Image::Load(const string& filename)
+{
+  return Load(filename.c_str());
 }
 
 Image& Image::operator=(const Image& ref)

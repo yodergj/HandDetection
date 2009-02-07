@@ -1,11 +1,12 @@
+#include <string>
 #include "VideoDecoder.h"
 #include "FleshDetector.h"
 #include "TimingAnalyzer.h"
-#include <qapplication.h>
+
+using std::string;
 
 int main(int argc, char* argv[])
 {
-  QApplication app(argc,argv);
   VideoDecoder decoder;
   FleshDetector fleshDetector;
   Image* inputImage;
@@ -13,12 +14,12 @@ int main(int argc, char* argv[])
   Image* outlineImage;
   Image* confidenceImage;
   int frameNumber = 0;
-  QString vidFilename;
+  string vidFilename;
   char outputFilename[1024];
 
   if ( argc < 4 )
   {
-    printf("Usage: fleshblockoutline <classifier file> <video file> <output directory>\n");
+    printf("Usage: %s <classifier file> <video file> <output directory>\n", argv[0]);
     return 1;
   }
 
@@ -38,7 +39,7 @@ int main(int argc, char* argv[])
 
   while ( decoder.UpdateFrame() )
   {
-    inputImage = decoder.GetMyFrame();
+    inputImage = decoder.GetFrame();
 
     TimingAnalyzer_Start(0);
     if ( fleshDetector.Process(inputImage, &outlineImage, &fleshImage, &confidenceImage) )

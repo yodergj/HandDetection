@@ -1,30 +1,28 @@
+#include <stdlib.h>
+#include <string.h>
+#include <string>
 #include "FleshDetector.h"
 #include "HandDetector.h"
 #include "Image.h"
-#include <qapplication.h>
-#include <qimage.h>
-#include <stdlib.h>
+
+using std::string;
 
 int main(int argc, char* argv[])
 {
-  QApplication app(argc,argv);
-  QImage inputImage;
-  QString basename;
-
   int i, j, imageIndex;
   int width, height;
-  int numFleshRegions, numHands, xScale, yScale;
+  int numFleshRegions, numHands, xScale, yScale, dotPos;
   int left, right, top, bottom;
   Image image, outlineImage;
   Image* fleshImage;
   Image* confidenceImage;
   FleshDetector fleshDetector;
-  char outputFilename[1024];
   vector<ConnectedRegion*>* fleshRegionVector;
   HandDetector handDetector;
   vector<Hand*> hands;
   unsigned char boxColor[] = {255, 255, 255};
   int numLargeRegions;
+  string basename;
 
   if ( argc < 4 )
   {
@@ -46,20 +44,21 @@ int main(int argc, char* argv[])
 
   for (imageIndex = 3; imageIndex < argc; imageIndex++)
   {
-    if ( !inputImage.load(argv[imageIndex]) )
+    if ( !image.Load(argv[imageIndex]) )
     {
       fprintf(stderr, "Error loading %s\n", argv[imageIndex]);
       return 1;
     }
 
     basename = argv[imageIndex];
-    basename.truncate( basename.findRev('.') );
+    dotPos = basename.rfind('.');
+    if ( dotPos != (int)string::npos )
+      basename = basename.substr(0, dotPos);
 
-    width = inputImage.width();
-    height = inputImage.height();
+    width = image.GetWidth();
+    height = image.GetHeight();
 
     hands.clear();
-    image.CopyARGBBuffer(width, height, (int*)inputImage.bits(), width);
     outlineImage = image;
     if ( fleshDetector.Process(&image, NULL, &fleshImage, &confidenceImage) )
     {
@@ -98,13 +97,9 @@ int main(int argc, char* argv[])
         }
       }
 
-      sprintf(outputFilename, "%s_flesh.ppm", basename.latin1());
-      fleshImage->Save(outputFilename);
-      sprintf(outputFilename, "%s_confidence.ppm", basename.latin1());
-      confidenceImage->Save(outputFilename);
-
-      sprintf(outputFilename, "%s_frame.ppm", basename.latin1());
-      outlineImage.Save(outputFilename);
+      fleshImage->Save(basename + "_flesh.png");
+      confidenceImage->Save(basename + "_confidence.png");
+      outlineImage.Save(basename + "_frame.png");
     }
   }
 

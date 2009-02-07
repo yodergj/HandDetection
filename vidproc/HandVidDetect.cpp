@@ -1,12 +1,13 @@
+#include <string>
 #include "VideoDecoder.h"
 #include "FleshDetector.h"
 #include "HandDetector.h"
 #include "TimingAnalyzer.h"
-#include <qapplication.h>
+
+using std::string;
 
 int main(int argc, char* argv[])
 {
-  QApplication app(argc,argv);
   VideoDecoder decoder;
   FleshDetector fleshDetector;
   HandDetector handDetector;
@@ -15,7 +16,7 @@ int main(int argc, char* argv[])
   Image* confidenceImage;
   Image outlineImage;
   int frameNumber = 0;
-  QString vidFilename;
+  string vidFilename;
   char outputFilename[1024];
   char* dirName;
   int i, j;
@@ -56,7 +57,7 @@ int main(int argc, char* argv[])
   while ( decoder.UpdateFrame() )
   {
     hands.clear();
-    inputImage = decoder.GetMyFrame();
+    inputImage = decoder.GetFrame();
 
     outlineImage = *inputImage;
     TimingAnalyzer_Start(0);
