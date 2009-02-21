@@ -18,7 +18,6 @@ int main(int argc, char* argv[])
   FILE *file;
   int classComponents[] = {2, 5};
   int revNumber = 0;
-  Image image;
   double* featureBuffer;
   double* pixel;
   string featureList;
@@ -52,8 +51,7 @@ int main(int argc, char* argv[])
       width = inputImage.GetWidth();
       height = inputImage.GetHeight();
       srcPixel = inputImage.GetRGBBuffer();
-      image.CopyARGBBuffer(width, height, (int*)srcPixel, width);
-      featureBuffer = image.GetCustomBuffer(featureList);
+      featureBuffer = inputImage.GetCustomBuffer(featureList);
       pixel = featureBuffer;
       for (y = 0; y < height; y++)
       {
