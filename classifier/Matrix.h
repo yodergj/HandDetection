@@ -12,12 +12,15 @@ class Matrix
     Matrix();
     ~Matrix();
     bool SetSize(int rows, int columns, bool clear=true);
+    void Fill(double value);
     int GetRows();
     int GetColumns();
     double GetValue(int row, int column);
     bool SetValue(int row, int column, double value);
     bool Set(double* values);
+    bool Scale(Matrix& a);
     bool SetFromProduct(Matrix& a, Matrix& b);
+    bool SetFromCellProducts(Matrix& a, Matrix& b);
     void SetAsTranspose(Matrix& m);
     bool SetAsInverse(Matrix& m);
     bool SetFromDifference(Matrix& a, Matrix& b);

@@ -1,8 +1,8 @@
-#include "GaussianMixtureModel.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "GaussianMixtureModel.h"
 
 //#define TRAIN_DEBUG
 
@@ -58,6 +58,8 @@ bool GaussianMixtureModel::Create(int numDimensions, int numComponents)
   mNumComponents = numComponents;
   mTrainingDataMin.SetSize(mNumDimensions, 1);
   mTrainingDataMax.SetSize(mNumDimensions, 1);
+  mScalingFactors.SetSize(mNumDimensions, 1);
+  mScaledInput.SetSize(mNumDimensions, 1);
 
   return true;
 }
@@ -182,14 +184,16 @@ double GaussianMixtureModel::Probability(Matrix& data)
 }
 
 double GaussianMixtureModel::Probability(Matrix& data,
-                                         std::vector<Gaussian *>& components,
-                                         std::vector<double>& weights)
+                                         vector<Gaussian *>& components,
+                                         vector<double>& weights)
 {
   int i;
   double probability = 0;
 
+  mScaledInput.SetFromCellProducts(data, mScalingFactors);
+
   for (i = 0; i < mNumComponents; i++)
-    probability += components[i]->Probability(data) * weights[i];
+    probability += components[i]->Probability(mScaledInput) * weights[i];
 
   if ( probability < MIN_PROB )
     probability = MIN_PROB;
@@ -204,17 +208,13 @@ bool GaussianMixtureModel::Train()
     fprintf(stderr, "GaussianMixtureModel::Train - No training data\n");
     return false;
   }
-  /* TODO Consider scaling all training values by something like 100 if the magnitude is between 0 and 1.
-     This would help avoid the determinant becoming too small for higher dimensionalites.  This would need to be
-     stored and applied to input values before probability calculation.  Use independent scaling factors for each
-     dimension.  May need to having scaling to reduce the magnitude for values with large ranges. */
 
 #ifdef TRAIN_DEBUG
   unsigned int i;
   for (i = 0; i < mTrainingData.size(); i++)
   {
     fprintf(stderr, "Freq %d\n", mTrainingDataFreq[i]);
-    mTrainingData[i]->Save(stderr);
+    mTrainingData[i]->Print(stderr);
   }
 #endif
 
@@ -230,15 +230,15 @@ bool GaussianMixtureModel::TrainEM()
   bool done = false;
   int numSamples, totalSamples;
   Gaussian* currentGaussian;
-  std::vector<Gaussian *> components;
-  std::vector<double> componentWeights;
+  vector<Gaussian *> components;
+  vector<double> componentWeights;
   Matrix mean, variance;
-  double val, updateThresh, minSpan;
+  double val, updateThresh, minSpan, scale;
 
   Matrix sampleWeights;
   double sampleProb;
 
-  std::vector<double> updatedWeights;
+  vector<double> updatedWeights;
   Matrix *updatedMeans = new Matrix[mNumComponents];
   Matrix *updatedVariances = new Matrix[mNumComponents];
   double sum, varianceDiff, meanDiff;
@@ -260,9 +260,29 @@ bool GaussianMixtureModel::TrainEM()
   variance.SetSize(mNumDimensions, mNumDimensions);
   diffMatrix = mTrainingDataMax - mTrainingDataMin;
 
+  /* Figure out the scaling factors to use for each dimension.  We want to keep the variances from becoming too small, or else there will be round-off problems with the determinant becoming too small (especially for higher numbers of dimensions). */
+  for (dimension = 0; dimension < mNumDimensions; dimension++)
+  {
+    val = diffMatrix.GetValue(dimension, 0);
+    if ( val >= 1 )
+      scale = 1;
+    else if ( val >= .1 )
+      scale = 100.0;
+    else if ( val >= .01 )
+      scale = 10000.0;
+    else if ( val >= .001 )
+      scale = 1000000.0;
+    else if ( val >= .0001 )
+      scale = 100000000.0;
+    else
+      scale = 10000000000.0;
+    mScalingFactors.SetValue(dimension, 0, scale);
+  }
+  diffMatrix.Scale(mScalingFactors);
+
 #ifdef TRAIN_DEBUG
   printf("Training Data Span\n");
-  diffMatrix.Save(stdout);
+  diffMatrix.Print(stdout);
 #endif
 
   minSpan = -1;
@@ -284,7 +304,7 @@ bool GaussianMixtureModel::TrainEM()
     for (dimension = 0; dimension < mNumDimensions; dimension++)
     {
       val = (rand() / (double)RAND_MAX) * diffMatrix.GetValue(dimension, 0) +
-            mTrainingDataMin.GetValue(dimension, 0);
+            mTrainingDataMin.GetValue(dimension, 0) * mScalingFactors.GetValue(dimension, 0);
       mean.SetValue(dimension, 0, val);
       val = diffMatrix.GetValue(dimension, 0) * (rand() + 1.0) / (RAND_MAX + 1.0);
       if ( val < updateThresh )
@@ -292,8 +312,7 @@ bool GaussianMixtureModel::TrainEM()
       variance.SetValue(dimension, dimension, val);
     }
     currentGaussian->SetMean(mean);
-    /* Use UpdateVariance since it will automatically compensate if the determinant is too small */
-    currentGaussian->UpdateVariance(variance, varianceDiff);
+    currentGaussian->SetVariance(variance);
     components.push_back(currentGaussian);
     componentWeights.push_back(1.0 / mNumComponents);
   }
@@ -305,7 +324,7 @@ bool GaussianMixtureModel::TrainEM()
   for (foo = 0; foo < mNumComponents; foo++)
   {
     printf("Weight %f\n", componentWeights[foo]);
-    components[foo]->Save(stdout);
+    components[foo]->Print(stdout);
   }
 #endif
 
@@ -318,6 +337,7 @@ bool GaussianMixtureModel::TrainEM()
     /* Get sample probabilities */
     for (sample = 0; sample < numSamples; sample++)
     {
+      // Probability() sets mScaledInput, and we'll take advantage of that below
       sampleProb = Probability(*(mTrainingData[sample]), components, componentWeights);
 #ifdef TRAIN_DEBUG
       printf("Sample %d Mix Prob %f\n", sample, sampleProb);
@@ -326,17 +346,17 @@ bool GaussianMixtureModel::TrainEM()
       {
 #ifdef TRAIN_DEBUG
         printf("Sample %d Component %d Prob %f\n", sample, component,
-            components[component]->Probability(*(mTrainingData[sample])) );
+            components[component]->Probability(mScaledInput) );
 #endif
         sampleWeights.SetValue(sample, component,
             MAX(MIN_PROB,
-                componentWeights[component] * components[component]->Probability(*(mTrainingData[sample])) / sampleProb) );
+                componentWeights[component] * components[component]->Probability(mScaledInput) / sampleProb) );
       }
     }
 
 #ifdef TRAIN_DEBUG
     printf("Sample Weights\n");
-    sampleWeights.Save(stdout);
+    sampleWeights.Print(stdout);
 #endif
 
     /* Update component weights */
@@ -357,7 +377,11 @@ bool GaussianMixtureModel::TrainEM()
 
       updatedMeans[component].Clear();
       for (sample = 0; sample < numSamples; sample++)
-        updatedMeans[component] += *(mTrainingData[sample]) * sampleWeights.GetValue(sample, component) * mTrainingDataFreq[sample];
+      {
+        mScaledInput.SetFromCellProducts(*(mTrainingData[sample]), mScalingFactors);
+        mScaledInput *= sampleWeights.GetValue(sample, component) * mTrainingDataFreq[sample];
+        updatedMeans[component] += mScaledInput;
+      }
       updatedMeans[component] *= 1 / sum;
     }
 
@@ -372,7 +396,8 @@ bool GaussianMixtureModel::TrainEM()
 
       for (sample = 0; sample < numSamples; sample++)
       {
-        diffMatrix = *(mTrainingData[sample]) - updatedMeans[component];
+        mScaledInput.SetFromCellProducts(*(mTrainingData[sample]), mScalingFactors);
+        diffMatrix = mScaledInput - updatedMeans[component];
         productMatrix = diffMatrix * diffMatrix.Transpose();
         productMatrix *= sampleWeights.GetValue(sample, component);
         for (i = 0; i < mTrainingDataFreq[sample]; i++)
@@ -406,7 +431,7 @@ bool GaussianMixtureModel::TrainEM()
   for (foo = 0; foo < mNumComponents; foo++)
   {
     printf("Weight %f\n", componentWeights[foo]);
-    components[foo]->Save(stdout);
+    components[foo]->Print(stdout);
   }
 #endif
 
@@ -481,9 +506,14 @@ bool GaussianMixtureModel::Save(xmlNodePtr modelNode)
   int i;
   bool retCode = true;
   xmlNodePtr gaussianNode;
+  xmlNodePtr scaleNode;
 
   SetIntValue(modelNode, NUM_DIM_STR, mNumDimensions);
   SetIntValue(modelNode, NUM_GAUSSIAN_STR, mNumComponents);
+
+  scaleNode = xmlNewNode(NULL, (const xmlChar*)MATRIX_STR);
+  xmlAddChild(modelNode, scaleNode);
+  retCode = mScalingFactors.Save(scaleNode);
 
   for (i = 0; (i < mNumComponents) && retCode; i++)
   {
@@ -538,6 +568,7 @@ bool GaussianMixtureModel::Load(xmlNodePtr modelNode)
   double weight;
   Gaussian* gaussian;
   bool retCode = true;
+  bool scalingFound = false;
 
   dimensions = GetIntValue(modelNode, NUM_DIM_STR, 0);
   numGaussians = GetIntValue(modelNode, NUM_GAUSSIAN_STR, 0);
@@ -582,6 +613,21 @@ bool GaussianMixtureModel::Load(xmlNodePtr modelNode)
         }
       }
     }
+    else if ( !strcmp((char *)node->name, MATRIX_STR) )
+    {
+      if ( scalingFound )
+      {
+        fprintf(stderr, "GaussianMixtureModel::Load - Multiple sets of scaling factors found\n");
+        retCode = false;
+      }
+      else if ( mScalingFactors.Load(node) )
+        scalingFound = true;
+      else
+      {
+        fprintf(stderr, "GaussianMixtureModel::Load - Failed loading scaling factors\n");
+        retCode = false;
+      }
+    }
     else if ( strcmp((char *)node->name, "text") )
     {
       fprintf(stderr, "GaussianMixtureModel::Load - Found unknown node %s\n", (char*)node->name);
@@ -589,6 +635,9 @@ bool GaussianMixtureModel::Load(xmlNodePtr modelNode)
     }
     node = node->next;
   }
+
+  if ( retCode && !scalingFound )
+    mScalingFactors.Fill(1);
 
   return retCode;
 }

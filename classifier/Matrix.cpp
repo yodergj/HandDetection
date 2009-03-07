@@ -66,6 +66,14 @@ bool Matrix::SetSize(int rows, int columns, bool clear)
   return true;
 }
 
+void Matrix::Fill(double value)
+{
+  int i;
+
+  for (i = 0; i < mCells; i++)
+    mData[i] = value;
+}
+
 int Matrix::GetRows()
 {
   return mRows;
@@ -478,6 +486,8 @@ bool Matrix::SetFromProduct(Matrix& a, Matrix& b)
     return false;
   }
 
+  /* FIXME The unrolled checks are missing the cases for b.mRows > 3.  Check if we really want these unrolled loops, and if so, make them work correctly (don't trust the existing code). */
+#if 0
   if ( a.mRows == 1 )
   {
     SetSize(a.mRows, b.mColumns, false);
@@ -543,6 +553,7 @@ bool Matrix::SetFromProduct(Matrix& a, Matrix& b)
     }
   }
   else
+#endif
   {
     SetSize(a.mRows, b.mColumns);
     dest = 0;
@@ -555,6 +566,37 @@ bool Matrix::SetFromProduct(Matrix& a, Matrix& b)
           mData[dest] += a.mData[aRowStart + i] * b.mData[bRowStart + column];
       }
   }
+  return true;
+}
+
+bool Matrix::Scale(Matrix& a)
+{
+  int i;
+
+  if ( (a.mRows != mRows) || (a.mColumns != mColumns) )
+  {
+    fprintf(stderr, "Matrix::Scale - Invalid paremeter\n");
+    return false;
+  }
+
+  for (i = 0; i < mCells; i++)
+    mData[i] *= a.mData[i];
+  return true;
+}
+
+bool Matrix::SetFromCellProducts(Matrix& a, Matrix& b)
+{
+  int i;
+
+  if ( (a.mRows != b.mRows) || (a.mColumns != b.mColumns) )
+  {
+    fprintf(stderr, "Matrix::SetFromCellProducts - Invalid paremeter\n");
+    return false;
+  }
+
+  SetSize(a.mRows, a.mColumns);
+  for (i = 0; i < mCells; i++)
+    mData[i] = a.mData[i] * b.mData[i];
   return true;
 }
 

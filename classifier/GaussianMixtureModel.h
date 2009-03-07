@@ -1,9 +1,10 @@
 #ifndef GAUSSIAN_MIXTURE_MODEL_H
 #define GAUSSIAN_MIXTURE_MODEL_H
 
+#include <vector>
 #include "Gaussian.h"
 #include "XMLUtils.h"
-#include <vector>
+using std::vector;
 
 #define GMM_STR "GaussianMixtureModel"
 
@@ -26,15 +27,17 @@ class GaussianMixtureModel
     void Clear();
     bool TrainEM();
     double Probability(Matrix& data,
-                       std::vector<Gaussian *>& components,
-                       std::vector<double>& weights);
+                       vector<Gaussian *>& components,
+                       vector<double>& weights);
 
-    std::vector<Gaussian *> mComponents;
-    std::vector<double> mComponentWeights;
-    std::vector<Matrix *> mTrainingData;
-    std::vector<int> mTrainingDataFreq;
+    vector<Gaussian *> mComponents;
+    vector<double> mComponentWeights;
+    vector<Matrix *> mTrainingData;
+    vector<int> mTrainingDataFreq;
     Matrix mTrainingDataMin;
     Matrix mTrainingDataMax;
+    Matrix mScalingFactors;
+    Matrix mScaledInput;
     int mNumDimensions;
     int mNumComponents;
     int* m2dDataHistogram;

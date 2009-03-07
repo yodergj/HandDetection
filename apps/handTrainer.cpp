@@ -17,10 +17,10 @@ int main(int argc, char* argv[])
   int classIndex = 0;
   char filename[256];
   FILE *file;
-  int xResolution = 2;
-  int yResolution = 2;
-  int handGaussians = 2;
-  int nonHandGaussians = 2;
+  int xResolution = 8;
+  int yResolution = 8;
+  int handGaussians = 3;
+  int nonHandGaussians = 3;
   int revNumber = 0;
   Image image;
   unsigned char* srcPixel;
@@ -67,7 +67,7 @@ int main(int argc, char* argv[])
       srcPixel = image.GetRGBBuffer();
       if ( classIndex == 0 )
       {
-#if 0
+#if 1
         left = width - 1;
         right = 0;
         top = height - 1;
@@ -104,7 +104,7 @@ int main(int argc, char* argv[])
       }
       else
       {
-#if 1
+#if 0
         left = 0;
         right = width - 1;
         top = 0;
