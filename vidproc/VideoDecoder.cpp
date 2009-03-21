@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include "VideoDecoder.h"
 
@@ -11,6 +12,7 @@ VideoDecoder::VideoDecoder()
   mFrame = NULL;
   mFrameRGB = NULL;
   mPacket.data = NULL;
+  mSwsContext = NULL;
   mVideoStream = -1;
   mBuffer = NULL;
   mStartFrame = 0;
@@ -48,7 +50,10 @@ Image* VideoDecoder::GetFrame()
 bool VideoDecoder::SetStartFrame(int frame)
 {
   if ( frame < 0 )
+  {
+    fprintf(stderr, "VideoDecoder::SetStartFrame - Invalid frame number %d\n", frame);
     return false;
+  }
 
   mStartFrame = frame;
   return true;
@@ -71,7 +76,7 @@ void VideoDecoder::Reset()
   if ( mFilename != "" )
   {
     Load();
-    for (i=0; i <= mStartFrame; i++)
+    for (i = 0; i <= mStartFrame; i++)
       UpdateFrame();
   }
 }
@@ -88,7 +93,11 @@ bool VideoDecoder::GetNextFrame()
 
       if ( frameFinished )
       {
+        #if 0
         img_convert((AVPicture *)mFrameRGB, PIX_FMT_RGB24, (AVPicture *)mFrame, mCodecContext->pix_fmt, mCodecContext->width, mCodecContext->height);
+        #else
+        sws_scale(mSwsContext, mFrame->data, mFrame->linesize, 0, mCodecContext->height, mFrameRGB->data, mFrameRGB->linesize);
+        #endif
 
         return true;
       }
@@ -115,10 +124,16 @@ bool VideoDecoder::Load()
   uint8_t *tmp;
 
   if ( av_open_input_file(&mFormatContext, mFilename.c_str(), NULL, 0, NULL) != 0 )
+  {
+    fprintf(stderr, "VideoDecoder::Load - av_open_input_file failed\n");
     return false;
+  }
 
   if ( av_find_stream_info(mFormatContext) < 0 )
+  {
+    fprintf(stderr, "VideoDecoder::Load - av_find_stream_info failed\n");
     return false;
+  }
 
   /* Some debug info */
   dump_format(mFormatContext, 0, mFilename.c_str(), false);
@@ -133,32 +148,59 @@ bool VideoDecoder::Load()
   }
 
   if ( mVideoStream == -1 )
+  {
+    fprintf(stderr, "VideoDecoder::Load - No video stream found.\n");
     return false;
+  }
 
   mCodecContext = mFormatContext->streams[mVideoStream]->codec;
   mCodec = avcodec_find_decoder(mCodecContext->codec_id);
   if ( !mCodec )
+  {
+    fprintf(stderr, "VideoDecoder::Load - avcodec_find_decoder failed\n");
     return false;
+  }
 
   if ( avcodec_open(mCodecContext, mCodec) < 0 )
+  {
+    fprintf(stderr, "VideoDecoder::Load - avcodec_open failed\n");
     return false;
+  }
 
   mFrame = avcodec_alloc_frame();
   if ( !mFrame )
+  {
+    fprintf(stderr, "VideoDecoder::Load - Failed allocating frame.\n");
     return false;
+  }
 
   mFrameRGB = avcodec_alloc_frame();
   if ( !mFrameRGB )
+  {
+    fprintf(stderr, "VideoDecoder::Load - Failed allocating RGB frame.\n");
     return false;
+  }
 
   /* Determine required buffer size and allocate buffer */
   numBytes = avpicture_get_size(PIX_FMT_RGB24, mCodecContext->width, mCodecContext->height);
-  tmp = (uint8_t *)realloc(mBuffer,numBytes*sizeof(uint8_t));
+  tmp = (uint8_t *)realloc(mBuffer, numBytes * sizeof(uint8_t));
   if ( !tmp )
+  {
+    fprintf(stderr, "VideoDecoder::Load - Failed allocating buffer.\n");
     return false;
+  }
   mBuffer = tmp;
 
   avpicture_fill((AVPicture *)mFrameRGB, mBuffer, PIX_FMT_RGB24, mCodecContext->width, mCodecContext->height);
+
+  mSwsContext = sws_getContext(mCodecContext->width, mCodecContext->height, mCodecContext->pix_fmt,
+                               mCodecContext->width, mCodecContext->height, PIX_FMT_RGB24,
+                               SWS_BICUBIC, NULL, NULL, NULL);
+  if ( !mSwsContext )
+  {
+    fprintf(stderr, "VideoDecoder::Load - sws_getContext failed.\n");
+    return false;
+  }
 
   mDoneReading = false;
 

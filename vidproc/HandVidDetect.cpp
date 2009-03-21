@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
   decoder.SetFilename(vidFilename);
   if ( !decoder.Load() )
   {
-    fprintf(stderr, "Error loading video %s\n", argv[2]);
+    fprintf(stderr, "Error loading video %s\n", argv[3]);
     return 1;
   }
 

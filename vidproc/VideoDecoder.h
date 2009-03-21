@@ -4,7 +4,8 @@
 #include <string>
 #include "Image.h"
 extern "C" {
-#include <ffmpeg/avformat.h>
+#include <libavformat/avformat.h>
+#include <libswscale/swscale.h>
 }
 
 using std::string;
@@ -29,6 +30,7 @@ class VideoDecoder
     AVFrame *mFrame;
     AVFrame *mFrameRGB;
     AVPacket mPacket;
+    struct SwsContext* mSwsContext;
     int mVideoStream;
     uint8_t *mBuffer;
     Image mImage;
