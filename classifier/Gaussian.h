@@ -19,7 +19,7 @@ class Gaussian
     bool UpdateMean(Matrix& mean, double& maxDifference);
     bool SetVariance(Matrix& variance);
     bool UpdateVariance(Matrix& variance, double& maxDifference);
-    double Probability(Matrix& input);
+    double Probability(Matrix& input, bool useMinimumAsNeeded=true);
     bool Print(FILE* file);
     bool Save(const char* filename);
     bool Save(xmlNodePtr gaussianNode);
@@ -31,6 +31,7 @@ class Gaussian
     Matrix mVariance;
     Matrix mVarianceInverse;
     double mProbabilityScaleFactor;
+    double mMinProb;
 
     // These would be local, but this reduces memory churn
     Matrix mDiffMatrix;

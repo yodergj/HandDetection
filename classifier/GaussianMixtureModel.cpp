@@ -263,6 +263,7 @@ bool GaussianMixtureModel::TrainEM()
   /* Figure out the scaling factors to use for each dimension.  We want to keep the variances from becoming too small, or else there will be round-off problems with the determinant becoming too small (especially for higher numbers of dimensions). */
   for (dimension = 0; dimension < mNumDimensions; dimension++)
   {
+#if 0
     val = diffMatrix.GetValue(dimension, 0);
     if ( val >= 1 )
       scale = 1;
@@ -276,6 +277,9 @@ bool GaussianMixtureModel::TrainEM()
       scale = 100000000.0;
     else
       scale = 10000000000.0;
+#else
+    scale = 1;
+#endif
     mScalingFactors.SetValue(dimension, 0, scale);
   }
   diffMatrix.Scale(mScalingFactors);
@@ -348,9 +352,14 @@ bool GaussianMixtureModel::TrainEM()
         printf("Sample %d Component %d Prob %f\n", sample, component,
             components[component]->Probability(mScaledInput) );
 #endif
+#if 0
         sampleWeights.SetValue(sample, component,
             MAX(MIN_PROB,
                 componentWeights[component] * components[component]->Probability(mScaledInput) / sampleProb) );
+#else
+        sampleWeights.SetValue(sample, component,
+                componentWeights[component] * components[component]->Probability(mScaledInput) / sampleProb);
+#endif
       }
     }
 

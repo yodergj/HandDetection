@@ -15,6 +15,8 @@
 Gaussian::Gaussian()
 {
   mDimensions = 0;
+  mProbabilityScaleFactor = 0;
+  mMinProb = MIN_PROB;
 }
 
 Gaussian::~Gaussian()
@@ -126,6 +128,8 @@ bool Gaussian::SetVariance(Matrix& variance)
   /* Compute the variance inverse to save time on the probability function */
   mVarianceInverse.SetAsInverse(mVariance);
 
+  mMinProb = MIN_PROB * Probability(mMean, false);
+
   return true;
 }
 
@@ -186,7 +190,7 @@ bool Gaussian::UpdateVariance(Matrix& variance, double& maxDifference)
 }
 
 /* Calculate the value of the multivariate dormal distribution */
-double Gaussian::Probability(Matrix& input)
+double Gaussian::Probability(Matrix& input, bool useMinimumAsNeeded)
 {
   double result, fullProduct;
 
@@ -203,8 +207,13 @@ double Gaussian::Probability(Matrix& input)
   fullProduct = mProductMatrix.GetValue(0, 0);
 
   result = mProbabilityScaleFactor * exp(-.5 * fullProduct);
+  #if 0
   if ( result < MIN_PROB )
     result = MIN_PROB;
+  #else
+  if ( useMinimumAsNeeded && (result < mMinProb) )
+    result = mMinProb;
+  #endif
   return result;
 }
 
