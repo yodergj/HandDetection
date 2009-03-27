@@ -13,20 +13,11 @@
 
 QImage* gQImage = NULL;
 
-bool SaveImageViaQt(string filename, const char* format, unsigned char* buffer, int width, int height)
+bool SaveImageViaQt(const char* filename, const char* format, unsigned char* buffer, int width, int height)
 {
-  int x, y;
-  unsigned char* pixel;
+  QImage image(buffer, width, height, width * 3,  QImage::Format_RGB888);
 
-  if ( !gQImage )
-    gQImage = new QImage;
-
-  gQImage->create(width, height, 32);
-  pixel = buffer;
-  for (y = 0; y < height; y++)
-    for (x = 0; x < width; x++, pixel += 3)
-      gQImage->setPixel(x, y, qRgb(pixel[0], pixel[1], pixel[2]));
-  return gQImage->save(filename, format);
+  return image.save(filename, format);
 }
 
 Image::Image()
@@ -728,7 +719,7 @@ bool Image::Load(const char* filename)
     return false;
   }
 
-  *gQImage = gQImage->convertDepth(32);
+  *gQImage = gQImage->convertToFormat(QImage::Format_ARGB32);
 
   return CopyARGBBuffer(gQImage->width(), gQImage->height(), (int*)gQImage->bits(), gQImage->width());
 }
