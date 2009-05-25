@@ -2,7 +2,9 @@
 #include "BayesianClassifier.h"
 #include "Image.h"
 
+#ifndef MAX
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
+#endif
 
 int main(int argc, char* argv[])
 {

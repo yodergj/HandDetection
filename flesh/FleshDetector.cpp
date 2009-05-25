@@ -8,8 +8,12 @@
 #define PROXIMITY_THRESH  30
 #define DEBUG_BLOCKS 0
 
+#ifndef MIN
 #define MIN(a,b) ( (a) < (b) ? (a) : (b) )
+#endif
+#ifndef MAX
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
+#endif
 
 FleshDetector::FleshDetector()
 {

@@ -1,5 +1,4 @@
-#include "Image.h"
-#include "ConnectedRegion.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -7,9 +6,15 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <qimage.h>
+#include "Image.h"
+#include "ConnectedRegion.h"
 
+#ifndef MAX
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
+#endif
+#ifndef MIN
 #define MIN(a,b) ( (a) < (b) ? (a) : (b) )
+#endif
 
 QImage* gQImage = NULL;
 
@@ -26,6 +31,8 @@ Image::Image()
   mHeight = 0;
   mBuffer = NULL;
   mBufferSize = 0;
+  mIplBuffer = NULL;
+  mIplBufferSize = 0;
   mYIQBuffer = NULL;
   mYIQAlloc = 0;
   mYIQValid = false;
@@ -44,12 +51,16 @@ Image::Image()
   mConfidenceBufferHeight = 0;
   mConfidenceRegionsValid = false;
   mBufferUpdateIndex = 0;
+  memset(&mIplImage, 0, sizeof(IplImage));
+  mIplImage.nSize = sizeof(IplImage);
 }
 
 Image::~Image()
 {
   if ( mBuffer )
     free(mBuffer);
+  if ( mIplBuffer )
+    free(mIplBuffer);
   if ( mYIQBuffer )
     free(mYIQBuffer);
   if ( mScaledRGBBuffer )
@@ -507,6 +518,40 @@ bool Image::CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth)
   return true;
 }
 
+bool Image::CopyBGRABuffer(int width, int height, int* buffer, int bufferWidth)
+{
+  int x, y;
+  int lineWidth;
+  unsigned char* destLine;
+  int* srcLine;
+
+  if ( (width <= 0) || (height <= 0) || !buffer || (bufferWidth <= 0) )
+    return false;
+
+  MarkBufferAsUpdated();
+
+  if ( !SetSize(width, height) )
+    return false;
+
+  lineWidth = 3 * width;
+
+  srcLine = buffer;
+  destLine = mBuffer;
+  for (y = 0; y < height; y++)
+  {
+    for (x = 0; x < width; x++)
+    {
+      destLine[3 * x] = (srcLine[x] >> 8) & 0xFF;
+      destLine[3 * x + 1] = (srcLine[x] >> 16) & 0xFF;
+      destLine[3 * x + 2] = (srcLine[x] >> 24) & 0xFF;
+    }
+    srcLine += bufferWidth;
+    destLine += lineWidth;
+  }
+
+  return true;
+}
+
 bool Image::CopyARGBBuffer(int width, int height, int* buffer, int bufferWidth)
 {
   int x, y;
@@ -568,6 +613,73 @@ bool Image::CopyRGBBuffer(int width, int height, unsigned char* buffer, int buff
   }
 
   return true;
+}
+
+bool Image::CopyBGRBuffer(int width, int height, unsigned char* buffer, int bufferWidth)
+{
+  int x, y;
+  int lineWidth;
+  unsigned char* destLine;
+  unsigned char* srcLine;
+  unsigned char* destPixel;
+  unsigned char* srcPixel;
+
+  if ( (width <= 0) || (height <= 0) || !buffer || (bufferWidth <= 0) )
+    return false;
+
+  MarkBufferAsUpdated();
+
+  if ( !SetSize(width, height) )
+    return false;
+
+  lineWidth = 3 * width;
+
+  srcLine = buffer;
+  destLine = mBuffer;
+  for (y = 0; y < height; y++)
+  {
+    srcPixel = srcLine;
+    destPixel = destLine;
+    for (x = 0; x < width; x++)
+    {
+      destPixel[0] = srcPixel[2];
+      destPixel[1] = srcPixel[1];
+      destPixel[2] = srcPixel[0];
+      srcPixel += 3;
+      destPixel += 3;
+    }
+
+    srcLine += bufferWidth;
+    destLine += lineWidth;
+  }
+
+  return true;
+}
+
+bool Image::CopyIplImage(IplImage* image)
+{
+  if ( image->depth != IPL_DEPTH_8U )
+  {
+    fprintf(stderr, "Image::CopyIplImage - Bad depth %d\n", image->depth);
+    return false;
+  }
+
+  if ( image->nChannels == 3 )
+    return CopyBGRBuffer(image->width, image->height, (unsigned char*)image->imageData, image->widthStep);
+
+  if ( image->nChannels == 4 )
+  {
+    if ( image->widthStep % 4 != 0 )
+    {
+      fprintf(stderr, "Image::CopyIplImage - Width step %d is not divisible by 4\n", image->widthStep);
+      return false;
+    }
+    return CopyBGRABuffer(image->width, image->height, (int*)image->imageData, image->widthStep / 4);
+  }
+
+
+  fprintf(stderr, "Image::CopyIplImage - Unhandled number of channels %d\n", image->nChannels);
+  return false;
 }
 
 bool Image::DrawBox(const unsigned char* color, int lineWidth,
@@ -664,7 +776,7 @@ bool Image::DrawLine(const unsigned char* color, int lineWidth, int x1, int y1, 
 
 bool Image::Save(const char* filename)
 {
-  char* extStart;
+  const char* extStart;
 
   if ( !filename )
     return false;
@@ -727,6 +839,45 @@ bool Image::Load(const char* filename)
 bool Image::Load(const string& filename)
 {
   return Load(filename.c_str());
+}
+
+IplImage* Image::GetIplImage()
+{
+  int i, numPixels;
+  unsigned char* tmp;
+  unsigned char* src;
+  unsigned char* dest;
+
+  mIplImage.nChannels = 3;
+  mIplImage.depth = IPL_DEPTH_8U;
+  mIplImage.width = mWidth;
+  mIplImage.height = mHeight;
+  mIplImage.imageSize = mHeight * mWidth * 3;
+#if 0
+  mIplImage.imageData = (char*)mBuffer;
+#else
+  if ( mIplBufferSize < mBufferSize )
+  {
+    tmp = (unsigned char*)realloc(mIplBuffer, mBufferSize);
+    if ( !tmp )
+      return NULL;
+    mIplBuffer = tmp;
+    mIplBufferSize = mBufferSize;
+  }
+  numPixels = mWidth * mHeight;
+  src = mBuffer;
+  dest = mIplBuffer;
+  for (i = 0; i < numPixels; i++, src += 3, dest += 3)
+  {
+    dest[0] = src[2];
+    dest[1] = src[1];
+    dest[2] = src[0];
+  }
+  mIplImage.imageData = (char*)mIplBuffer;
+#endif
+  mIplImage.widthStep = mWidth * 3;
+
+  return &mIplImage;
 }
 
 Image& Image::operator=(const Image& ref)

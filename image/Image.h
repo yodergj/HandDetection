@@ -1,9 +1,10 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
-#include "ConnectedRegion.h"
 #include <string>
 #include <vector>
+#include "ConnectedRegion.h"
+#include <opencv/cv.h>
 using std::string;
 using std::vector;
 
@@ -26,14 +27,18 @@ class Image
     bool SetConfidenceBuffer(double* buffer, int bufferWidth, int bufferHeight, int bufferAlloc);
     vector<ConnectedRegion*>* GetRegionsFromConfidenceBuffer();
     bool CopyRGBABuffer(int width, int height, int* buffer, int bufferWidth);
+    bool CopyBGRABuffer(int width, int height, int* buffer, int bufferWidth);
     bool CopyARGBBuffer(int width, int height, int* buffer, int bufferWidth);
     bool CopyRGBBuffer(int width, int height, unsigned char* buffer, int bufferWidth);
+    bool CopyBGRBuffer(int width, int height, unsigned char* buffer, int bufferWidth);
+    bool CopyIplImage(IplImage* image);
     bool DrawBox(const unsigned char* color, int lineWidth, int left, int top, int right, int bottom);
     bool DrawLine(const unsigned char* color, int lineWidth, int x1, int y1, int x2, int y2);
     bool Save(const char* filename);
     bool Save(const string& filename);
     bool Load(const char* filename);
     bool Load(const string& filename);
+    IplImage* GetIplImage();
     Image& operator=(const Image& ref);
   private:
     bool SavePPM(const char* filename);
@@ -46,6 +51,8 @@ class Image
     int mHeight;
     unsigned char* mBuffer;
     int mBufferSize;
+    unsigned char* mIplBuffer;
+    int mIplBufferSize;
     double* mYIQBuffer;
     int mYIQAlloc;
     bool mYIQValid;
@@ -69,6 +76,8 @@ class Image
     bool mCustomIntegralValid;
 
     int mBufferUpdateIndex;
+
+    IplImage mIplImage;
 };
 
 #endif

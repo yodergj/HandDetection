@@ -4,7 +4,9 @@
 #include <string.h>
 
 #define MAX_FEATURES 512
+#ifndef MAX
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
+#endif
 
 #define HAND_DETECTOR_STR "HandDetector"
 #define X_RES_STR "XResolution"
