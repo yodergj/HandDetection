@@ -12,13 +12,20 @@
 #define X_RES_STR "XResolution"
 #define Y_RES_STR "YResolution"
 #define FEATURE_STR "Features"
+#define HAAR_FILE "HaarOpenCVFile"
 
 HandDetector::HandDetector()
 {
+  mHaarClassifier = NULL;
+  mStorage = NULL;
 }
 
 HandDetector::~HandDetector()
 {
+  if ( mHaarClassifier )
+    cvReleaseHaarClassifierCascade(&mHaarClassifier);
+  if ( mStorage )
+    cvReleaseMemStorage(&mStorage);
 }
 
 bool HandDetector::Load(const char* filename)
@@ -49,18 +56,30 @@ bool HandDetector::Load(const char* filename)
     return false;
   }
 
-  mXResolution = GetIntValue(node, X_RES_STR, 1);
-  mYResolution = GetIntValue(node, Y_RES_STR, 1);
-  mFeatureList = GetStringValue(node, FEATURE_STR);
-
-  node = node->children;
-  while ( node && retCode )
+  mHaarFilename = GetStringValue(node, HAAR_FILE);
+  if ( mHaarFilename == "" )
   {
-    if ( !strcmp((char *)node->name, BAYESIAN_CLASSIFIER_STR) )
-      retCode = mClassifier.Load(node);
-    else if ( strcmp((char *)node->name, "text") )
+    mXResolution = GetIntValue(node, X_RES_STR, 1);
+    mYResolution = GetIntValue(node, Y_RES_STR, 1);
+    mFeatureList = GetStringValue(node, FEATURE_STR);
+
+    node = node->children;
+    while ( node && retCode )
+    {
+      if ( !strcmp((char *)node->name, BAYESIAN_CLASSIFIER_STR) )
+        retCode = mClassifier.Load(node);
+      else if ( strcmp((char *)node->name, "text") )
+        retCode = false;
+      node = node->next;
+    }
+  }
+  else
+  {
+    mHaarClassifier = (CvHaarClassifierCascade*)cvLoad(mHaarFilename.c_str(), 0, 0, 0);
+    if ( mHaarClassifier )
+      mStorage = cvCreateMemStorage(0);
+    else
       retCode = false;
-    node = node->next;
   }
 
   xmlFreeDoc(document);
@@ -96,6 +115,7 @@ bool HandDetector::Save(const char* filename)
   SetIntValue(rootNode, X_RES_STR, mXResolution);
   SetIntValue(rootNode, Y_RES_STR, mYResolution);
   SetStringValue(rootNode, FEATURE_STR, mFeatureList);
+  SetStringValue(rootNode, HAAR_FILE, mHaarFilename);
 
   classifierNode = xmlNewNode(NULL, (const xmlChar*)BAYESIAN_CLASSIFIER_STR);
   xmlAddChild(rootNode, classifierNode);
@@ -112,10 +132,14 @@ bool HandDetector::Process(Image* imagePtr, int left, int right, int top, int bo
                            vector<Hand*> &results)
 {
   Matrix featureVector;
-  int classIndex;
+  int i, classIndex, width, height;
   double confidence;
   bool done = false;
   Hand* hand;
+  IplImage* colorImage;
+  IplImage* grayImage;
+  CvSeq* objects;
+  CvRect* rect;
 
   if ( !imagePtr || (right < left) || (bottom < top) )
   {
@@ -123,27 +147,69 @@ bool HandDetector::Process(Image* imagePtr, int left, int right, int top, int bo
     return false;
   }
 
-  while ( !done )
+  if ( mHaarClassifier )
   {
-    // TODO Pick out multiple sizes and or positions of rectangles within the given area
+    width = right - left + 1;
+    height = bottom - top + 1;
 
-    if ( !FillFeatureVector(imagePtr, left, right, top, bottom, featureVector) )
+    colorImage = imagePtr->GetIplImage();
+    if ( !colorImage )
     {
-      fprintf(stderr, "HandDetector::Process - FillFeatureVector failed\n");
+      fprintf(stderr, "HandDetector::Process - Failed getting IplImage\n");
+      return false;
+    }
+    grayImage = cvCreateImage(cvSize(width, height), 8, 1);
+    if ( !grayImage )
+    {
+      fprintf(stderr, "HandDetector::Process - Failed creating gray image\n");
       return false;
     }
 
-    mClassifier.Classify(featureVector, classIndex, confidence);
+    // Create the gray image from just the relevant portion of the color image
+    cvSetImageROI(colorImage, cvRect(left, top, width, height));
+    cvCvtColor(colorImage, grayImage, CV_BGR2GRAY);
+    cvResetImageROI(colorImage);
+    cvEqualizeHist(grayImage, grayImage);
 
-    if ( classIndex == 0 )
+    cvClearMemStorage(mStorage);
+    objects = cvHaarDetectObjects(grayImage, mHaarClassifier, mStorage, 1.1, 2, 0, cvSize(30, 30));
+    if ( objects )
     {
-      printf("Hand Confidence %f\n", confidence);
-      hand = new Hand;
-      hand->SetBounds(left, right, top, bottom);
-      results.push_back(hand);
+      for (i = 0; i < objects->total; i++)
+      {
+        rect = (CvRect*)cvGetSeqElem(objects, i);
+        hand = new Hand;
+        hand->SetBounds(left + rect->x, left + rect->x + rect->width - 1,
+                        top + rect->y, top + rect->y + rect->height - 1);
+        results.push_back(hand);
+      }
     }
+    cvReleaseImage(&grayImage);
+  }
+  else
+  {
+    while ( !done )
+    {
+      // TODO Pick out multiple sizes and or positions of rectangles within the given area
 
-    done = true;
+      if ( !FillFeatureVector(imagePtr, left, right, top, bottom, featureVector) )
+      {
+        fprintf(stderr, "HandDetector::Process - FillFeatureVector failed\n");
+        return false;
+      }
+
+      mClassifier.Classify(featureVector, classIndex, confidence);
+
+      if ( classIndex == 0 )
+      {
+        printf("Hand Confidence %f\n", confidence);
+        hand = new Hand;
+        hand->SetBounds(left, right, top, bottom);
+        results.push_back(hand);
+      }
+
+      done = true;
+    }
   }
 
   return true;
@@ -175,6 +241,18 @@ bool HandDetector::Create(string featureList, int xResolution, int yResolution,
     return false;
   }
 
+  return true;
+}
+
+bool HandDetector::Create(string haarFilename)
+{
+  if ( haarFilename == "" )
+  {
+    fprintf(stderr, "HandDetector::Create - Invalid parameter\n");
+    return false;
+  }
+
+  mHaarFilename = haarFilename;
   return true;
 }
 
