@@ -1,5 +1,5 @@
 #ifndef GAUSSIAN_H
-#define GAUUSIAN_H
+#define GAUSSIAN_H
 
 #include "Matrix.h"
 #include "XMLUtils.h"

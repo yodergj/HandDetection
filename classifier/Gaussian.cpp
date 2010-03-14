@@ -221,7 +221,7 @@ bool Gaussian::Print(FILE* file)
 {
   if ( !file )
   {
-    fprintf(stderr, "Gaussian::Save - Invalid parameter\n");
+    fprintf(stderr, "Gaussian::Print - Invalid parameter\n");
     return false;
   }
 
