@@ -10,20 +10,21 @@ class Matrix
 {
   public:
     Matrix();
+    Matrix(const Matrix& refMatrix);
     ~Matrix();
     bool SetSize(int rows, int columns, bool clear=true);
     void Fill(double value);
     int GetRows();
     int GetColumns();
-    double GetValue(int row, int column);
+    double GetValue(int row, int column) const;
     bool SetValue(int row, int column, double value);
     bool Set(double* values);
     bool Scale(Matrix& a);
-    bool SetFromProduct(Matrix& a, Matrix& b);
-    bool SetFromCellProducts(Matrix& a, Matrix& b);
+    bool SetFromProduct(const Matrix& a, const Matrix& b);
+    bool SetFromCellProducts(const Matrix& a, const Matrix& b);
     void SetAsTranspose(Matrix& m);
     bool SetAsInverse(Matrix& m);
-    bool SetFromDifference(Matrix& a, Matrix& b);
+    bool SetFromDifference(const Matrix& a, const Matrix& b);
     bool GetDeterminant(double &determinant);
     void Clear();
     bool Print(FILE* file);
@@ -33,18 +34,18 @@ class Matrix
     bool Load(xmlNodePtr matrixNode);
     Matrix& Transpose();
     Matrix& Inverse();
-    Matrix& operator-(Matrix& m);
-    Matrix& operator*(Matrix& m);
+    Matrix& operator-(const Matrix& m);
+    Matrix& operator*(const Matrix& m);
     Matrix& operator*(double d);
-    Matrix& operator=(Matrix& m);
+    Matrix& operator=(const Matrix& m);
     Matrix& operator*=(double d);
-    Matrix& operator+=(Matrix& m);
+    Matrix& operator+=(const Matrix& m);
     Matrix& operator+=(double* values);
-    Matrix& operator-=(Matrix& m);
+    Matrix& operator-=(const Matrix& m);
     Matrix& operator-=(double* values);
-    bool operator==(Matrix& m);
-    bool operator!=(Matrix& m);
-    bool operator<(Matrix& m); // For sorting purposes only
+    bool operator==(const Matrix& m) const;
+    bool operator!=(const Matrix& m) const;
+    bool operator<(const Matrix& m) const; // For sorting purposes only
   private:
     bool RowReduce();
     bool CalculateRowEchelonForm();

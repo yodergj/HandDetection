@@ -21,6 +21,18 @@ Matrix::Matrix()
   mNumRowEchelonSwaps = 0;
 }
 
+Matrix::Matrix(const Matrix& refMatrix)
+{
+  mData = NULL;
+  mDataAlloc = 0;
+  mRows = 0;
+  mColumns = 0;
+  mRowEchelonData = NULL;
+  mRowEchelonDataAlloc = 0;
+  mNumRowEchelonSwaps = 0;
+  *this = refMatrix;
+}
+
 Matrix::~Matrix()
 {
   if ( mData )
@@ -84,7 +96,7 @@ int Matrix::GetColumns()
   return mColumns;
 }
 
-double Matrix::GetValue(int row, int column)
+double Matrix::GetValue(int row, int column) const
 {
   if ( (row >= mRows) || (row < 0) ||
        (column >= mColumns) || (column < 0) )
@@ -424,7 +436,7 @@ bool Matrix::RowReduce()
   return identityFound;
 }
 
-Matrix& Matrix::operator-(Matrix& m)
+Matrix& Matrix::operator-(const Matrix& m)
 {
   static Matrix result;
 
@@ -433,7 +445,7 @@ Matrix& Matrix::operator-(Matrix& m)
   return result;
 }
 
-bool Matrix::SetFromDifference(Matrix& a, Matrix& b)
+bool Matrix::SetFromDifference(const Matrix& a, const Matrix& b)
 {
   int i;
 
@@ -464,7 +476,7 @@ bool Matrix::SetFromDifference(Matrix& a, Matrix& b)
   return true;
 }
 
-Matrix& Matrix::operator*(Matrix& m)
+Matrix& Matrix::operator*(const Matrix& m)
 {
   static Matrix result;
 
@@ -474,7 +486,7 @@ Matrix& Matrix::operator*(Matrix& m)
   return result;
 }
 
-bool Matrix::SetFromProduct(Matrix& a, Matrix& b)
+bool Matrix::SetFromProduct(const Matrix& a, const Matrix& b)
 {
   int i;
   int row, column;
@@ -584,7 +596,7 @@ bool Matrix::Scale(Matrix& a)
   return true;
 }
 
-bool Matrix::SetFromCellProducts(Matrix& a, Matrix& b)
+bool Matrix::SetFromCellProducts(const Matrix& a, const Matrix& b)
 {
   int i;
 
@@ -611,7 +623,7 @@ Matrix& Matrix::operator*(double d)
   return result;
 }
 
-Matrix& Matrix::operator=(Matrix& m)
+Matrix& Matrix::operator=(const Matrix& m)
 {
   SetSize(m.mRows, m.mColumns, false);
   memcpy(mData, m.mData, mRows * mColumns * sizeof(double));
@@ -627,7 +639,7 @@ Matrix& Matrix::operator*=(double d)
   return *this;
 }
 
-Matrix& Matrix::operator+=(Matrix& m)
+Matrix& Matrix::operator+=(const Matrix& m)
 {
   int i;
 
@@ -647,7 +659,7 @@ Matrix& Matrix::operator+=(double* values)
   return *this;
 }
 
-Matrix& Matrix::operator-=(Matrix& m)
+Matrix& Matrix::operator-=(const Matrix& m)
 {
   int i;
 
@@ -667,7 +679,7 @@ Matrix& Matrix::operator-=(double* values)
   return *this;
 }
 
-bool Matrix::operator==(Matrix& m)
+bool Matrix::operator==(const Matrix& m) const
 {
   if ( (mRows != m.mRows) || (mColumns != m.mColumns) )
     return false;
@@ -675,12 +687,12 @@ bool Matrix::operator==(Matrix& m)
   return !memcmp(mData, m.mData, mRows * mColumns * sizeof(double));
 }
 
-bool Matrix::operator!=(Matrix& m)
+bool Matrix::operator!=(const Matrix& m) const
 {
   return !(*this == m);
 }
 
-bool Matrix::operator<(Matrix& m)
+bool Matrix::operator<(const Matrix& m) const
 {
   int row, column;
 

@@ -17,7 +17,7 @@ ThresholdClassifier::~ThresholdClassifier()
 {
 }
 
-int ThresholdClassifier::Classifiy(double value)
+int ThresholdClassifier::Classify(double value)
 {
   return (value < mThreshold) ? mLowerClass : mUpperClass;
 }
@@ -35,8 +35,7 @@ bool ThresholdClassifier::Train(vector<double>& samples, vector<double>& weights
     return false;
   }
 
-  // Worst case error should be 1, so pick something we can definitely beat
-  bestError = 2;
+  bestError = 0x7FFFFFFF;
   numSamples = samples.size();
   lowerClass = 0;
   upperClass = 1;

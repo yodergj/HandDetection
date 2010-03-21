@@ -14,6 +14,7 @@ int main(int argc, char* argv[])
   int i, j;
   int width, height;
   int left, right, top, bottom;
+  int blockWidth, blockHeight, numTooSmall;
   char filename[256];
   FILE *file;
   int revNumber = 0;
@@ -65,7 +66,7 @@ int main(int argc, char* argv[])
     if ( fleshRegionVector )
     {
       numFleshRegions = fleshRegionVector->size();
-      fprintf(file, "%s %d", argv[i], numFleshRegions);
+      numTooSmall = 0;
       for (j = 0; j < numFleshRegions; j++)
       {
         if ( !(*fleshRegionVector)[j]->GetBounds(left, right, top, bottom) )
@@ -77,8 +78,31 @@ int main(int argc, char* argv[])
         right = (right + 1) * xScale - 1;
         top *= yScale;
         bottom = (bottom + 1) * yScale - 1;
+        blockWidth = right - left + 1;
+        blockHeight = bottom - top + 1;
 
-        fprintf(file, " %d %d %d %d", left, top, right - left + 1, bottom - top + 1);
+        if ( (blockWidth < 30) || (blockHeight < 40) )
+          numTooSmall++;
+      }
+      fprintf(file, "%s %d", argv[i], numFleshRegions - numTooSmall);
+      for (j = 0; j < numFleshRegions; j++)
+      {
+        if ( !(*fleshRegionVector)[j]->GetBounds(left, right, top, bottom) )
+        {
+          fprintf(stderr, "Error getting flesh block %d bounds\n", i);
+          return 1;
+        }
+        left *= xScale;
+        right = (right + 1) * xScale - 1;
+        top *= yScale;
+        bottom = (bottom + 1) * yScale - 1;
+        blockWidth = right - left + 1;
+        blockHeight = bottom - top + 1;
+
+        if ( (blockWidth < 30) || (blockHeight < 40) )
+          continue;
+
+        fprintf(file, " %d %d %d %d", left, top, blockWidth, blockHeight);
       }
       fprintf(file, "\n");
     }

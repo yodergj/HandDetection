@@ -12,7 +12,7 @@ class ThresholdClassifier
   public:
     ThresholdClassifier();
     ~ThresholdClassifier();
-    int Classifiy(double value);
+    int Classify(double value);
     bool Train(vector<double>& samples, vector<double>& weights, vector<int>& classes, double* trainingError = 0);
     bool Print(FILE* file);
     bool Save(const char* filename);

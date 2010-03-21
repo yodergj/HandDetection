@@ -1,0 +1,15 @@
+Make weak classifiers that are trained using a weighted set of samples.
+
+Start with simple single variable threshold classifiers - train by using each sample value as threshold.  Calculate error by adding the weights of incorrectly classified samples.  Pick the threshold which generates the smallest error.
+
+Implement Adaboost algorithm using weak classifiers that are all trained on the same feature.
+
+Evaluate performance and compare to a single classifier.
+
+Implement Adaboost using weak classifiers that are trained on different features.
+
+Evaluate performance and compare results using different features / different ordering of features.  Might want to determine ordering by training classifiers for each feature on the samples using equal weights.  Order the features based on which ones produced the least error (strongest classifiers first).
+
+Update adaboost implementation so that for each stage, it trains separate classifiers for all of the features and selects the best one.
+
+Investigate using GMM-based Bayesian classifiers for the weak classifiers.
