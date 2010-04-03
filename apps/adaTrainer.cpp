@@ -22,22 +22,27 @@ int main(int argc, char* argv[])
   double* featureBuffer;
   double* pixel;
   string featureList;
-  int numFeatures;
-  int numWeakClassifiers = 3;
+  int numFeatures, numWeakClassifiers;
 
-  if ( argc < 5 )
+  if ( argc < 6 )
   {
-    printf("Usage: %s <feature string> <flesh Image> [...] -x <non-flesh image> [...]\n", argv[0]);
+    printf("Usage: %s <num weak classifiers> <feature string> <flesh Image> [...] -x <non-flesh image> [...]\n", argv[0]);
     return 0;
   }
 
-  featureList = argv[1];
+  numWeakClassifiers = atoi(argv[1]);
+  if ( numWeakClassifiers < 1 )
+  {
+    printf("Invalid number of weak classifiers %d\n", numWeakClassifiers );
+    return 1;
+  }
+  featureList = argv[2];
   numFeatures = featureList.size();
   input.SetSize(numFeatures, 1);
   classifier.Create(numFeatures, 2, numWeakClassifiers);
   classifier.SetFeatureString(featureList);
 
-  for (i = 2; i < argc; i++)
+  for (i = 3; i < argc; i++)
   {
     if ( !strcmp(argv[i], "-x") )
     {

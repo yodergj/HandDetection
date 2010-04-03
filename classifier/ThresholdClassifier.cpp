@@ -5,6 +5,7 @@
 #define THRESHOLD_STR "Threshold"
 #define LOWER_CLASS_STR "LowerClass"
 #define UPPER_CLASS_STR "UpperClass"
+#define FEATURE_STR "Features"
 
 ThresholdClassifier::ThresholdClassifier()
 {
@@ -22,7 +23,8 @@ int ThresholdClassifier::Classify(double value)
   return (value < mThreshold) ? mLowerClass : mUpperClass;
 }
 
-bool ThresholdClassifier::Train(vector<double>& samples, vector<double>& weights, vector<int>& classes, double* trainingError)
+bool ThresholdClassifier::Train(const vector<double>& samples, const vector<double>& weights,
+                                const vector<int>& classes, double* trainingError)
 {
   int i, j;
   int numSamples, lowerClass, upperClass;
@@ -108,6 +110,30 @@ bool ThresholdClassifier::Train(vector<double>& samples, vector<double>& weights
   return true;
 }
 
+string ThresholdClassifier::GetFeatureString() const
+{
+  return mFeatureString;
+}
+
+bool ThresholdClassifier::SetFeatureString(const string& featureString)
+{
+  if ( (int)featureString.size() != 1 )
+  {
+    fprintf(stderr, "ThresholdClassifier::SetFeatureString - Feature string \"%s\" doesn't have length 1\n", featureString.c_str());
+    return false;
+  }
+
+  mFeatureString = featureString;
+
+  return true;
+}
+
+bool ThresholdClassifier::SetFeatureString(const char featureLetter)
+{
+  mFeatureString = featureLetter;
+  return true;
+}
+
 bool ThresholdClassifier::Print(FILE* file)
 {
   if ( !file )
@@ -119,6 +145,7 @@ bool ThresholdClassifier::Print(FILE* file)
   fprintf(file, "ThresholdClassifier\n");
   fprintf(file, "Threshold %f\n", mThreshold);
   fprintf(file, "Classes %d %d\n", mLowerClass, mUpperClass);
+  fprintf(file, "Feature %s\n", mFeatureString.c_str());
 
   return true;
 }
@@ -161,6 +188,7 @@ bool ThresholdClassifier::Save(xmlNodePtr classifierNode)
   SetDoubleValue(classifierNode, THRESHOLD_STR, mThreshold);
   SetIntValue(classifierNode, LOWER_CLASS_STR, mLowerClass);
   SetIntValue(classifierNode, UPPER_CLASS_STR, mUpperClass);
+  SetStringValue(classifierNode, FEATURE_STR, mFeatureString);
 
   return true;
 }
@@ -205,6 +233,7 @@ bool ThresholdClassifier::Load(xmlNodePtr classifierNode)
   mThreshold = GetDoubleValue(classifierNode, THRESHOLD_STR, 0);
   mLowerClass = GetIntValue(classifierNode, LOWER_CLASS_STR, 0);
   mUpperClass = GetIntValue(classifierNode, UPPER_CLASS_STR, 1);
+  mFeatureString = GetStringValue(classifierNode, FEATURE_STR);
 
   return true;
 }

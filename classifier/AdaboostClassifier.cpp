@@ -41,6 +41,7 @@ bool AdaboostClassifier::Create(int numDimensions, int numClasses, int numWeakCl
   mNumClasses = numClasses;
   mWeakClassifiers.resize( numWeakClassifiers );
   mClassifierWeights.resize( numWeakClassifiers );
+  mClassifierFeatures.resize( numWeakClassifiers );
   mTrainingData.resize( numClasses );
   mTrainingDataFreq.resize( numClasses );
 
@@ -96,7 +97,7 @@ bool AdaboostClassifier::AddTrainingData(const Matrix& data, int classIndex)
 int AdaboostClassifier::Classify(const Matrix& data)
 {
   int i, numClassifiers;
-  double input, total;
+  double total;
 
   if ( mNumClasses < 2 )
   {
@@ -105,12 +106,11 @@ int AdaboostClassifier::Classify(const Matrix& data)
   }
 
   // TODO Figure out how to adapt this for more than 2 classes
-  input = data.GetValue(0, 0);
   total = 0;
   numClassifiers = mWeakClassifiers.size();
   for (i = 0; i < numClassifiers; i++)
   {
-    if ( mWeakClassifiers[i].Classify(input) == 0 )
+    if ( mWeakClassifiers[i].Classify( data.GetValue(mClassifierFeatures[i], 0) ) == 0 )
       total -= mClassifierWeights[i];
     else
       total += mClassifierWeights[i];
@@ -124,12 +124,9 @@ int AdaboostClassifier::Classify(const Matrix& data)
 bool AdaboostClassifier::Train()
 {
   int i, j, len, numClassifiers, numSampleBins, totalSamples;
-  double baseWeight, weightTotal, trainingError, errorRatio;
+  int classNum, weightNum, featureNum;
+  double baseWeight;
   vector<double> weights;
-  vector<double> classifierWeights;
-  vector<double> data;
-  vector<int> dataFreq;
-  vector<int> truth;
 
   if ( mNumClasses < 2 )
   {
@@ -142,55 +139,125 @@ bool AdaboostClassifier::Train()
   {
     len = mTrainingData[i].size();
     for (j = 0; j < len; j++)
-    {
       totalSamples += mTrainingDataFreq[i][j];
-      data.push_back( mTrainingData[i][j].GetValue(0, 0) );
-      dataFreq.push_back( mTrainingDataFreq[i][j] );
-      truth.push_back(i);
-    }
   }
 
   numClassifiers = mWeakClassifiers.size();
-  numSampleBins = data.size();
-  weights.resize(numSampleBins);
+  numSampleBins = 0;
   baseWeight = 1.0 / totalSamples;
-  for (i = 0; i < numSampleBins; i++)
-    weights[i] = baseWeight * dataFreq[i];
+  for (i = 0; i < mNumClasses; i++)
+  {
+    len = mTrainingData[i].size();
+    numSampleBins += len;
+    for (j = 0; j < len; j++)
+      weights.push_back(baseWeight * mTrainingDataFreq[i][j]);
+  }
 
   for (i = 0; i < numClassifiers; i++)
   {
-    // ThresholdClassifier calculates error the way we need, to just use its result.
-    // Will need to calculate error for ourself if we use a different kind of weak classifier
-    if ( !mWeakClassifiers[i].Train(data, weights, truth, &trainingError) )
-    {
-      fprintf(stderr, "AdaboostClassifier::Train - Error training weak classifier %d\n", i);
-      return false;
-    }
-
-    if ( trainingError == 0 )
-    {
-      fprintf(stderr, "AdaboostClassifier::Train - Perfect classifier in slot %d\n", i);
-      mClassifierWeights[i] = 100;
-    }
-    else
-    {
-      weightTotal = 0;
-      for (j = 0; j < numSampleBins; j++)
-        weightTotal += weights[j];
-      errorRatio = trainingError / weightTotal;
-      mClassifierWeights[i] = log( (1 - errorRatio) / errorRatio );
-    }
+    TrainLevel(weights, i, featureNum);
 
     // Update weights for next classifier
-    for (j = 0; j < numSampleBins; j++)
-      if ( mWeakClassifiers[i].Classify( data[j] ) != truth[j] )
-        weights[j] *= exp( mClassifierWeights[i] );
+    weightNum = 0;
+    for (classNum = 0; classNum < mNumClasses; classNum++)
+    {
+      len = mTrainingData[classNum].size();
+      for (j = 0; j < len; j++, weightNum++)
+        if ( mWeakClassifiers[i].Classify( mTrainingData[classNum][j].GetValue(featureNum, 0) ) != classNum )
+          weights[weightNum] *= exp( mClassifierWeights[i] );
+    }
   }
 
   return true;
 }
 
-string AdaboostClassifier::GetFeatureString()
+bool AdaboostClassifier::TrainLevel(const vector<double>& weights, int levelNum, int& chosenFeature)
+{
+  int i, len;
+  double weightTotal, trainingError, errorRatio;
+  vector<double> data;
+  vector<int> truth;
+
+  int numFeatures, bestFeature;
+  double bestError;
+  ThresholdClassifier bestClassifier;
+
+  weightTotal = 0;
+  len = weights.size();
+  for (i = 0; i < len; i++)
+    weightTotal += weights[i];
+
+  bestFeature = -1;
+  numFeatures = mFeatureString.size();
+  for (i = 0; i < numFeatures; i++)
+  {
+    if ( !FillData(i, data, truth) )
+    {
+      fprintf(stderr, "AdaboostClassifier::TrainLevel - Error getting data for weak classifier %d\n", levelNum);
+      return false;
+    }
+
+    // ThresholdClassifier calculates error the way we need, to just use its result.
+    // Will need to calculate error for ourself if we use a different kind of weak classifier
+    if ( !mWeakClassifiers[levelNum].Train(data, weights, truth, &trainingError) )
+    {
+      fprintf(stderr, "AdaboostClassifier::TrainLevel - Error training weak classifier %d\n", levelNum);
+      return false;
+    }
+
+    if ( (bestFeature < 0) || (trainingError < bestError) )
+    {
+      bestFeature = i;
+      bestError = trainingError;
+      bestClassifier = mWeakClassifiers[levelNum];
+    }
+  }
+
+  if ( bestFeature != numFeatures - 1 )
+    mWeakClassifiers[levelNum] = bestClassifier;
+  mWeakClassifiers[levelNum].SetFeatureString( mFeatureString[bestFeature] );
+  mClassifierFeatures[levelNum] = bestFeature;
+  chosenFeature = bestFeature;
+
+  if ( bestError == 0 )
+  {
+    fprintf(stderr, "AdaboostClassifier::TrainLevel - Perfect classifier in slot %d\n", levelNum);
+    mClassifierWeights[levelNum] = 100;
+  }
+  else
+  {
+    errorRatio = bestError / weightTotal;
+    mClassifierWeights[levelNum] = log( (1 - errorRatio) / errorRatio );
+  }
+
+  return true;
+}
+
+bool AdaboostClassifier::FillData(int featureNum, vector<double>& data, vector<int>& truth)
+{
+  int i, j, len;
+
+  if ( (featureNum < 0) || (featureNum >= (int)mFeatureString.size()) )
+  {
+    fprintf(stderr, "AdaboostClassifier::FillData - Invalid feature number %d\n", featureNum);
+    return false;
+  }
+
+  data.clear();
+  truth.clear();
+  for (i = 0; i < mNumClasses; i++)
+  {
+    len = mTrainingData[i].size();
+    for (j = 0; j < len; j++)
+    {
+      data.push_back( mTrainingData[i][j].GetValue(featureNum, 0) );
+      truth.push_back(i);
+    }
+  }
+  return true;
+}
+
+string AdaboostClassifier::GetFeatureString() const
 {
   return mFeatureString;
 }
@@ -303,7 +370,9 @@ bool AdaboostClassifier::Load(const char* filename)
 
 bool AdaboostClassifier::Load(xmlNodePtr classifierNode)
 {
-  int numClassifiersFound, dimensions, numClasses, numClassifiers;
+  int i, numClassifiersFound, dimensions, numClasses, numClassifiers;
+  size_t pos;
+  char feature;
   xmlNodePtr node;
   bool retCode = true;
 
@@ -359,6 +428,27 @@ bool AdaboostClassifier::Load(xmlNodePtr classifierNode)
       retCode = false;
     }
     node = node->next;
+  }
+
+  for (i = 0; retCode && i < numClassifiers; i++)
+  {
+    if ( mWeakClassifiers[i].GetFeatureString().empty() )
+    {
+      fprintf(stderr, "AdaboostClassifier::Load - Classifier %d has no feature\n", i);
+      retCode = false;
+    }
+    else
+    {
+      feature = mWeakClassifiers[i].GetFeatureString()[0];
+      pos = mFeatureString.find( feature );
+      if ( pos == string::npos )
+      {
+        fprintf(stderr, "AdaboostClassifier::Load - Classifier %d has mismatched feature %c\n", i, feature);
+        retCode = false;
+      }
+      else
+        mClassifierFeatures[i] = pos;
+    }
   }
 
   return retCode;

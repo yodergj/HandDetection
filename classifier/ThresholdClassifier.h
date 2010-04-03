@@ -13,7 +13,10 @@ class ThresholdClassifier
     ThresholdClassifier();
     ~ThresholdClassifier();
     int Classify(double value);
-    bool Train(vector<double>& samples, vector<double>& weights, vector<int>& classes, double* trainingError = 0);
+    bool Train(const vector<double>& samples, const vector<double>& weights, const vector<int>& classes, double* trainingError = 0);
+    string GetFeatureString() const;
+    bool SetFeatureString(const string& featureString);
+    bool SetFeatureString(const char featureLetter);
     bool Print(FILE* file);
     bool Save(const char* filename);
     bool Save(xmlNodePtr classifierNode);
@@ -23,6 +26,7 @@ class ThresholdClassifier
     double mThreshold;
     int mLowerClass;
     int mUpperClass;
+    string mFeatureString;
 };
 
 #endif

@@ -20,7 +20,7 @@ class AdaboostClassifier
     bool AddTrainingData(const Matrix& data, int classIndex);
     int Classify(const Matrix& data);
     bool Train();
-    string GetFeatureString();
+    string GetFeatureString() const;
     bool SetFeatureString(const string& featureString);
     bool Print(FILE* file);
     bool Save(const char* filename);
@@ -29,6 +29,8 @@ class AdaboostClassifier
     bool Load(xmlNodePtr classifierNode);
   private:
     void Clear();
+    bool TrainLevel(const vector<double>& weights, int levelNum, int& chosenFeature);
+    bool FillData(int featureNum, vector<double>& data, vector<int>& truth);
     int mNumDimensions;
     string mFeatureString;
     int mNumClasses;
@@ -36,6 +38,7 @@ class AdaboostClassifier
     vector< vector<int> > mTrainingDataFreq;
     vector<ThresholdClassifier> mWeakClassifiers;
     vector<double> mClassifierWeights;
+    vector<int> mClassifierFeatures;
 };
 
 #endif
