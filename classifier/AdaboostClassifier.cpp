@@ -168,6 +168,11 @@ bool AdaboostClassifier::Train()
     }
   }
 
+  // Update the feature string to what was actually selected
+  mFeatureString = "";
+  for (i = 0; i < numClassifiers; i++)
+    mFeatureString += mWeakClassifiers[i].GetFeatureString();
+
   return true;
 }
 
@@ -181,6 +186,7 @@ bool AdaboostClassifier::TrainLevel(const vector<double>& weights, int levelNum,
   int numFeatures, bestFeature;
   double bestError;
   ThresholdClassifier bestClassifier;
+      fprintf(stderr, "AdaboostClassifier::TrainLevel - Starting level %d\n", levelNum);
 
   weightTotal = 0;
   len = weights.size();
@@ -191,11 +197,13 @@ bool AdaboostClassifier::TrainLevel(const vector<double>& weights, int levelNum,
   numFeatures = mFeatureString.size();
   for (i = 0; i < numFeatures; i++)
   {
+      fprintf(stderr, "AdaboostClassifier::TrainLevel - Starting feature %d\n", i);
     if ( !FillData(i, data, truth) )
     {
       fprintf(stderr, "AdaboostClassifier::TrainLevel - Error getting data for weak classifier %d\n", levelNum);
       return false;
     }
+      fprintf(stderr, "AdaboostClassifier::TrainLevel - Data size %d\n", data.size());
 
     // ThresholdClassifier calculates error the way we need, to just use its result.
     // Will need to calculate error for ourself if we use a different kind of weak classifier

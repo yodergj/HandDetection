@@ -1,5 +1,6 @@
-#include "ConnectedRegion.h"
 #include <stdio.h>
+#include <algorithm>
+#include "ConnectedRegion.h"
 
 #ifndef MIN
 #define MIN(a, b) ( (a) < (b) ? (a) : (b) )
@@ -15,6 +16,23 @@ ConnectedRegion::ConnectedRegion()
   mXMax = -1;
   mYMax = -1;
   mNumPixels = 0;
+}
+
+ConnectedRegion::ConnectedRegion(const ConnectedRegion& ref)
+{
+  operator=(ref);
+}
+
+ConnectedRegion& ConnectedRegion::operator=(const ConnectedRegion& ref)
+{
+  mRuns = ref.mRuns;
+  mXMin = ref.mXMin;
+  mYMin = ref.mYMin;
+  mXMax = ref.mXMax;
+  mYMax = ref.mYMax;
+  mNumPixels = ref.mNumPixels;
+
+  return *this;
 }
 
 ConnectedRegion::~ConnectedRegion()
@@ -158,4 +176,81 @@ double ConnectedRegion::GetAverageRunsPerRow()
     return 0;
 
   return (double)mRuns.size() / height;
+}
+
+bool ConnectedRegion::GetCentroid(double& x, double& y)
+{
+  int i, numRuns;
+  double xSum, ySum;
+
+  if ( mRuns.empty() )
+    return false;
+
+  xSum = 0;
+  ySum = 0;
+  numRuns = (int)mRuns.size();
+  for (i = 0; i < numRuns; i++)
+  {
+    xSum += ( mRuns[i].xStart + (mRuns[i].length - 1) / 2.0 ) * mRuns[i].length;
+    ySum += mRuns[i].y * mRuns[i].length;
+  }
+
+  x = xSum / mNumPixels;
+  y = ySum / mNumPixels;
+
+  return true;
+}
+
+void ConnectedRegion::GetEdgePoints(vector<Point>& points)
+{
+  int i, j, x, y, xStop, numRuns;
+  bool touchFound;
+
+  points.clear();
+  if ( mRuns.empty() )
+    return;
+
+  std::sort(mRuns.begin(), mRuns.end());
+  numRuns = (int)mRuns.size();
+  for (i = 0; i < numRuns; i++)
+  {
+    if ( (mRuns[i].y == mYMin) || (mRuns[i].y == mYMax) || (mRuns[y].length <= 2) )
+    {
+      for (j = 0; j < mRuns[i].length; j++)
+        points.push_back( Point(mRuns[i].xStart + j, mRuns[i].y) );
+    }
+    else
+    {
+      y = mRuns[i].y;
+      points.push_back( Point(mRuns[i].xStart, y) );
+      xStop = mRuns[i].xStart + mRuns[i].length - 1;
+
+      for (x = mRuns[i].xStart + 1; x < xStop; x++)
+      {
+        touchFound = false;
+        for (j = i - 1; !touchFound && (i >= 0) && (mRuns[j].y >= y - 1); j--)
+        {
+          if ( mRuns[j].y != y - 1 )
+            continue;
+          if ( (mRuns[j].xStart <= x) && (mRuns[j].xStart + mRuns[j].length > x) )
+            touchFound = true;
+        }
+        if ( touchFound )
+        {
+          touchFound = false;
+          for (j = i + 1; !touchFound && (i < numRuns) && (mRuns[j].y <= y + 1); j++)
+          {
+            if ( mRuns[j].y != y + 1 )
+              continue;
+            if ( (mRuns[j].xStart <= x) && (mRuns[j].xStart + mRuns[j].length > x) )
+              touchFound = true;
+          }
+        }
+        if ( !touchFound )
+          points.push_back( Point(x, y) );
+      }
+
+      points.push_back( Point(xStop, y) );
+    }
+  }
 }

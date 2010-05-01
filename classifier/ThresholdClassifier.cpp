@@ -1,6 +1,8 @@
-#include "ThresholdClassifier.h"
 #include <stdio.h>
 #include <string.h>
+#include <map>
+using std::map;
+#include "ThresholdClassifier.h"
 
 #define THRESHOLD_STR "Threshold"
 #define LOWER_CLASS_STR "LowerClass"
@@ -28,7 +30,8 @@ bool ThresholdClassifier::Train(const vector<double>& samples, const vector<doub
 {
   int i, j;
   int numSamples, lowerClass, upperClass;
-  double bestThreshold, bestError, pass1BestError;
+  double bestThreshold, bestError;
+  double worstThreshold, worstError;
   double threshold, error;
 
   if ( samples.empty() || (samples.size() != classes.size()) || (weights.size() != samples.size()) )
@@ -41,9 +44,52 @@ bool ThresholdClassifier::Train(const vector<double>& samples, const vector<doub
   numSamples = samples.size();
   lowerClass = 0;
   upperClass = 1;
+
+  map<double, int> thresholds;
   for (i = 0; i < numSamples; i++)
+    thresholds[ samples[i] ] |= (1 << classes[i]);
+  fprintf(stderr, "ThresholdClassifier::Train - Data size %d, Threshold size %d\n", samples.size(), thresholds.size());
+
+  map<double, int>::iterator threshItr, nextItr, prevItr;
+  bool keep;
+  int bothClasses = 3;
+  if ( thresholds.size() > 2 )
   {
-    threshold = samples[i];
+    prevItr = thresholds.begin();
+    threshItr = prevItr;
+    threshItr++;
+    while ( (threshItr != thresholds.end()) &&
+            (prevItr->second == threshItr->second) &&
+            (prevItr->second != bothClasses) )
+    {
+      thresholds.erase(prevItr);
+      prevItr = threshItr;
+      threshItr++;
+    }
+
+    while ( threshItr != thresholds.end() )
+    {
+      keep = false;
+      nextItr = threshItr;
+      nextItr++;
+
+      if ( (threshItr->second == bothClasses) ||
+           (threshItr->second != prevItr->second) ||
+           ( (nextItr != thresholds.end()) && (threshItr->second != nextItr->second) ) )
+        keep = true;
+
+      if ( keep )
+        prevItr = threshItr;
+      else
+        thresholds.erase( threshItr );
+      threshItr = nextItr;
+    }
+  }
+  fprintf(stderr, "ThresholdClassifier::Train - Filtered Threshold size %d\n", thresholds.size());
+
+  for (threshItr = thresholds.begin(); threshItr != thresholds.end(); threshItr++)
+  {
+    threshold = threshItr->first;
     error = 0;
     for (j = 0; j < numSamples; j++)
     {
@@ -63,49 +109,48 @@ bool ThresholdClassifier::Train(const vector<double>& samples, const vector<doub
       bestThreshold = threshold;
       bestError = error;
     }
+    if ( error >= worstError )
+    {
+      worstThreshold = threshold;
+      worstError = error;
+    }
   }
-  pass1BestError = bestError;
 
   lowerClass = 1;
   upperClass = 0;
-  for (i = 0; i < numSamples; i++)
+  error = 0;
+  for (j = 0; j < numSamples; j++)
   {
-    threshold = samples[i];
-    error = 0;
-    for (j = 0; j < numSamples; j++)
+    if ( samples[j] < worstThreshold )
     {
-      if ( samples[j] < threshold )
-      {
-        if ( classes[j] != lowerClass )
-          error += weights[j];
-      }
-      else
-      {
-        if ( classes[j] != upperClass )
-          error += weights[j];
-      }
+      if ( classes[j] != lowerClass )
+        error += weights[j];
     }
-    if ( error < bestError )
+    else
     {
-      bestThreshold = threshold;
-      bestError = error;
+      if ( classes[j] != upperClass )
+        error += weights[j];
     }
   }
 
-  if ( bestError == pass1BestError )
-  {
-    mLowerClass = 0;
-    mUpperClass = 1;
-  }
-  else
+  if ( error < bestError )
   {
     mLowerClass = 1;
     mUpperClass = 0;
-  }
-  mThreshold = bestThreshold;
+    mThreshold = worstThreshold;
 
-  if ( trainingError )
-    *trainingError = bestError;
+    if ( trainingError )
+      *trainingError = error;
+  }
+  else
+  {
+    mLowerClass = 0;
+    mUpperClass = 1;
+    mThreshold = bestThreshold;
+
+    if ( trainingError )
+      *trainingError = bestError;
+  }
 
   return true;
 }

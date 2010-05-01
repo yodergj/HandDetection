@@ -1,5 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6.0)
 PROJECT(HandDetection)
 FIND_PACKAGE(Qt4 REQUIRED)
-INCLUDE_DIRECTORIES(classifier flesh hand image utils vidproc xmlutils)
-SUBDIRS(apps AviCreate classifier flesh hand image test utils vidproc xmlutils)
+INCLUDE_DIRECTORIES(classifier flesh geometry hand image utils vidproc xmlutils)
+SUBDIRS(apps AviCreate classifier flesh geometry hand image test utils vidproc xmlutils)
