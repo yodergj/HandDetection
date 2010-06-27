@@ -8,6 +8,7 @@
 #include <qimage.h>
 #include "Image.h"
 #include "ConnectedRegion.h"
+#include "LineSegment.h"
 
 #ifndef MAX
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
@@ -718,11 +719,55 @@ bool Image::DrawLine(const unsigned char* color, int lineWidth, int x1, int y1, 
     return false;
   }
 
-  // TODO Add Bresenham algorithm for arbitrary angles
+  bufferWidth = mWidth * 3;
   if ( (x1 != x2) && (y1 != y2) )
   {
-    fprintf(stderr, "Image::DrawLine - Only horizontal and vertical lines are currently supported\n");
-    return false;
+    // Bresenham's line drawing algorithm
+    int tmp, deltaX, deltaY, error, yStep;
+    bool steep = abs(y2 - y1) > abs(x2 - x1);
+    if ( steep )
+    {
+      tmp = y1;
+      y1 = x1;
+      x1 = tmp;
+
+      tmp = y2;
+      y2 = x2;
+      x2 = tmp;
+    }
+    if ( x1 > x2 )
+    {
+      tmp = x1;
+      x1 = x2;
+      x2 = tmp;
+
+      tmp = y1;
+      y1 = y2;
+      y2 = tmp;
+    }
+    deltaX = x2 - x1;
+    deltaY = abs(y2 - y1);
+    error = deltaX / 2;
+    y = y1;
+    yStep = (y1 < y2) ? 1 : -1;
+    for (x = x1; x <= x2; x++)
+    {
+      if ( steep )
+        destPixel = mBuffer + x * bufferWidth + y * 3;
+      else
+        destPixel = mBuffer + y * bufferWidth + x * 3;
+      destPixel[0] = color[0];
+      destPixel[1] = color[1];
+      destPixel[2] = color[2];
+
+      error -= deltaY;
+      if ( error < 0 )
+      {
+        y += yStep;
+        error += deltaX;
+      }
+    }
+    return true;
   }
 
   if ( x1 < x2 )
@@ -758,7 +803,6 @@ bool Image::DrawLine(const unsigned char* color, int lineWidth, int x1, int y1, 
   if ( bottom >= mHeight )
     bottom = mHeight - 1;
 
-  bufferWidth = mWidth * 3;
   destRow = mBuffer + top * bufferWidth + left * 3;
   for (y = top; y <= bottom; y++, destRow += bufferWidth)
   {
@@ -772,6 +816,18 @@ bool Image::DrawLine(const unsigned char* color, int lineWidth, int x1, int y1, 
   }
 
   return true;
+}
+
+bool Image::DrawLine(const unsigned char* color, int lineWidth, const Point& p1, const Point& p2)
+{
+  return DrawLine(color, lineWidth, p1.x, p1.y, p2.x, p2.y);
+}
+
+bool Image::DrawLine(const unsigned char* color, int lineWidth, const LineSegment& line)
+{
+  Point p1 = line.GetLeftPoint();
+  Point p2 = line.GetRightPoint();
+  return DrawLine(color, lineWidth, p1.x, p1.y, p2.x, p2.y);
 }
 
 bool Image::Save(const char* filename)

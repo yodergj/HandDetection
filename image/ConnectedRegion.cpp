@@ -214,7 +214,7 @@ void ConnectedRegion::GetEdgePoints(vector<Point>& points)
   numRuns = (int)mRuns.size();
   for (i = 0; i < numRuns; i++)
   {
-    if ( (mRuns[i].y == mYMin) || (mRuns[i].y == mYMax) || (mRuns[y].length <= 2) )
+    if ( (mRuns[i].y == mYMin) || (mRuns[i].y == mYMax) || (mRuns[i].length <= 2) )
     {
       for (j = 0; j < mRuns[i].length; j++)
         points.push_back( Point(mRuns[i].xStart + j, mRuns[i].y) );
@@ -250,7 +250,8 @@ void ConnectedRegion::GetEdgePoints(vector<Point>& points)
           points.push_back( Point(x, y) );
       }
 
-      points.push_back( Point(xStop, y) );
+      if ( mRuns[i].length > 1 )
+        points.push_back( Point(xStop, y) );
     }
   }
 }

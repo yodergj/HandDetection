@@ -12,12 +12,14 @@ class Line
     Line(const Line& ref);
     Line(const Point& a, const Point& b);
     Line(const DoublePoint& a, const DoublePoint& b);
-    Line& operator=(const Line& ref);
-    ~Line();
-    bool operator==(const Line& ref) const;
-    double GetAngle() const;
-    double GetInnerAngle(const Line& ref) const;
-  private:
+    virtual Line& operator=(const Line& ref);
+    virtual ~Line();
+    virtual bool operator==(const Line& ref) const;
+    double GetAngleRad() const;
+    double GetAngleDeg() const;
+    double GetInnerAngleRad(const Line& ref) const;
+    double GetInnerAngleDeg(const Line& ref) const;
+  protected:
     bool mIsVertical;
     double mSlope;
     double mYIntercept;

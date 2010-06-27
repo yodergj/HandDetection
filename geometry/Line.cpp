@@ -80,7 +80,7 @@ bool Line::operator==(const Line& ref) const
   return (mSlope == ref.mSlope) && (mYIntercept == ref.mYIntercept);
 }
 
-double Line::GetAngle() const
+double Line::GetAngleRad() const
 {
   if ( mIsVertical )
     return M_PI / 2;
@@ -91,11 +91,28 @@ double Line::GetAngle() const
   return atan( 1 / mSlope );
 }
 
-double Line::GetInnerAngle(const Line& ref) const
+double Line::GetAngleDeg() const
+{
+  double angle = GetAngleRad();
+  return angle * 180 / M_PI;
+}
+
+double Line::GetInnerAngleRad(const Line& ref) const
 {
   double diff;
 
-  diff = fabs( GetAngle() - ref.GetAngle() );
+  diff = fabs( GetAngleRad() - ref.GetAngleRad() );
+  while ( diff > M_PI / 2 )
+    diff -= M_PI / 2;
+
+  return diff;
+}
+
+double Line::GetInnerAngleDeg(const Line& ref) const
+{
+  double diff;
+
+  diff = fabs( GetAngleDeg() - ref.GetAngleDeg() );
   while ( diff > 90 )
     diff -= 90;
 
