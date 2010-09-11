@@ -24,14 +24,14 @@ class FleshDetector
   public:
     FleshDetector();
     ~FleshDetector();
-    bool Load(const char* filename);
+    virtual bool Load(const char* filename);
     bool Process(Image* imagePtr, Image** outlineImageOut, Image** fleshImageOut, Image** confidenceImageOut);
     vector<ConnectedRegion*>* GetFleshRegions(Image* imagePtr, int &xScale, int &yScale);
-  private:
+  protected:
     bool GetFleshImage(Image* imagePtr, unsigned char* backgroundColor, Image** fleshImage);
     bool GetFleshConfidenceImage(Image* imagePtr, Image** outputImage);
     bool GetOutlineImage(unsigned char* backgroundColor, unsigned char* outlineColor, Image* imagePtr, Image** outlineImage);
-    bool CalcConfidence(Image* imagePtr, int xScale, int yScale);
+    virtual bool CalcConfidence(Image* imagePtr, int xScale, int yScale);
     string mFeatureList;
     BayesianClassifier mClassifier;
     Image mConfidenceImage;

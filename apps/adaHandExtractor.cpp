@@ -1,7 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include "AdaboostClassifier.h"
 #include "FleshDetector.h"
+#include "DummyFleshDetector.h"
 #include "HandCandidate.h"
 #include "Hand.h"
 #include "Image.h"
@@ -17,20 +19,30 @@ int main(int argc, char* argv[])
   Image image, outlineImage;
   Image* fleshImage;
   Image* confidenceImage;
+#if 0
   FleshDetector fleshDetector;
+#else
+  DummyFleshDetector fleshDetector;
+#endif
   vector<ConnectedRegion*>* fleshRegionVector;
   vector<Hand*> hands;
+  Hand* hand;
   vector<HandCandidate*> handCandidates;
   HandCandidate* candidate;
   unsigned char boxColor[] = {255, 255, 255};
   unsigned char longColor[] = {0, 255, 0};
   unsigned char shortColor[] = {0, 0, 255};
+  unsigned char offsetColor[] = {0, 255, 255};
   unsigned char pointColor[] = {255, 0, 0};
   int numLargeRegions;
   string basename;
-  DoublePoint centroid, nearEdge, farEdge;
-  LineSegment shortLine, longLine;
-  double angle;
+  DoublePoint centroid, center, nearEdge, farEdge;
+  LineSegment shortLine, longLine, offsetLine;
+  double edgeAngle, offsetAngle;
+  AdaboostClassifier handDetector;
+  string features;
+  Matrix input;
+  int classIndex;
 
   if ( argc < 4 )
   {
@@ -44,12 +56,13 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-#if 0
+#if 1
   if ( !handDetector.Load(argv[2]) )
   {
     fprintf(stderr, "Error loading hand detector %s\n", argv[2]);
     return 1;
   }
+  features = handDetector.GetFeatureString();
 #endif
 
   for (imageIndex = 3; imageIndex < argc; imageIndex++)
@@ -89,39 +102,53 @@ int main(int argc, char* argv[])
           right = (right + 1) * xScale - 1;
           top *= yScale;
           bottom = (bottom + 1) * yScale - 1;
-          if ( (right - left + 1 < 20) || (bottom - top + 1 < 20) )
+          if ( (right - left + 1 < 40) || (bottom - top + 1 < 40) )
             continue;
           numLargeRegions++;
 
           candidate = new HandCandidate( (*fleshRegionVector)[i] );
-          
-          if ( !candidate->GetScaledFeatures(xScale, yScale, centroid, nearEdge, farEdge, shortLine, longLine, angle) )
+          if ( !candidate->GetScaledFeatures(xScale, yScale, centroid, center, nearEdge, farEdge,
+                                             shortLine, longLine, offsetLine, edgeAngle, offsetAngle) )
+          {
+            fprintf(stderr, "Error getting hand candidate features for flesh block %d\n", i);
+            return 1;
+          }
+#if 1
+          if ( !candidate->GetFeatureVector(features, input) )
           {
             fprintf(stderr, "Error getting hand candidate features for flesh block %d\n", i);
             return 1;
           }
 
+          classIndex = handDetector.Classify(input);
+          if ( classIndex == 0 )
+          {
+            hand = new Hand;
+            hand->SetBounds(left, right, top, bottom);
+            hands.push_back(hand);
+          }
+#endif
+          
+          delete candidate;
+
           outlineImage.DrawLine(longColor, 1, longLine);
           outlineImage.DrawLine(shortColor, 1, shortLine);
+          outlineImage.DrawLine(offsetColor, 1, offsetLine);
           outlineImage.DrawLine(pointColor, 1, centroid, centroid);
+          outlineImage.DrawLine(pointColor, 1, center, center);
           outlineImage.DrawLine(pointColor, 1, nearEdge, nearEdge);
           outlineImage.DrawLine(pointColor, 1, farEdge, farEdge);
 
           fleshImage->DrawLine(longColor, 1, longLine);
           fleshImage->DrawLine(shortColor, 1, shortLine);
+          fleshImage->DrawLine(offsetColor, 1, offsetLine);
           fleshImage->DrawLine(pointColor, 1, centroid, centroid);
+          fleshImage->DrawLine(pointColor, 1, center, center);
           fleshImage->DrawLine(pointColor, 1, nearEdge, nearEdge);
           fleshImage->DrawLine(pointColor, 1, farEdge, farEdge);
 
-          printf("Angle %f (degrees)\n", angle);
-
-#if 0
-          if ( !handDetector.Process(&image, left, right, top, bottom, hands) )
-          {
-            fprintf(stderr, "Error detecting hand in flesh block %d\n", i);
-            return 1;
-          }
-#endif
+          printf("Edge Angle %f (degrees)\n", edgeAngle);
+          printf("Offset Angle %f (degrees)\n", offsetAngle);
         }
         numHands = hands.size();
         printf("Num Flesh Regions %d of %d\nNum Hands %d\n", numLargeRegions, numFleshRegions, numHands);
@@ -129,7 +156,9 @@ int main(int argc, char* argv[])
         {
           hands[j]->GetBounds(left, right, top, bottom);
           outlineImage.DrawBox(boxColor, 3, left, top, right, bottom);
+          delete hands[j];
         }
+        hands.clear();
       }
 
       fleshImage->Save(basename + "_flesh.png");

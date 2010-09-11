@@ -102,7 +102,7 @@ int AdaboostClassifier::Classify(const Matrix& data)
   if ( mNumClasses < 2 )
   {
     fprintf(stderr, "AdaboostClassifier::Classify - Classifier is not initialized\n");
-    return false;
+    return -1;
   }
 
   // TODO Figure out how to adapt this for more than 2 classes

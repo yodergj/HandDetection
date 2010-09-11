@@ -1,0 +1,15 @@
+Center of mass
+
+Min and max distance to edge
+
+Angle bentween min and max edge distances - lines might be good for aligning the hand in some poses
+
+Concavity - centroid not in mass, extend alignment from centroid and look for on/off pattern
+
+Need some method for finding bumps - number and relative position and magnitude relative to alignment lines
+
+offset between centroid and center of bounding box
+
+concentric rings around centroid - mass per ring, num gaps in ring, gap center angles to alignment lines
+
+texture calculcations from flesh region - possibly helpful for removing non-hand regions and false positives touching the hand

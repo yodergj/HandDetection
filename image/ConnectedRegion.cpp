@@ -228,7 +228,7 @@ void ConnectedRegion::GetEdgePoints(vector<Point>& points)
       for (x = mRuns[i].xStart + 1; x < xStop; x++)
       {
         touchFound = false;
-        for (j = i - 1; !touchFound && (i >= 0) && (mRuns[j].y >= y - 1); j--)
+        for (j = i - 1; !touchFound && (j >= 0) && (mRuns[j].y >= y - 1); j--)
         {
           if ( mRuns[j].y != y - 1 )
             continue;
@@ -238,7 +238,7 @@ void ConnectedRegion::GetEdgePoints(vector<Point>& points)
         if ( touchFound )
         {
           touchFound = false;
-          for (j = i + 1; !touchFound && (i < numRuns) && (mRuns[j].y <= y + 1); j++)
+          for (j = i + 1; !touchFound && (j < numRuns) && (mRuns[j].y <= y + 1); j++)
           {
             if ( mRuns[j].y != y + 1 )
               continue;

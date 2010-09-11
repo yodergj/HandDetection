@@ -102,8 +102,11 @@ double Line::GetInnerAngleRad(const Line& ref) const
   double diff;
 
   diff = fabs( GetAngleRad() - ref.GetAngleRad() );
-  while ( diff > M_PI / 2 )
-    diff -= M_PI / 2;
+  while ( diff > M_PI )
+    diff -= M_PI;
+
+  if ( diff > M_PI / 2 )
+    diff = M_PI / 2 - diff;
 
   return diff;
 }
@@ -113,8 +116,11 @@ double Line::GetInnerAngleDeg(const Line& ref) const
   double diff;
 
   diff = fabs( GetAngleDeg() - ref.GetAngleDeg() );
-  while ( diff > 90 )
-    diff -= 90;
+  while ( diff > 180 )
+    diff -= 180;
+
+  if ( diff > 90 )
+    diff = 180 - diff;
 
   return diff;
 }
