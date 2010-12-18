@@ -56,6 +56,11 @@ Image::Image()
   mIplImage.nSize = sizeof(IplImage);
 }
 
+Image::Image(const Image& ref)
+{
+  *this = ref;
+}
+
 Image::~Image()
 {
   if ( mBuffer )
@@ -938,7 +943,8 @@ IplImage* Image::GetIplImage()
 
 Image& Image::operator=(const Image& ref)
 {
-  CopyRGBBuffer(ref.mWidth, ref.mHeight, ref.mBuffer, ref.mWidth * 3);
+  if ( &ref != this )
+    CopyRGBBuffer(ref.mWidth, ref.mHeight, ref.mBuffer, ref.mWidth * 3);
 
   return *this;
 }

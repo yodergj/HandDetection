@@ -15,7 +15,8 @@ class Image
 {
   public:
     Image();
-    ~Image();
+    Image(const Image& ref);
+    virtual ~Image();
     bool Create(int width, int height);
     int GetWidth();
     int GetHeight();
@@ -45,7 +46,7 @@ class Image
     bool Load(const string& filename);
     IplImage* GetIplImage();
     Image& operator=(const Image& ref);
-  private:
+  protected:
     bool SavePPM(const char* filename);
     bool SetSize(int width, int height);
     bool ResizeBuffer(double** buffer, int* bufferAlloc, int numFeatures);
