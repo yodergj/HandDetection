@@ -33,6 +33,8 @@ class ConnectedRegion
     double GetAverageRunsPerRow();
     bool GetCentroid(double& x, double& y);
     void GetEdgePoints(vector<Point>& points);
+    bool HasMorePixels(const ConnectedRegion& ref);
+    bool HasLargerBoundingBox(const ConnectedRegion& ref);
   private:
     vector<PixelRun> mRuns;
     int mXMin;

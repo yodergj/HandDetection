@@ -207,13 +207,8 @@ double Gaussian::Probability(Matrix& input, bool useMinimumAsNeeded)
   fullProduct = mProductMatrix.GetValue(0, 0);
 
   result = mProbabilityScaleFactor * exp(-.5 * fullProduct);
-  #if 0
-  if ( result < MIN_PROB )
-    result = MIN_PROB;
-  #else
   if ( useMinimumAsNeeded && (result < mMinProb) )
     result = mMinProb;
-  #endif
   return result;
 }
 

@@ -150,34 +150,6 @@ bool Matrix::GetDeterminant(double &determinant)
     determinant = mData[0];
   else if ( mRows == 2 )
     determinant = mData[0] * mData[3] - mData[1] * mData[2];
-#if 0
-  else
-  {
-    /* Naive implementation - O(n!) */
-    int i, column;
-    int sign = 1;
-    double subDeterminant;
-    Matrix subMatrix;
-    subMatrix.SetSize(mRows - 1, mRows - 1, false);
-    determinant = 0;
-    for (i = 0; i < mRows; i++)
-    {
-      for (row = 1; row < mRows; row++)
-      {
-        for (column = 0; column < mRows; column++)
-        {
-          if ( column < i )
-            subMatrix.SetValue(row - 1, column, mData[row * mColumns + column]);
-          else if ( column > i )
-            subMatrix.SetValue(row - 1, column - 1, mData[row * mColumns + column]);
-        }
-      }
-      subMatrix.GetDeterminant(subDeterminant);
-      determinant += sign * mData[i] * subDeterminant;
-      sign *= -1;
-    }
-  }
-#else
   else if ( mRows == 3 )
   {
     determinant = (mData[0] * mData[4] * mData[8] +
@@ -201,7 +173,6 @@ bool Matrix::GetDeterminant(double &determinant)
     else
       determinant = 0;
   }
-#endif
 
   return true;
 }

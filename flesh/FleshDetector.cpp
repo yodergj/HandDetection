@@ -108,14 +108,14 @@ vector<ConnectedRegion*>* FleshDetector::GetFleshRegions(Image* imagePtr, int &x
   if ( !imagePtr )
   {
     fprintf(stderr, "FleshDetector::GetFleshRegions - Invalid parameter\n");
-    return false;
+    return 0;
   }
 
   TimingAnalyzer_Start(4);
   if ( !CalcConfidence(imagePtr, 8, 8) )
   {
     fprintf(stderr, "FleshDetector::GetFleshRegions - CalcConfidence failed\n");
-    return false;
+    return 0;
   }
   TimingAnalyzer_Stop(4);
 
@@ -123,11 +123,38 @@ vector<ConnectedRegion*>* FleshDetector::GetFleshRegions(Image* imagePtr, int &x
   if ( !confidenceBuffer )
   {
     fprintf(stderr, "FleshDetector::GetFleshRegions - Failed getting confidence buffer\n");
-    return false;
+    return 0;
   }
 
   xScale = imagePtr->GetWidth() / bufferWidth;
   yScale = imagePtr->GetHeight() / bufferHeight;
+
+  return imagePtr->GetRegionsFromConfidenceBuffer();
+}
+
+vector<ConnectedRegion*>* FleshDetector::GetFleshRegions(Image* imagePtr)
+{
+  double* confidenceBuffer;
+  int bufferAlloc, bufferWidth, bufferHeight;
+
+  if ( !imagePtr )
+  {
+    fprintf(stderr, "FleshDetector::GetFleshRegions - Invalid parameter\n");
+    return 0;
+  }
+
+  if ( !CalcConfidence(imagePtr, 1, 1) )
+  {
+    fprintf(stderr, "FleshDetector::GetFleshRegions - CalcConfidence failed\n");
+    return 0;
+  }
+
+  imagePtr->GetConfidenceBuffer(confidenceBuffer, bufferWidth, bufferHeight, bufferAlloc);
+  if ( !confidenceBuffer )
+  {
+    fprintf(stderr, "FleshDetector::GetFleshRegions - Failed getting confidence buffer\n");
+    return 0;
+  }
 
   return imagePtr->GetRegionsFromConfidenceBuffer();
 }

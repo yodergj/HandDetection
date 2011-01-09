@@ -152,7 +152,7 @@ bool ConnectedRegion::GetBounds(int& left, int& right, int& top, int& bottom)
   right = mXMax;
   top = mYMin;
   bottom = mYMax;
-  
+
   return true;
 }
 
@@ -254,4 +254,14 @@ void ConnectedRegion::GetEdgePoints(vector<Point>& points)
         points.push_back( Point(xStop, y) );
     }
   }
+}
+
+bool ConnectedRegion::HasMorePixels(const ConnectedRegion& ref)
+{
+  return (mNumPixels > ref.mNumPixels);
+}
+
+bool ConnectedRegion::HasLargerBoundingBox(const ConnectedRegion& ref)
+{
+  return ( (mXMax - mXMin) * (mYMax - mYMin) > (ref.mXMax - ref.mXMin) * (ref.mYMax - ref.mYMin) );
 }

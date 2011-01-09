@@ -4,7 +4,7 @@
 #include "DummyFleshDetector.h"
 #include "AdaboostClassifier.h"
 #include "HandCandidate.h"
-#include "Image.h"
+#include "SubImage.h"
 
 using std::string;
 
@@ -35,13 +35,14 @@ int main(int argc, char* argv[])
   Matrix input;
   HandCandidate* candidate;
   int numFeatures, numWeakClassifiers;
+  SubImage handImage;
 
   if ( argc < 7 )
   {
     printf("Usage: %s <num weak classifiers> <feature string> <flesh classifier file> <hand Image> [...] -x <non-hand image> [...]\n", argv[0]);
     return 0;
   }
-  
+
   numWeakClassifiers = atoi(argv[1]);
   if ( numWeakClassifiers < 1 )
   {
@@ -100,14 +101,34 @@ int main(int argc, char* argv[])
           if ( (right - left + 1 < 40) || (bottom - top + 1 < 40) )
             continue;
 
-          candidate = new HandCandidate( (*fleshRegionVector)[j] );
-          if ( !candidate->GetFeatureVector(featureList, input) )
+          handImage.CreateFromParent(&image, left, right, top, bottom);
+          vector<ConnectedRegion*>* fullResRegions;
+          fullResRegions = fleshDetector.GetFleshRegions(&handImage);
+          int numFullResRegions = 0;
+          if ( fullResRegions )
+            numFullResRegions = fullResRegions->size();
+          if ( !numFullResRegions )
+            fprintf(stderr, "Failed getting full resolution hand candidate %d on %s\n", j, argv[i]);
+          else
           {
-            fprintf(stderr, "Error getting hand candidate features for flesh block %d\n", j);
-            return 1;
+            int regionIndex = 0;
+            if ( numFullResRegions > 1 )
+            {
+              for (int k = 1; k < numFullResRegions; k++)
+                if ( (*fullResRegions)[k]->HasMorePixels( *((*fullResRegions)[regionIndex]) ) )
+                  regionIndex = k;
+              fprintf(stderr, "Flesh block %d on %s yielded %d regions - only processing the largest (%d)\n", j, argv[i], numFullResRegions, regionIndex);
+            }
+
+            candidate = new HandCandidate( (*fullResRegions)[regionIndex] );
+            if ( !candidate->GetFeatureVector(featureList, input) )
+            {
+              fprintf(stderr, "Error getting hand candidate features for flesh block %d\n", j);
+              return 1;
+            }
+            delete candidate;
           }
-          delete candidate;
-          
+
           handClassifier.AddTrainingData(input, classIndex);
         }
       }

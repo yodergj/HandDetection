@@ -64,15 +64,15 @@ bool SubImage::CreateFromParent(Image* parent, int left, int right, int top, int
   if ( !parent || (left > right) || (top > bottom) || (right < 0) || (bottom < 0) ||
        (right >= parent->GetWidth()) || (bottom >= parent->GetHeight()) )
     return false;
-  
+
   int width, height, srcLineWidth, destLineWidth;
   unsigned char* destLine;
   unsigned char* srcLine;
-  
+
   mParent = parent;
   mOffset.x = left;
   mOffset.y = top;
-  
+
   MarkBufferAsUpdated();
   width = right - left + 1;
   height = bottom - top + 1;
@@ -83,4 +83,6 @@ bool SubImage::CreateFromParent(Image* parent, int left, int right, int top, int
   destLine = mBuffer;
   for (int i = 0; i < height; i++, srcLine += srcLineWidth, destLine += destLineWidth)
     memcpy(destLine, srcLine, destLineWidth);
+
+  return true;
 }

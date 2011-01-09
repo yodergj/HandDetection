@@ -1,32 +1,27 @@
 #ifndef THRESHOLD_CLASSIFIER_H
 #define THRESHOLD_CLASSIFIER_H
 
-#include <vector>
-using std::vector;
-#include "XMLUtils.h"
+#include "WeakClassifier.h"
 
 #define THRESHOLD_CLASSIFIER_STR "ThresholdClassifier"
 
-class ThresholdClassifier
+class ThresholdClassifier : public WeakClassifier
 {
   public:
     ThresholdClassifier();
-    ~ThresholdClassifier();
-    int Classify(double value);
-    bool Train(const vector<double>& samples, const vector<double>& weights, const vector<int>& classes, double* trainingError = 0);
-    string GetFeatureString() const;
-    bool SetFeatureString(const string& featureString);
-    bool SetFeatureString(const char featureLetter);
-    bool Print(FILE* file);
-    bool Save(const char* filename);
-    bool Save(xmlNodePtr classifierNode);
-    bool Load(const char* filename);
-    bool Load(xmlNodePtr classifierNode);
+    ThresholdClassifier(const ThresholdClassifier& ref);
+    virtual ~ThresholdClassifier();
+    ThresholdClassifier& operator=(const ThresholdClassifier& ref);
+    virtual int Classify(double value);
+    virtual bool Train(const vector<double>& samples, const vector<double>& weights, const vector<int>& classes, double* trainingError = 0);
+    virtual bool Print(FILE* file);
+    virtual xmlNodePtr Save(xmlDocPtr document);
+  protected:
+    virtual bool LoadClassifier(xmlNodePtr classifierNode);
   private:
     double mThreshold;
     int mLowerClass;
     int mUpperClass;
-    string mFeatureString;
 };
 
 #endif

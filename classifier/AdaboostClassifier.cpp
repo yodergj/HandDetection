@@ -1,6 +1,8 @@
 #include <math.h>
 #include <string.h>
 #include "AdaboostClassifier.h"
+#include "ThresholdClassifier.h"
+#include "RangeClassifier.h"
 
 #define DIMENSION_STR "NumDimensions"
 #define CLASSES_STR "NumClasses"
@@ -23,6 +25,9 @@ void AdaboostClassifier::Clear()
 {
   mTrainingData.clear();
   mTrainingDataFreq.clear();
+  vector<WeakClassifier*>::iterator itr;
+  for (itr = mWeakClassifiers.begin(); itr != mWeakClassifiers.end(); itr++)
+    delete *itr;
   mWeakClassifiers.clear();
   mClassifierWeights.clear();
 }
@@ -110,7 +115,7 @@ int AdaboostClassifier::Classify(const Matrix& data)
   numClassifiers = mWeakClassifiers.size();
   for (i = 0; i < numClassifiers; i++)
   {
-    if ( mWeakClassifiers[i].Classify( data.GetValue(mClassifierFeatures[i], 0) ) == 0 )
+    if ( mWeakClassifiers[i]->Classify( data.GetValue(mClassifierFeatures[i], 0) ) == 0 )
       total -= mClassifierWeights[i];
     else
       total += mClassifierWeights[i];
@@ -163,7 +168,7 @@ bool AdaboostClassifier::Train()
     {
       len = mTrainingData[classNum].size();
       for (j = 0; j < len; j++, weightNum++)
-        if ( mWeakClassifiers[i].Classify( mTrainingData[classNum][j].GetValue(featureNum, 0) ) != classNum )
+        if ( mWeakClassifiers[i]->Classify( mTrainingData[classNum][j].GetValue(featureNum, 0) ) != classNum )
           weights[weightNum] *= exp( mClassifierWeights[i] );
     }
   }
@@ -171,7 +176,7 @@ bool AdaboostClassifier::Train()
   // Update the feature string to what was actually selected
   mFeatureString = "";
   for (i = 0; i < numClassifiers; i++)
-    mFeatureString += mWeakClassifiers[i].GetFeatureString();
+    mFeatureString += mWeakClassifiers[i]->GetFeatureString();
 
   return true;
 }
@@ -185,8 +190,10 @@ bool AdaboostClassifier::TrainLevel(const vector<double>& weights, int levelNum,
 
   int numFeatures, bestFeature;
   double bestError;
-  ThresholdClassifier bestClassifier;
-      fprintf(stderr, "AdaboostClassifier::TrainLevel - Starting level %d\n", levelNum);
+  WeakClassifier* bestClassifier = NULL;
+  ThresholdClassifier thresholdClassifier;
+  RangeClassifier rangeClassifier;
+fprintf(stderr, "AdaboostClassifier::TrainLevel - Starting level %d\n", levelNum);
 
   weightTotal = 0;
   len = weights.size();
@@ -197,33 +204,45 @@ bool AdaboostClassifier::TrainLevel(const vector<double>& weights, int levelNum,
   numFeatures = mFeatureString.size();
   for (i = 0; i < numFeatures; i++)
   {
-      fprintf(stderr, "AdaboostClassifier::TrainLevel - Starting feature %d\n", i);
+fprintf(stderr, "AdaboostClassifier::TrainLevel - Starting feature %d\n", i);
     if ( !FillData(i, data, truth) )
     {
       fprintf(stderr, "AdaboostClassifier::TrainLevel - Error getting data for weak classifier %d\n", levelNum);
       return false;
     }
-      fprintf(stderr, "AdaboostClassifier::TrainLevel - Data size %d\n", data.size());
+fprintf(stderr, "AdaboostClassifier::TrainLevel - Data size %d\n", data.size());
 
-    // ThresholdClassifier calculates error the way we need, to just use its result.
+    // ThresholdClassifier and RangeClassifier calculates error the way we need, so just use its result.
     // Will need to calculate error for ourself if we use a different kind of weak classifier
-    if ( !mWeakClassifiers[levelNum].Train(data, weights, truth, &trainingError) )
+    if ( !thresholdClassifier.Train(data, weights, truth, &trainingError) )
     {
-      fprintf(stderr, "AdaboostClassifier::TrainLevel - Error training weak classifier %d\n", levelNum);
+      fprintf(stderr, "AdaboostClassifier::TrainLevel - Error training threshold classifier %d\n", levelNum);
       return false;
     }
-
-    if ( (bestFeature < 0) || (trainingError < bestError) )
+    if ( !bestClassifier || (trainingError < bestError) )
     {
       bestFeature = i;
       bestError = trainingError;
-      bestClassifier = mWeakClassifiers[levelNum];
+      delete bestClassifier;
+      bestClassifier = new ThresholdClassifier(thresholdClassifier);
+    }
+
+    if ( !rangeClassifier.Train(data, weights, truth, &trainingError) )
+    {
+      fprintf(stderr, "AdaboostClassifier::TrainLevel - Error training range classifier %d\n", levelNum);
+      return false;
+    }
+    if ( trainingError < bestError )
+    {
+      bestFeature = i;
+      bestError = trainingError;
+      delete bestClassifier;
+      bestClassifier = new RangeClassifier(rangeClassifier);
     }
   }
 
-  if ( bestFeature != numFeatures - 1 )
-    mWeakClassifiers[levelNum] = bestClassifier;
-  mWeakClassifiers[levelNum].SetFeatureString( mFeatureString[bestFeature] );
+  mWeakClassifiers[levelNum] = bestClassifier;
+  mWeakClassifiers[levelNum]->SetFeatureString( mFeatureString[bestFeature] );
   mClassifierFeatures[levelNum] = bestFeature;
   chosenFeature = bestFeature;
 
@@ -330,12 +349,17 @@ bool AdaboostClassifier::Save(xmlNodePtr classifierNode)
 
   for (i = 0; (i < numClassifiers) && retCode; i++)
   {
-    weakNode = xmlNewNode(NULL, (const xmlChar*)THRESHOLD_CLASSIFIER_STR);
-    xmlAddChild(classifierNode, weakNode);
-    SetDoubleValue(weakNode, WEIGHT_STR, mClassifierWeights[i]);
-    retCode = mWeakClassifiers[i].Save(weakNode);
-    if ( !retCode )
+    weakNode = mWeakClassifiers[i]->Save((xmlDocPtr)NULL);
+    if ( weakNode )
+    {
+      xmlAddChild(classifierNode, weakNode);
+      SetDoubleValue(weakNode, WEIGHT_STR, mClassifierWeights[i]);
+    }
+    else
+    {
       fprintf(stderr, "AdaboostClassifier::Save - Failed saviing weak classifier %d\n", i);
+      retCode = false;
+    }
   }
 
   return retCode;
@@ -405,7 +429,7 @@ bool AdaboostClassifier::Load(xmlNodePtr classifierNode)
   node = classifierNode->children;
   while ( node && retCode )
   {
-    if ( !strcmp((char *)node->name, THRESHOLD_CLASSIFIER_STR) )
+    if ( !strcmp((char *)node->name, WEAK_CLASSIFIER_STR) )
     {
       if ( numClassifiersFound == numClassifiers )
       {
@@ -423,9 +447,12 @@ bool AdaboostClassifier::Load(xmlNodePtr classifierNode)
         }
         else
         {
-          retCode = mWeakClassifiers[numClassifiersFound].Load(node);
-          if ( !retCode )
-            fprintf(stderr, "AdaboostClassifier::Load - Failed loading  %d\n", numClassifiersFound);
+          mWeakClassifiers[numClassifiersFound] = WeakClassifier::Load(node);
+          if ( !mWeakClassifiers[numClassifiersFound] )
+          {
+            retCode = false;
+            fprintf(stderr, "AdaboostClassifier::Load - Failed loading %d\n", numClassifiersFound);
+          }
         }
         numClassifiersFound++;
       }
@@ -440,14 +467,14 @@ bool AdaboostClassifier::Load(xmlNodePtr classifierNode)
 
   for (i = 0; retCode && i < numClassifiers; i++)
   {
-    if ( mWeakClassifiers[i].GetFeatureString().empty() )
+    if ( mWeakClassifiers[i]->GetFeatureString().empty() )
     {
       fprintf(stderr, "AdaboostClassifier::Load - Classifier %d has no feature\n", i);
       retCode = false;
     }
     else
     {
-      feature = mWeakClassifiers[i].GetFeatureString()[0];
+      feature = mWeakClassifiers[i]->GetFeatureString()[0];
       pos = mFeatureString.find( feature );
       if ( pos == string::npos )
       {

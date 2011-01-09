@@ -16,8 +16,22 @@ ThresholdClassifier::ThresholdClassifier()
   mUpperClass = 1;
 }
 
+ThresholdClassifier::ThresholdClassifier(const ThresholdClassifier& ref)
+{
+  operator=(ref);
+}
+
 ThresholdClassifier::~ThresholdClassifier()
 {
+}
+
+ThresholdClassifier& ThresholdClassifier::operator=(const ThresholdClassifier& ref)
+{
+  WeakClassifier::operator=(ref);
+  mThreshold = ref.mThreshold;
+  mLowerClass = ref.mLowerClass;
+  mUpperClass = ref.mUpperClass;
+  return *this;
 }
 
 int ThresholdClassifier::Classify(double value)
@@ -41,6 +55,7 @@ bool ThresholdClassifier::Train(const vector<double>& samples, const vector<doub
   }
 
   bestError = 0x7FFFFFFF;
+  worstError = 0;
   numSamples = samples.size();
   lowerClass = 0;
   upperClass = 1;
@@ -155,30 +170,6 @@ bool ThresholdClassifier::Train(const vector<double>& samples, const vector<doub
   return true;
 }
 
-string ThresholdClassifier::GetFeatureString() const
-{
-  return mFeatureString;
-}
-
-bool ThresholdClassifier::SetFeatureString(const string& featureString)
-{
-  if ( (int)featureString.size() != 1 )
-  {
-    fprintf(stderr, "ThresholdClassifier::SetFeatureString - Feature string \"%s\" doesn't have length 1\n", featureString.c_str());
-    return false;
-  }
-
-  mFeatureString = featureString;
-
-  return true;
-}
-
-bool ThresholdClassifier::SetFeatureString(const char featureLetter)
-{
-  mFeatureString = featureLetter;
-  return true;
-}
-
 bool ThresholdClassifier::Print(FILE* file)
 {
   if ( !file )
@@ -195,90 +186,29 @@ bool ThresholdClassifier::Print(FILE* file)
   return true;
 }
 
-bool ThresholdClassifier::Save(const char* filename)
+xmlNodePtr ThresholdClassifier::Save(xmlDocPtr document)
 {
-  FILE* file;
-  xmlDocPtr document;
-  xmlNodePtr rootNode;
-  bool retCode = true;
-
-  if ( !filename || !*filename )
+  xmlNodePtr classifierNode = WeakClassifier::Save(document);
+  if ( classifierNode )
   {
-    fprintf(stderr, "ThresholdClassifier::Save - Invalid parameter\n");
-    return false;
+    SetStringValue(classifierNode, CLASSIFIER_TYPE_STR, THRESHOLD_CLASSIFIER_STR);
+    SetDoubleValue(classifierNode, THRESHOLD_STR, mThreshold);
+    SetIntValue(classifierNode, LOWER_CLASS_STR, mLowerClass);
+    SetIntValue(classifierNode, UPPER_CLASS_STR, mUpperClass);
   }
 
-  file = fopen(filename, "w");
-  if ( !file )
-  {
-    fprintf(stderr, "ThresholdClassifier::Save - Failed opening %s\n", filename);
-    return false;
-  }
-
-  document = xmlNewDoc(NULL);
-  rootNode = xmlNewDocNode(document, NULL, (const xmlChar *)THRESHOLD_CLASSIFIER_STR, NULL);
-  xmlDocSetRootElement(document, rootNode);
-
-  retCode = Save(rootNode);
-
-  xmlDocFormatDump(file, document, 1);
-  fclose(file);
-  xmlFreeDoc(document);
-
-  return retCode;
+  return classifierNode;
 }
 
-bool ThresholdClassifier::Save(xmlNodePtr classifierNode)
+bool ThresholdClassifier::LoadClassifier(xmlNodePtr classifierNode)
 {
-  SetDoubleValue(classifierNode, THRESHOLD_STR, mThreshold);
-  SetIntValue(classifierNode, LOWER_CLASS_STR, mLowerClass);
-  SetIntValue(classifierNode, UPPER_CLASS_STR, mUpperClass);
-  SetStringValue(classifierNode, FEATURE_STR, mFeatureString);
-
-  return true;
-}
-
-bool ThresholdClassifier::Load(const char* filename)
-{
-  bool retCode = true;
-  xmlDocPtr document;
-  xmlNodePtr node;
-
-  if ( !filename || !*filename )
-  {
-    fprintf(stderr, "ThresholdClassifier::Load - Bad filename\n");
+  if ( !classifierNode )
     return false;
-  }
 
-  document = xmlParseFile(filename);
-
-  if ( !document )
-  {
-    fprintf(stderr, "ThresholdClassifier::Load - Failed parsing %s\n", filename);
-    return false;
-  }
-
-  node = xmlDocGetRootElement(document);
-  if ( !node )
-  {
-    xmlFreeDoc(document);
-    fprintf(stderr, "ThresholdClassifier::Load - No root node in %s\n", filename);
-    return false;
-  }
-
-  retCode = Load(node);
-
-  xmlFreeDoc(document);
-
-  return retCode;
-}
-
-bool ThresholdClassifier::Load(xmlNodePtr classifierNode)
-{
+  WeakClassifier::LoadClassifier(classifierNode);
   mThreshold = GetDoubleValue(classifierNode, THRESHOLD_STR, 0);
   mLowerClass = GetIntValue(classifierNode, LOWER_CLASS_STR, 0);
   mUpperClass = GetIntValue(classifierNode, UPPER_CLASS_STR, 1);
-  mFeatureString = GetStringValue(classifierNode, FEATURE_STR);
 
   return true;
 }

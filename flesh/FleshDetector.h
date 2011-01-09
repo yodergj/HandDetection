@@ -27,6 +27,7 @@ class FleshDetector
     virtual bool Load(const char* filename);
     bool Process(Image* imagePtr, Image** outlineImageOut, Image** fleshImageOut, Image** confidenceImageOut);
     vector<ConnectedRegion*>* GetFleshRegions(Image* imagePtr, int &xScale, int &yScale);
+    vector<ConnectedRegion*>* GetFleshRegions(Image* imagePtr);
   protected:
     bool GetFleshImage(Image* imagePtr, unsigned char* backgroundColor, Image** fleshImage);
     bool GetFleshConfidenceImage(Image* imagePtr, Image** outputImage);

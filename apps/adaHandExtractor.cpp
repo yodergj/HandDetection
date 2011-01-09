@@ -6,7 +6,7 @@
 #include "DummyFleshDetector.h"
 #include "HandCandidate.h"
 #include "Hand.h"
-#include "Image.h"
+#include "SubImage.h"
 
 using std::string;
 
@@ -43,6 +43,7 @@ int main(int argc, char* argv[])
   string features;
   Matrix input;
   int classIndex;
+  SubImage handImage;
 
   if ( argc < 4 )
   {
@@ -56,14 +57,12 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-#if 1
   if ( !handDetector.Load(argv[2]) )
   {
     fprintf(stderr, "Error loading hand detector %s\n", argv[2]);
     return 1;
   }
   features = handDetector.GetFeatureString();
-#endif
 
   for (imageIndex = 3; imageIndex < argc; imageIndex++)
   {
@@ -106,14 +105,34 @@ int main(int argc, char* argv[])
             continue;
           numLargeRegions++;
 
-          candidate = new HandCandidate( (*fleshRegionVector)[i] );
-          if ( !candidate->GetScaledFeatures(xScale, yScale, centroid, center, nearEdge, farEdge,
+          handImage.CreateFromParent(&image, left, right, top, bottom);
+          vector<ConnectedRegion*>* fullResRegions;
+          fullResRegions = fleshDetector.GetFleshRegions(&handImage);
+          int numFullResRegions = 0;
+          if ( fullResRegions )
+            numFullResRegions = fullResRegions->size();
+          if ( !numFullResRegions )
+          {
+            fprintf(stderr, "Failed getting full resolution hand candidate %d on %s\n", i, argv[imageIndex]);
+            return 1;
+          }
+          int regionIndex = 0;
+          if ( numFullResRegions > 1 )
+          {
+            for (int k = 1; k < numFullResRegions; k++)
+              if ( (*fullResRegions)[k]->HasMorePixels( *((*fullResRegions)[regionIndex]) ) )
+                regionIndex = k;
+            fprintf(stderr, "Flesh block %d on %s yielded %d regions - only processing the largest (%d)\n", i, argv[imageIndex], numFullResRegions, regionIndex);
+          }
+
+          candidate = new HandCandidate( (*fullResRegions)[regionIndex] );
+          if ( !candidate->GetScaledFeatures(1, 1, centroid, center, nearEdge, farEdge,
                                              shortLine, longLine, offsetLine, edgeAngle, offsetAngle) )
           {
             fprintf(stderr, "Error getting hand candidate features for flesh block %d\n", i);
             return 1;
           }
-#if 1
+
           if ( !candidate->GetFeatureVector(features, input) )
           {
             fprintf(stderr, "Error getting hand candidate features for flesh block %d\n", i);
@@ -127,8 +146,7 @@ int main(int argc, char* argv[])
             hand->SetBounds(left, right, top, bottom);
             hands.push_back(hand);
           }
-#endif
-          
+
           delete candidate;
 
           outlineImage.DrawLine(longColor, 1, longLine);
