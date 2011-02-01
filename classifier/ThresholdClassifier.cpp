@@ -63,7 +63,6 @@ bool ThresholdClassifier::Train(const vector<double>& samples, const vector<doub
   map<double, int> thresholds;
   for (i = 0; i < numSamples; i++)
     thresholds[ samples[i] ] |= (1 << classes[i]);
-  fprintf(stderr, "ThresholdClassifier::Train - Data size %d, Threshold size %d\n", samples.size(), thresholds.size());
 
   map<double, int>::iterator threshItr, nextItr, prevItr;
   bool keep;
@@ -100,7 +99,6 @@ bool ThresholdClassifier::Train(const vector<double>& samples, const vector<doub
       threshItr = nextItr;
     }
   }
-  fprintf(stderr, "ThresholdClassifier::Train - Filtered Threshold size %d\n", thresholds.size());
 
   for (threshItr = thresholds.begin(); threshItr != thresholds.end(); threshItr++)
   {

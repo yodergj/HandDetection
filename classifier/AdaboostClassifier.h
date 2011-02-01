@@ -36,11 +36,7 @@ class AdaboostClassifier
     int mNumClasses;
     vector< vector<Matrix> > mTrainingData;
     vector< vector<int> > mTrainingDataFreq;
-#if 0
-    vector<ThresholdClassifier> mWeakClassifiers;
-#else
     vector<WeakClassifier*> mWeakClassifiers;
-#endif
     vector<double> mClassifierWeights;
     vector<int> mClassifierFeatures;
 };

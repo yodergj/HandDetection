@@ -10,6 +10,7 @@ using std::vector;
 
 class Point;
 class LineSegment;
+class Rect;
 
 class Image
 {
@@ -37,6 +38,7 @@ class Image
     bool CopyBGRBuffer(int width, int height, unsigned char* buffer, int bufferWidth);
     bool CopyIplImage(IplImage* image);
     bool DrawBox(const unsigned char* color, int lineWidth, int left, int top, int right, int bottom);
+    bool DrawRect(const unsigned char* color, int lineWidth, const Rect& rect);
     bool DrawLine(const unsigned char* color, int lineWidth, int x1, int y1, int x2, int y2);
     bool DrawLine(const unsigned char* color, int lineWidth, const Point& p1, const Point& p2);
     bool DrawLine(const unsigned char* color, int lineWidth, const LineSegment& line);

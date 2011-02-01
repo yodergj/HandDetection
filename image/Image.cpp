@@ -9,6 +9,7 @@
 #include "Image.h"
 #include "ConnectedRegion.h"
 #include "LineSegment.h"
+#include "Rect.h"
 
 #ifndef MAX
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
@@ -710,6 +711,27 @@ bool Image::DrawBox(const unsigned char* color, int lineWidth,
   return retCode;
 }
 
+bool Image::DrawRect(const unsigned char* color, int lineWidth, const Rect& rect)
+{
+  bool retCode = true;
+
+  if ( !color || (lineWidth < 1) )
+  {
+    fprintf(stderr, "Image::DrawBox - Invalid parameter\n");
+    return false;
+  }
+  Point points[4];
+  for (int i = 0; i < 4; i++)
+    points[i] = rect.GetPoint(i);
+
+  retCode &= DrawLine(color, lineWidth, points[0], points[1]);
+  retCode &= DrawLine(color, lineWidth, points[1], points[2]);
+  retCode &= DrawLine(color, lineWidth, points[2], points[3]);
+  retCode &= DrawLine(color, lineWidth, points[3], points[0]);
+
+  return retCode;
+}
+
 bool Image::DrawLine(const unsigned char* color, int lineWidth, int x1, int y1, int x2, int y2)
 {
   int x, y;
@@ -750,6 +772,7 @@ bool Image::DrawLine(const unsigned char* color, int lineWidth, int x1, int y1, 
       y1 = y2;
       y2 = tmp;
     }
+
     deltaX = x2 - x1;
     deltaY = abs(y2 - y1);
     error = deltaX / 2;
@@ -758,12 +781,25 @@ bool Image::DrawLine(const unsigned char* color, int lineWidth, int x1, int y1, 
     for (x = x1; x <= x2; x++)
     {
       if ( steep )
-        destPixel = mBuffer + x * bufferWidth + y * 3;
+      {
+        if ( (x >= 0) && (x < mHeight) && (y >= 0) && (y < mWidth) )
+        {
+          destPixel = mBuffer + x * bufferWidth + y * 3;
+          destPixel[0] = color[0];
+          destPixel[1] = color[1];
+          destPixel[2] = color[2];
+        }
+      }
       else
-        destPixel = mBuffer + y * bufferWidth + x * 3;
-      destPixel[0] = color[0];
-      destPixel[1] = color[1];
-      destPixel[2] = color[2];
+      {
+        if ( (x >= 0) && (x < mWidth) && (y >= 0) && (y < mHeight) )
+        {
+          destPixel = mBuffer + y * bufferWidth + x * 3;
+          destPixel[0] = color[0];
+          destPixel[1] = color[1];
+          destPixel[2] = color[2];
+        }
+      }
 
       error -= deltaY;
       if ( error < 0 )

@@ -1,4 +1,5 @@
 #include "SubImage.h"
+#include "DoublePoint.h"
 
 SubImage::SubImage()
 {
@@ -31,6 +32,11 @@ SubImage& SubImage::operator=(const SubImage& ref)
   return *this;
 }
 
+DoublePoint SubImage::GetParentCoords(const DoublePoint& pt)
+{
+  return DoublePoint(pt.x + mOffset.x, pt.y + mOffset.y);
+}
+
 Point SubImage::GetParentCoords(const Point& pt)
 {
   return Point(pt.x + mOffset.x, pt.y + mOffset.y);
@@ -39,6 +45,19 @@ Point SubImage::GetParentCoords(const Point& pt)
 Point SubImage::GetParentCoords(int x, int y)
 {
   return GetParentCoords( Point(x, y) );
+}
+
+DoublePoint SubImage::GetTopLevelCoords(const DoublePoint& pt)
+{
+  DoublePoint coords(pt.x + mOffset.x, pt.y + mOffset.y);
+  SubImage* parent = dynamic_cast<SubImage*>(mParent);
+  while ( parent )
+  {
+    coords.x += parent->mOffset.x;
+    coords.y += parent->mOffset.y;
+    parent = dynamic_cast<SubImage*>(parent->mParent);
+  }
+  return coords;
 }
 
 Point SubImage::GetTopLevelCoords(const Point& pt)

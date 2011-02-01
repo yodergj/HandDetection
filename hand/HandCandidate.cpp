@@ -50,12 +50,20 @@ bool HandCandidate::GetFeatureVector(const string& featureStr, Matrix& features)
   DoublePoint centroid, center, nearEdge, farEdge;
   LineSegment shortLine, longLine, offsetLine;
   double edgeAngle, offsetAngle;
+  double boxAspect = 0;
+  double boxFillRatio = 0;
 
   numFeatures = featureStr.size();
   features.SetSize(numFeatures, 1);
 
   retVal = GetScaledFeatures(1, 1, centroid, center, nearEdge, farEdge,
                              shortLine, longLine, offsetLine, edgeAngle, offsetAngle);
+  if ( retVal && featureStr.find_first_of("bB") != string::npos )
+  {
+    Rect boundingRect = GetAngledBoundingBox(longLine);
+    boxAspect = boundingRect.GetAspectRatio();
+    boxFillRatio = mRegion->GetNumPixels() / boundingRect.GetArea();
+  }
   for (i = 0; retVal && i < numFeatures; i++)
   {
     switch (featureStr[i])
@@ -71,6 +79,12 @@ bool HandCandidate::GetFeatureVector(const string& featureStr, Matrix& features)
         break;
       case 'C':
         features.SetValue(i, 0, offsetLine.GetLength() / longLine.GetLength());
+        break;
+      case 'b':
+        features.SetValue(i, 0, boxAspect);
+        break;
+      case 'B':
+        features.SetValue(i, 0, boxFillRatio);
         break;
     }
   }
@@ -193,6 +207,62 @@ Point HandCandidate::GetFarthestEdge(double x, double y)
   }
 
   return mEdgePoints[bestPoint];
+}
+
+Rect HandCandidate::GetAngledBoundingBox(const LineSegment& line)
+{
+  int i, numPoints;
+  double angle = line.GetAngleRad();
+  double cosVal = cos(-angle);
+  double sinVal = sin(-angle);
+  double xMin, xMax, yMin, yMax;
+  double x, y;
+  DoublePoint a, b, c, d;
+
+  if ( mEdgePoints.empty() )
+  {
+    if ( !mRegion )
+      return Rect();
+    mRegion->GetEdgePoints(mEdgePoints);
+    if ( mEdgePoints.empty() )
+    {
+      fprintf(stderr, "HandCandidate::GetAngledBoundingBox - Failed getting edge points\n");
+      return Rect();
+    }
+  }
+
+  xMin = mEdgePoints[0].x * cosVal - mEdgePoints[0].y * sinVal;
+  xMax = xMin;
+  yMin = mEdgePoints[0].y * cosVal + mEdgePoints[0].x * sinVal;
+  yMax = yMin;
+  numPoints = (int)mEdgePoints.size();
+  for (i = 1; i < numPoints; i++)
+  {
+    x = mEdgePoints[i].x * cosVal - mEdgePoints[i].y * sinVal;
+    y = mEdgePoints[i].y * cosVal + mEdgePoints[i].x * sinVal;
+    if ( x < xMin )
+      xMin = x;
+    if ( x > xMax )
+      xMax = x;
+    if ( y < yMin )
+      yMin = y;
+    if ( y > yMax )
+      yMax = y;
+  }
+
+  a.x = xMin * cosVal - yMin * -sinVal;
+  a.y = yMin * cosVal + xMin * -sinVal;
+
+  b.x = xMin * cosVal - yMax * -sinVal;
+  b.y = yMax * cosVal + xMin * -sinVal;
+
+  c.x = xMax * cosVal - yMax * -sinVal;
+  c.y = yMax * cosVal + xMax * -sinVal;
+
+  d.x = xMax * cosVal - yMin * -sinVal;
+  d.y = yMin * cosVal + xMax * -sinVal;
+
+  return Rect(a, b, c, d);
 }
 
 bool HandCandidate::GetBaseFeatures()

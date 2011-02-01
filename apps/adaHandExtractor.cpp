@@ -30,6 +30,7 @@ int main(int argc, char* argv[])
   vector<HandCandidate*> handCandidates;
   HandCandidate* candidate;
   unsigned char boxColor[] = {255, 255, 255};
+  unsigned char angledBoxColor[] = {255, 255, 0};
   unsigned char longColor[] = {0, 255, 0};
   unsigned char shortColor[] = {0, 0, 255};
   unsigned char offsetColor[] = {0, 255, 255};
@@ -38,6 +39,7 @@ int main(int argc, char* argv[])
   string basename;
   DoublePoint centroid, center, nearEdge, farEdge;
   LineSegment shortLine, longLine, offsetLine;
+  Rect angledBox;
   double edgeAngle, offsetAngle;
   AdaboostClassifier handDetector;
   string features;
@@ -132,6 +134,16 @@ int main(int argc, char* argv[])
             fprintf(stderr, "Error getting hand candidate features for flesh block %d\n", i);
             return 1;
           }
+          angledBox = candidate->GetAngledBoundingBox(longLine);
+
+          centroid = handImage.GetTopLevelCoords(centroid);
+          center = handImage.GetTopLevelCoords(center);
+          nearEdge = handImage.GetTopLevelCoords(nearEdge);
+          farEdge = handImage.GetTopLevelCoords(farEdge);
+          shortLine.Translate(left, top);
+          longLine.Translate(left, top);
+          offsetLine.Translate(left, top);
+          angledBox.Translate(left, top);
 
           if ( !candidate->GetFeatureVector(features, input) )
           {
@@ -156,6 +168,7 @@ int main(int argc, char* argv[])
           outlineImage.DrawLine(pointColor, 1, center, center);
           outlineImage.DrawLine(pointColor, 1, nearEdge, nearEdge);
           outlineImage.DrawLine(pointColor, 1, farEdge, farEdge);
+          outlineImage.DrawRect(angledBoxColor, 1, angledBox);
 
           fleshImage->DrawLine(longColor, 1, longLine);
           fleshImage->DrawLine(shortColor, 1, shortLine);
@@ -164,6 +177,7 @@ int main(int argc, char* argv[])
           fleshImage->DrawLine(pointColor, 1, center, center);
           fleshImage->DrawLine(pointColor, 1, nearEdge, nearEdge);
           fleshImage->DrawLine(pointColor, 1, farEdge, farEdge);
+          fleshImage->DrawRect(angledBoxColor, 1, angledBox);
 
           printf("Edge Angle %f (degrees)\n", edgeAngle);
           printf("Offset Angle %f (degrees)\n", offsetAngle);

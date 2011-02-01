@@ -78,8 +78,18 @@ double LineSegment::GetLength() const
 
 void LineSegment::Scale(int xScale, int yScale)
 {
+  Line::Scale(xScale, yScale);
   mPoints[0].x *= xScale;
   mPoints[0].y *= yScale;
   mPoints[1].x *= xScale;
   mPoints[1].y *= yScale;
+}
+
+void LineSegment::Translate(int xOffset, int yOffset)
+{
+  Line::Translate(xOffset, yOffset);
+  mPoints[0].x += xOffset;
+  mPoints[0].y += yOffset;
+  mPoints[1].x += xOffset;
+  mPoints[1].y += yOffset;
 }

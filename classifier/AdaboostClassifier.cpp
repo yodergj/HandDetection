@@ -58,7 +58,7 @@ bool AdaboostClassifier::AddTrainingData(const Matrix& data, int classIndex)
   int len;
   int minPos, curPos, maxPos;
 
-  if ( (classIndex < 0) || (classIndex >= mNumClasses) )
+  if ( (classIndex < 0) || (classIndex >= mNumClasses) || (data.GetRows() != mNumDimensions) )
   {
     fprintf(stderr, "AdaboostClassifier::AddTrainingData - Invalid parameter\n");
     return false;
@@ -176,7 +176,8 @@ bool AdaboostClassifier::Train()
   // Update the feature string to what was actually selected
   mFeatureString = "";
   for (i = 0; i < numClassifiers; i++)
-    mFeatureString += mWeakClassifiers[i]->GetFeatureString();
+    if ( mFeatureString.find( mWeakClassifiers[i]->GetFeatureString()[0] ) == string::npos )
+      mFeatureString += mWeakClassifiers[i]->GetFeatureString();
 
   return true;
 }
@@ -255,6 +256,7 @@ fprintf(stderr, "AdaboostClassifier::TrainLevel - Data size %d\n", data.size());
   {
     errorRatio = bestError / weightTotal;
     mClassifierWeights[levelNum] = log( (1 - errorRatio) / errorRatio );
+    fprintf(stderr, "AdaboostClassifier::TrainLevel - Classifier in slot %d Error Ratio %f\n", levelNum, errorRatio);
   }
 
   return true;
@@ -342,7 +344,9 @@ bool AdaboostClassifier::Save(xmlNodePtr classifierNode)
   xmlNodePtr weakNode;
 
   numClassifiers = mWeakClassifiers.size();
-  SetIntValue(classifierNode, DIMENSION_STR, mNumDimensions);
+  // If not all of the input features are selected for the weak features, then
+  // mNumDimensions will be larger than we actually want.
+  SetIntValue(classifierNode, DIMENSION_STR, mFeatureString.size());
   SetIntValue(classifierNode, CLASSES_STR, mNumClasses);
   SetIntValue(classifierNode, CLASSIFIERS_STR, numClassifiers);
   SetStringValue(classifierNode, FEATURE_STR, mFeatureString);

@@ -19,6 +19,8 @@ class Line
     double GetAngleDeg() const;
     double GetInnerAngleRad(const Line& ref) const;
     double GetInnerAngleDeg(const Line& ref) const;
+    virtual void Scale(int xScale, int yScale);
+    virtual void Translate(int xOffset, int yOffset);
   protected:
     bool mIsVertical;
     double mSlope;

@@ -5,6 +5,7 @@
 using std::string;
 #include <DoublePoint.h>
 #include <LineSegment.h>
+#include <Rect.h>
 class ConnectedRegion;
 class Matrix;
 
@@ -20,6 +21,7 @@ class HandCandidate
                            DoublePoint& nearEdge, DoublePoint& farEdge,
                            LineSegment& shortLine, LineSegment& longLine, LineSegment& offsetLine,
                            double& edgeAngle, double& offsetAngle);
+    Rect GetAngledBoundingBox(const LineSegment& line);
   private:
     Point GetClosestEdge(double x, double y);
     Point GetFarthestEdge(double x, double y);

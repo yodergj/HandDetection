@@ -19,7 +19,8 @@ class LineSegment : public Line
     DoublePoint GetTopPoint() const;
     DoublePoint GetBottomPoint() const;
     double GetLength() const;
-    void Scale(int xScale, int yScale);
+    virtual void Scale(int xScale, int yScale);
+    virtual void Translate(int xOffset, int yOffset);
   protected:
     DoublePoint mPoints[2];
 };

@@ -62,7 +62,6 @@ bool RangeClassifier::Train(const vector<double>& samples, const vector<double>&
   map<double, int> thresholds;
   for (i = 0; i < numSamples; i++)
     thresholds[ samples[i] ] |= (1 << classes[i]);
-  fprintf(stderr, "RangeClassifier::Train - Data size %d, Threshold size %d\n", samples.size(), thresholds.size());
 
   map<double, int>::iterator threshItr, nextItr, prevItr;
   map<double, int>::iterator firstInner, lastInner, upperItr;
@@ -100,7 +99,6 @@ bool RangeClassifier::Train(const vector<double>& samples, const vector<double>&
       threshItr = nextItr;
     }
   }
-  fprintf(stderr, "RangeClassifier::Train - Filtered Threshold size %d\n", thresholds.size());
 
   innerClass = 0;
   outerClass = 1;

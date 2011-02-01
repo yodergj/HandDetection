@@ -86,12 +86,12 @@ void Matrix::Fill(double value)
     mData[i] = value;
 }
 
-int Matrix::GetRows()
+int Matrix::GetRows() const
 {
   return mRows;
 }
 
-int Matrix::GetColumns()
+int Matrix::GetColumns() const
 {
   return mColumns;
 }

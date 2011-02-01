@@ -27,14 +27,15 @@ class ConnectedRegion
     ~ConnectedRegion();
     void AddRun(int xstart, int y, int length);
     bool MergeInRegion(ConnectedRegion& refRegion);
-    bool TouchesRegion(ConnectedRegion& refRegion);
-    bool GetBounds(int& left, int& right, int& top, int& bottom);
-    double GetDensity();
-    double GetAverageRunsPerRow();
-    bool GetCentroid(double& x, double& y);
+    bool TouchesRegion(ConnectedRegion& refRegion) const;
+    bool GetBounds(int& left, int& right, int& top, int& bottom) const;
+    int GetNumPixels() const;
+    double GetDensity() const;
+    double GetAverageRunsPerRow() const;
+    bool GetCentroid(double& x, double& y) const;
     void GetEdgePoints(vector<Point>& points);
-    bool HasMorePixels(const ConnectedRegion& ref);
-    bool HasLargerBoundingBox(const ConnectedRegion& ref);
+    bool HasMorePixels(const ConnectedRegion& ref) const;
+    bool HasLargerBoundingBox(const ConnectedRegion& ref) const;
   private:
     vector<PixelRun> mRuns;
     int mXMin;

@@ -14,8 +14,8 @@ class Matrix
     ~Matrix();
     bool SetSize(int rows, int columns, bool clear=true);
     void Fill(double value);
-    int GetRows();
-    int GetColumns();
+    int GetRows() const;
+    int GetColumns() const;
     double GetValue(int row, int column) const;
     bool SetValue(int row, int column, double value);
     bool Set(double* values);

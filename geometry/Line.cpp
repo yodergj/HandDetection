@@ -88,7 +88,7 @@ double Line::GetAngleRad() const
   if ( mSlope == 0 )
     return 0;
 
-  return atan( 1 / mSlope );
+  return atan( mSlope );
 }
 
 double Line::GetAngleDeg() const
@@ -123,4 +123,17 @@ double Line::GetInnerAngleDeg(const Line& ref) const
     diff = 180 - diff;
 
   return diff;
+}
+
+void Line::Scale(int xScale, int yScale)
+{
+  mSlope *= (double)yScale / xScale;
+  mXIntercept *= xScale;
+  mYIntercept *= yScale;
+}
+
+void Line::Translate(int xOffset, int yOffset)
+{
+  mXIntercept += xOffset;
+  mYIntercept += yOffset;
 }

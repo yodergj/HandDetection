@@ -92,7 +92,7 @@ bool ConnectedRegion::MergeInRegion(ConnectedRegion& refRegion)
   return true;
 }
 
-bool ConnectedRegion::TouchesRegion(ConnectedRegion& refRegion)
+bool ConnectedRegion::TouchesRegion(ConnectedRegion& refRegion) const
 {
   int i, j, numRuns, numRefRuns, leftEdge, rightEdge, y;
   int xMin, yMin, xMax, yMax, refLeft, refRight;
@@ -143,7 +143,7 @@ bool ConnectedRegion::TouchesRegion(ConnectedRegion& refRegion)
   return false;
 }
 
-bool ConnectedRegion::GetBounds(int& left, int& right, int& top, int& bottom)
+bool ConnectedRegion::GetBounds(int& left, int& right, int& top, int& bottom) const
 {
   if ( mXMax == -1 )
     return false;
@@ -156,7 +156,12 @@ bool ConnectedRegion::GetBounds(int& left, int& right, int& top, int& bottom)
   return true;
 }
 
-double ConnectedRegion::GetDensity()
+int ConnectedRegion::GetNumPixels() const
+{
+  return mNumPixels;
+}
+
+double ConnectedRegion::GetDensity() const
 {
   int area;
 
@@ -167,7 +172,7 @@ double ConnectedRegion::GetDensity()
   return (double)mNumPixels / area;
 }
 
-double ConnectedRegion::GetAverageRunsPerRow()
+double ConnectedRegion::GetAverageRunsPerRow() const
 {
   int height;
 
@@ -178,7 +183,7 @@ double ConnectedRegion::GetAverageRunsPerRow()
   return (double)mRuns.size() / height;
 }
 
-bool ConnectedRegion::GetCentroid(double& x, double& y)
+bool ConnectedRegion::GetCentroid(double& x, double& y) const
 {
   int i, numRuns;
   double xSum, ySum;
@@ -256,12 +261,12 @@ void ConnectedRegion::GetEdgePoints(vector<Point>& points)
   }
 }
 
-bool ConnectedRegion::HasMorePixels(const ConnectedRegion& ref)
+bool ConnectedRegion::HasMorePixels(const ConnectedRegion& ref) const
 {
   return (mNumPixels > ref.mNumPixels);
 }
 
-bool ConnectedRegion::HasLargerBoundingBox(const ConnectedRegion& ref)
+bool ConnectedRegion::HasLargerBoundingBox(const ConnectedRegion& ref) const
 {
   return ( (mXMax - mXMin) * (mYMax - mYMin) > (ref.mXMax - ref.mXMin) * (ref.mYMax - ref.mYMin) );
 }
