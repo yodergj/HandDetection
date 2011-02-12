@@ -14,6 +14,8 @@ class LineSegment : public Line
     virtual LineSegment& operator=(const LineSegment& ref);
     virtual ~LineSegment();
     virtual bool operator==(const LineSegment& ref) const;
+    DoublePoint GetFirstPoint() const;
+    DoublePoint GetSecondPoint() const;
     DoublePoint GetLeftPoint() const;
     DoublePoint GetRightPoint() const;
     DoublePoint GetTopPoint() const;
@@ -21,6 +23,10 @@ class LineSegment : public Line
     double GetLength() const;
     virtual void Scale(int xScale, int yScale);
     virtual void Translate(int xOffset, int yOffset);
+    void RotateAroundEnd(double radians, bool firstEnd = true);
+    DoublePoint GetVector() const;
+    double GetAngleToLineRad(const LineSegment& ref) const;
+    double GetAngleToLineDeg(const LineSegment& ref) const;
   protected:
     DoublePoint mPoints[2];
 };

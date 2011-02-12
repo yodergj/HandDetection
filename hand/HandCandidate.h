@@ -9,6 +9,8 @@ using std::string;
 class ConnectedRegion;
 class Matrix;
 
+#define NUM_HAND_SECTIONS 8
+
 class HandCandidate
 {
   public:
@@ -22,10 +24,15 @@ class HandCandidate
                            LineSegment& shortLine, LineSegment& longLine, LineSegment& offsetLine,
                            double& edgeAngle, double& offsetAngle);
     Rect GetAngledBoundingBox(const LineSegment& line);
+    bool GetFarPoints(vector<Point>& farPoints);
   private:
+    Point GetClosestPoint(double x, double y, const vector<Point> points) const;
     Point GetClosestEdge(double x, double y);
+    Point GetFarthestPoint(double x, double y, const vector<Point> points) const;
     Point GetFarthestEdge(double x, double y);
     bool GetBaseFeatures();
+    static bool PointBetweenLines(const DoublePoint& pt, const LineSegment& line1, const LineSegment& line2);
+    static bool PointBetweenLines(const Point& pt, const LineSegment& line1, const LineSegment& line2);
 
     ConnectedRegion* mRegion;
     DoublePoint mCentroid;
@@ -38,6 +45,8 @@ class HandCandidate
     double mEdgeAngle;
     double mOffsetAngle;
     vector<Point> mEdgePoints;
+    Point mFarPoints[NUM_HAND_SECTIONS];
+    LineSegment mFarPointLines[NUM_HAND_SECTIONS];
     bool mFeaturesGenerated;
 };
 

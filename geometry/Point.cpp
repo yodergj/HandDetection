@@ -47,3 +47,8 @@ bool Point::operator==(const Point& ref) const
 {
   return (x == ref.x) && (y == ref.y);
 }
+
+bool Point::operator!=(const Point& ref) const
+{
+  return (x != ref.x) || (y != ref.y);
+}

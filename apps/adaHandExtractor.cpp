@@ -12,7 +12,7 @@ using std::string;
 
 int main(int argc, char* argv[])
 {
-  int i, j, imageIndex;
+  int i, j, k, imageIndex;
   int width, height;
   int numFleshRegions, numHands, xScale, yScale, dotPos;
   int left, right, top, bottom;
@@ -35,6 +35,7 @@ int main(int argc, char* argv[])
   unsigned char shortColor[] = {0, 0, 255};
   unsigned char offsetColor[] = {0, 255, 255};
   unsigned char pointColor[] = {255, 0, 0};
+  unsigned char farPointColor[] = {255, 0, 255};
   int numLargeRegions;
   string basename;
   DoublePoint centroid, center, nearEdge, farEdge;
@@ -46,6 +47,8 @@ int main(int argc, char* argv[])
   Matrix input;
   int classIndex;
   SubImage handImage;
+  vector<Point> farPoints;
+  int numFarPoints;
 
   if ( argc < 4 )
   {
@@ -121,7 +124,7 @@ int main(int argc, char* argv[])
           int regionIndex = 0;
           if ( numFullResRegions > 1 )
           {
-            for (int k = 1; k < numFullResRegions; k++)
+            for (k = 1; k < numFullResRegions; k++)
               if ( (*fullResRegions)[k]->HasMorePixels( *((*fullResRegions)[regionIndex]) ) )
                 regionIndex = k;
             fprintf(stderr, "Flesh block %d on %s yielded %d regions - only processing the largest (%d)\n", i, argv[imageIndex], numFullResRegions, regionIndex);
@@ -135,6 +138,10 @@ int main(int argc, char* argv[])
             return 1;
           }
           angledBox = candidate->GetAngledBoundingBox(longLine);
+          farPoints.clear();
+          if ( !candidate->GetFarPoints(farPoints) )
+            fprintf(stderr, "Error getting far points for flesh block %d\n", i);
+          numFarPoints = farPoints.size();
 
           centroid = handImage.GetTopLevelCoords(centroid);
           center = handImage.GetTopLevelCoords(center);
@@ -144,6 +151,8 @@ int main(int argc, char* argv[])
           longLine.Translate(left, top);
           offsetLine.Translate(left, top);
           angledBox.Translate(left, top);
+          for (k = 0; k < numFarPoints; k++)
+            farPoints[k] = handImage.GetTopLevelCoords(farPoints[k]);
 
           if ( !candidate->GetFeatureVector(features, input) )
           {
@@ -169,6 +178,8 @@ int main(int argc, char* argv[])
           outlineImage.DrawLine(pointColor, 1, nearEdge, nearEdge);
           outlineImage.DrawLine(pointColor, 1, farEdge, farEdge);
           outlineImage.DrawRect(angledBoxColor, 1, angledBox);
+          for (k = 0; k < numFarPoints; k++)
+            outlineImage.DrawLine(farPointColor, 1, centroid, farPoints[k]);
 
           fleshImage->DrawLine(longColor, 1, longLine);
           fleshImage->DrawLine(shortColor, 1, shortLine);
@@ -178,9 +189,8 @@ int main(int argc, char* argv[])
           fleshImage->DrawLine(pointColor, 1, nearEdge, nearEdge);
           fleshImage->DrawLine(pointColor, 1, farEdge, farEdge);
           fleshImage->DrawRect(angledBoxColor, 1, angledBox);
-
-          printf("Edge Angle %f (degrees)\n", edgeAngle);
-          printf("Offset Angle %f (degrees)\n", offsetAngle);
+          for (k = 0; k < numFarPoints; k++)
+            fleshImage->DrawLine(farPointColor, 1, centroid, farPoints[k]);
         }
         numHands = hands.size();
         printf("Num Flesh Regions %d of %d\nNum Hands %d\n", numLargeRegions, numFleshRegions, numHands);

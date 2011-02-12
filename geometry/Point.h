@@ -13,6 +13,7 @@ class Point
     Point& operator=(const DoublePoint& ref);
     ~Point();
     bool operator==(const Point& ref) const;
+    bool operator!=(const Point& ref) const;
 
     int x;
     int y;

@@ -39,3 +39,8 @@ bool DoublePoint::operator==(const DoublePoint& ref) const
 {
   return (x == ref.x) && (y == ref.y);
 }
+
+bool DoublePoint::operator!=(const DoublePoint& ref) const
+{
+  return (x != ref.x) || (y != ref.y);
+}

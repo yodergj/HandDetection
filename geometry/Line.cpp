@@ -19,6 +19,22 @@ Line::Line(double slope, double yIntercept)
   mXIntercept = -mYIntercept / mSlope;
 }
 
+Line::Line(double slope, const Point& pt)
+{
+  mIsVertical = false;
+  mSlope = slope;
+  mYIntercept = pt.y - slope * pt.x;
+  mXIntercept = -mYIntercept / mSlope;
+}
+
+Line::Line(double slope, const DoublePoint& pt)
+{
+  mIsVertical = false;
+  mSlope = slope;
+  mYIntercept = pt.y - slope * pt.x;
+  mXIntercept = -mYIntercept / mSlope;
+}
+
 Line::Line(const Line& ref)
 {
   operator=(ref);
@@ -136,4 +152,76 @@ void Line::Translate(int xOffset, int yOffset)
 {
   mXIntercept += xOffset;
   mYIntercept += yOffset;
+}
+
+Line Line::GetOrthogonalLine(const Point& pt) const
+{
+  double slope;
+
+  if ( mSlope == 0 )
+    return Line(pt.x);
+
+  if ( mIsVertical )
+    slope = 0;
+  else
+    slope = -1 / mSlope;
+
+  return Line(slope, pt);
+}
+
+Line Line::GetOrthogonalLine(const DoublePoint& pt) const
+{
+  double slope;
+
+  if ( mSlope == 0 )
+    return Line(pt.x);
+
+  if ( mIsVertical )
+    slope = 0;
+  else
+    slope = -1 / mSlope;
+
+  return Line(slope, pt);
+}
+
+bool Line::PointAboveLine(const Point& pt) const
+{
+  DoublePoint dblPt(pt);
+  return PointAboveLine(dblPt);
+}
+
+bool Line::PointAboveLine(const DoublePoint& pt) const
+{
+  if ( mIsVertical )
+    return (pt.x < mXIntercept);
+
+  return (pt.y > pt.x * mSlope + mYIntercept);
+}
+
+bool Line::PointOnLine(const Point& pt) const
+{
+  DoublePoint dblPt(pt);
+  return PointOnLine(dblPt);
+}
+
+bool Line::PointOnLine(const DoublePoint& pt) const
+{
+  if ( mIsVertical )
+    return (pt.x == mXIntercept);
+
+  return (pt.y == pt.x * mSlope + mYIntercept);
+}
+
+bool Line::PointBelowLine(const Point& pt) const
+{
+  DoublePoint dblPt(pt);
+  return PointBelowLine(dblPt);
+}
+
+bool Line::PointBelowLine(const DoublePoint& pt) const
+{
+  if ( mIsVertical )
+    return (pt.x > mXIntercept);
+
+  return (pt.y < pt.x * mSlope + mYIntercept);
 }
