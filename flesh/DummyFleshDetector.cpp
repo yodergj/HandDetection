@@ -120,7 +120,7 @@ bool DummyFleshDetector::CalcConfidence(Image* imagePtr, int xScale, int yScale)
       /* Use the average feature values for classification */
       pixelFeatures *= featureRatio;
 
-      if ( pixelFeatures.GetValue(0, 0) <= .02 )
+      if ( (pixelFeatures.GetValue(0, 0) <= .02) || (pixelFeatures.GetValue(2, 0) >= pixelFeatures.GetValue(0, 0)) || (pixelFeatures.GetValue(1, 0) >= pixelFeatures.GetValue(0, 0)) )
         *confPoint = 0;
       else
       {

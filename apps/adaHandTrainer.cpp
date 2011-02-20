@@ -24,11 +24,7 @@ int main(int argc, char* argv[])
   Image image;
   unsigned char* srcPixel;
   string featureList;
-#if 0
-  FleshDetector fleshDetector;
-#else
-  DummyFleshDetector fleshDetector;
-#endif
+  FleshDetector* fleshDetector;
   AdaboostClassifier handClassifier;
   vector<ConnectedRegion*>* fleshRegionVector;
   int xScale, yScale, numFleshRegions;
@@ -36,21 +32,24 @@ int main(int argc, char* argv[])
   HandCandidate* candidate;
   int numFeatures, numWeakClassifiers;
   SubImage handImage;
+  string className;
 
-  if ( argc < 7 )
+  if ( argc < 8 )
   {
-    printf("Usage: %s <num weak classifiers> <feature string> <flesh classifier file> <hand Image> [...] -x <non-hand image> [...]\n", argv[0]);
+    printf("Usage: %s <class name> <num weak classifiers> <feature string> <flesh classifier file> <hand Image> [...] -x <non-hand image> [...]\n", argv[0]);
     return 0;
   }
 
-  numWeakClassifiers = atoi(argv[1]);
+  className = argv[1];
+
+  numWeakClassifiers = atoi(argv[2]);
   if ( numWeakClassifiers < 1 )
   {
     printf("Invalid number of weak classifiers %d\n", numWeakClassifiers );
     return 1;
   }
 
-  featureList = argv[2];
+  featureList = argv[3];
   numFeatures = featureList.size();
   input.SetSize(numFeatures, 1);
   if ( !handClassifier.Create(numFeatures, 2, numWeakClassifiers) )
@@ -60,13 +59,15 @@ int main(int argc, char* argv[])
   }
   handClassifier.SetFeatureString(featureList);
 
-  if ( !fleshDetector.Load(argv[3]) )
+  // Either loads a real detector or gets a dummy detector if arg is "DUMMY"
+  fleshDetector = FleshDetector::Get(argv[4]);
+  if ( !fleshDetector )
   {
-    printf("Failed loading flesh detector %s\n", argv[2]);
+    printf("Failed loading flesh detector %s\n", argv[4]);
     return 1;
   }
 
-  for (i = 4; i < argc; i++)
+  for (i = 5; i < argc; i++)
   {
     if ( !strcmp(argv[i], "-x") )
     {
@@ -83,7 +84,7 @@ int main(int argc, char* argv[])
       height = image.GetHeight();
       srcPixel = image.GetRGBBuffer();
 
-      fleshRegionVector = fleshDetector.GetFleshRegions(&image, xScale, yScale);
+      fleshRegionVector = fleshDetector->GetFleshRegions(&image, xScale, yScale);
       if ( fleshRegionVector )
       {
         numFleshRegions = fleshRegionVector->size();
@@ -103,7 +104,7 @@ int main(int argc, char* argv[])
 
           handImage.CreateFromParent(&image, left, right, top, bottom);
           vector<ConnectedRegion*>* fullResRegions;
-          fullResRegions = fleshDetector.GetFleshRegions(&handImage);
+          fullResRegions = fleshDetector->GetFleshRegions(&handImage);
           int numFullResRegions = 0;
           if ( fullResRegions )
             numFullResRegions = fullResRegions->size();
@@ -146,7 +147,7 @@ int main(int argc, char* argv[])
 
   do
   {
-    sprintf(filename, "adahand-%d.rev%d.cfg", numWeakClassifiers, revNumber);
+    sprintf(filename, "adahand-%s-%d.rev%d.cfg", className.c_str(), numWeakClassifiers, revNumber);
     file = fopen(filename, "r");
     if ( file )
       fclose(file);

@@ -32,3 +32,13 @@ bool Hand::SetBounds(int left, int right, int top, int bottom)
 
   return true;
 }
+
+string Hand::GetPostureString()
+{
+  return mPostureStr;
+}
+
+void Hand::SetPostureString(const string& postureStr)
+{
+  mPostureStr = postureStr;
+}

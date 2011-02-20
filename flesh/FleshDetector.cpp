@@ -1,4 +1,5 @@
 #include "FleshDetector.h"
+#include "DummyFleshDetector.h"
 #include "TimingAnalyzer.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,6 +41,21 @@ bool FleshDetector::Load(const char* filename)
   mFeatureList = mClassifier.GetFeatureString();
 
   return true;
+}
+
+FleshDetector* FleshDetector::Get(const char* filename)
+{
+  FleshDetector* detector;
+
+  if ( !filename || !*filename || !strcmp(filename, "DUMMY") )
+    return new DummyFleshDetector;
+
+  detector = new FleshDetector;
+  if ( detector->Load(filename) )
+    return detector;
+
+  delete detector;
+  return NULL;
 }
 
 bool FleshDetector::Process(Image* imagePtr, Image** outlineImageOut, Image** fleshImageOut, Image** confidenceImageOut)

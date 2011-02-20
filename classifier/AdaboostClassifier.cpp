@@ -226,6 +226,8 @@ fprintf(stderr, "AdaboostClassifier::TrainLevel - Data size %d\n", data.size());
       bestError = trainingError;
       delete bestClassifier;
       bestClassifier = new ThresholdClassifier(thresholdClassifier);
+      if ( trainingError == 0 )
+        break;
     }
 
     if ( !rangeClassifier.Train(data, weights, truth, &trainingError) )
@@ -239,6 +241,8 @@ fprintf(stderr, "AdaboostClassifier::TrainLevel - Data size %d\n", data.size());
       bestError = trainingError;
       delete bestClassifier;
       bestClassifier = new RangeClassifier(rangeClassifier);
+      if ( trainingError == 0 )
+        break;
     }
   }
 
@@ -293,15 +297,44 @@ string AdaboostClassifier::GetFeatureString() const
 
 bool AdaboostClassifier::SetFeatureString(const string& featureString)
 {
-  if ( (int)featureString.size() != mNumDimensions )
+  if ( (int)featureString.size() < mNumDimensions )
   {
-    fprintf(stderr, "AdaboostClassifier::SetFeatureString - Feature string \"%s\" doesn't have length %d\n", featureString.c_str(), mNumDimensions);
+    fprintf(stderr, "AdaboostClassifier::SetFeatureString - Feature string \"%s\" doesn't have length >= %d\n", featureString.c_str(), mNumDimensions);
     return false;
   }
 
   mFeatureString = featureString;
 
   return true;
+}
+
+bool AdaboostClassifier::Print(FILE* file)
+{
+  bool retVal = true;
+  int i, numClassifiers;
+  if ( !file )
+  {
+    fprintf(stderr, "AdaboostClassifier::Print - Invalid parameter\n");
+    return false;
+  }
+
+  numClassifiers = mWeakClassifiers.size();
+  fprintf(file, "AdaboostClassifier\n");
+  fprintf(file, "Feature %s\n", mFeatureString.c_str());
+  fprintf(file, "Num Weak Classifiers %d\n", numClassifiers);
+  for (i = 0; i < numClassifiers; i++)
+  {
+    fprintf(file, "Classifier Weight %f\n", mClassifierWeights[i]);
+    if ( mWeakClassifiers[i] )
+      retVal &= mWeakClassifiers[i]->Print(file);
+    else
+    {
+      retVal = false;
+      fprintf(file, "Missing Classifier %d\n", i);
+    }
+  }
+
+  return retVal;
 }
 
 bool AdaboostClassifier::Save(const char* filename)

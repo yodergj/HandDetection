@@ -1,7 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <string>
-#include "AdaboostClassifier.h"
+#include "CompositeClassifier.h"
 #include "FleshDetector.h"
 #include "DummyFleshDetector.h"
 #include "HandCandidate.h"
@@ -38,13 +39,16 @@ int main(int argc, char* argv[])
   LineSegment shortLine, longLine, offsetLine;
   Rect angledBox;
   double edgeAngle, offsetAngle;
-  AdaboostClassifier handDetector;
+  CompositeClassifier postureDetector;
   string features;
   Matrix input;
   int classIndex;
   SubImage handImage;
   vector<Point> farPoints;
   int numFarPoints;
+  time_t currentTime;
+  char outputFilename[64];
+  FILE* outputFile;
 
   if ( argc < 4 )
   {
@@ -60,18 +64,29 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  if ( !handDetector.Load(argv[2]) )
+  if ( !postureDetector.Load(argv[2]) )
   {
     fprintf(stderr, "Error loading hand detector %s\n", argv[2]);
     return 1;
   }
-  features = handDetector.GetFeatureString();
+  features = postureDetector.GetFeatureString();
+
+  time(&currentTime);
+  strftime(outputFilename, 64, "postureResults-%Y%m%d-%H:%M:%S", localtime(&currentTime));
+  outputFile = fopen(outputFilename, "w");
+  if ( !outputFile )
+  {
+    fprintf(stderr, "Error opening output file %s - %s\n", outputFilename, strerror(errno));
+    return 1;
+  }
+  fprintf(outputFile, "Flesh Detection: %s\tPosture Detection: %s\n", argv[1], argv[2]);
 
   for (imageIndex = 3; imageIndex < argc; imageIndex++)
   {
     if ( !image.Load(argv[imageIndex]) )
     {
       fprintf(stderr, "Error loading %s\n", argv[imageIndex]);
+      fclose(outputFile);
       return 1;
     }
     printf("Processing %s\n", argv[imageIndex]);
@@ -98,6 +113,7 @@ int main(int argc, char* argv[])
           if ( !(*fleshRegionVector)[i]->GetBounds(left, right, top, bottom) )
           {
             fprintf(stderr, "Error getting flesh block %d bounds\n", i);
+            fclose(outputFile);
             return 1;
           }
           left *= xScale;
@@ -117,6 +133,7 @@ int main(int argc, char* argv[])
           if ( !numFullResRegions )
           {
             fprintf(stderr, "Failed getting full resolution hand candidate %d on %s\n", i, argv[imageIndex]);
+            fclose(outputFile);
             return 1;
           }
           int regionIndex = 0;
@@ -133,6 +150,7 @@ int main(int argc, char* argv[])
                                              shortLine, longLine, offsetLine, edgeAngle, offsetAngle) )
           {
             fprintf(stderr, "Error getting hand candidate features for flesh block %d\n", i);
+            fclose(outputFile);
             return 1;
           }
           angledBox = candidate->GetAngledBoundingBox(longLine);
@@ -155,15 +173,19 @@ int main(int argc, char* argv[])
           if ( !candidate->GetFeatureVector(features, input) )
           {
             fprintf(stderr, "Error getting hand candidate features for flesh block %d\n", i);
+            fclose(outputFile);
             return 1;
           }
 
-          classIndex = handDetector.Classify(input);
-          if ( classIndex == 0 )
+          classIndex = postureDetector.Classify(input);
+          if ( classIndex != -1 )
           {
             hand = new Hand;
             hand->SetBounds(left, right, top, bottom);
+            hand->SetPostureString(postureDetector.GetClassName(classIndex));
             hands.push_back(hand);
+            printf("Detected Class %d %s\n", classIndex, hand->GetPostureString().c_str());
+            // TODO Graphical output of class
           }
 
           delete candidate;
@@ -192,12 +214,17 @@ int main(int argc, char* argv[])
         }
         numHands = hands.size();
         printf("Num Flesh Regions %d of %d\nNum Hands %d\n", numLargeRegions, numFleshRegions, numHands);
+        fprintf(outputFile, "%s", argv[imageIndex]);
         for (j = 0; j < numHands; j++)
         {
+          fprintf(outputFile, " %s", hand->GetPostureString().c_str());
           hands[j]->GetBounds(left, right, top, bottom);
           outlineImage.DrawBox(boxColor, 3, left, top, right, bottom);
           delete hands[j];
         }
+        if ( numHands == 0 )
+          fprintf(outputFile, " None");
+        fprintf(outputFile, "\n");
         hands.clear();
       }
 
@@ -206,6 +233,7 @@ int main(int argc, char* argv[])
       outlineImage.Save(basename + "_frame.png");
     }
   }
+  fclose(outputFile);
 
   return 0;
 }
