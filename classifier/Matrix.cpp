@@ -126,7 +126,7 @@ bool Matrix::Set(double* values)
 {
   if ( !values )
   {
-    fprintf(stderr, "Matrix::SetValues - Invalid parameter\n");
+    fprintf(stderr, "Matrix::Set - Invalid parameter\n");
     return false;
   }
 

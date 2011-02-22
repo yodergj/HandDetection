@@ -48,9 +48,10 @@ FleshDetector* FleshDetector::Get(const char* filename)
   FleshDetector* detector;
 
   if ( !filename || !*filename || !strcmp(filename, "DUMMY") )
-    return new DummyFleshDetector;
+    detector = new DummyFleshDetector;
+  else
+    detector = new FleshDetector;
 
-  detector = new FleshDetector;
   if ( detector->Load(filename) )
     return detector;
 
