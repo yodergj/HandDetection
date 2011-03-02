@@ -10,6 +10,8 @@ using std::string;
 using std::vector;
 using std::map;
 
+#define FLESH_REGION_MIN_DIMENSION 100
+
 class ConfidenceRevision
 {
   public:

@@ -49,10 +49,14 @@ int main(int argc, char* argv[])
   time_t currentTime;
   char outputFilename[64];
   FILE* outputFile;
+  FILE* listFile;
+  vector<string> filenames;
+  int numFiles;
 
   if ( argc < 4 )
   {
     printf("Usage: %s <flesh classifier file> <hand classifier file> <image file> [ <image file> ... ]\n", argv[0]);
+    printf("       %s <flesh classifier file> <hand classifier file> -l <list file>\n", argv[0]);
     return 1;
   }
 
@@ -71,6 +75,31 @@ int main(int argc, char* argv[])
   }
   features = postureDetector.GetFeatureString();
 
+  if ( !strcmp(argv[3], "-l") )
+  {
+    if ( argc < 5 )
+    {
+      fprintf(stderr, "List option given, but no list file specified.\n");
+      return 1;
+    }
+    listFile = fopen(argv[4], "r");
+    if ( !listFile )
+    {
+      fprintf(stderr, "Failed opening list file %s\n", argv[4]);
+      return 1;
+    }
+    char filename[4096];
+    while ( fscanf(listFile, "%s.4095", filename) != EOF )
+      filenames.push_back(filename);
+    fclose(listFile);
+  }
+  else
+  {
+    for (i = 3; i < argc; i++)
+      filenames.push_back(argv[i]);
+  }
+  numFiles = filenames.size();
+
   time(&currentTime);
   strftime(outputFilename, 64, "postureResults-%Y%m%d-%H:%M:%S", localtime(&currentTime));
   outputFile = fopen(outputFilename, "w");
@@ -81,17 +110,17 @@ int main(int argc, char* argv[])
   }
   fprintf(outputFile, "Flesh Detection: %s\tPosture Detection: %s\n", argv[1], argv[2]);
 
-  for (imageIndex = 3; imageIndex < argc; imageIndex++)
+  for (imageIndex = 0; imageIndex < numFiles; imageIndex++)
   {
-    if ( !image.Load(argv[imageIndex]) )
+    if ( !image.Load(filenames[imageIndex]) )
     {
-      fprintf(stderr, "Error loading %s\n", argv[imageIndex]);
+      fprintf(stderr, "Error loading %s\n", filenames[imageIndex].c_str());
       fclose(outputFile);
       return 1;
     }
-    printf("Processing %s\n", argv[imageIndex]);
+    printf("Processing %s\n", filenames[imageIndex].c_str());
 
-    basename = argv[imageIndex];
+    basename = filenames[imageIndex];
     dotPos = basename.rfind('.');
     if ( dotPos != (int)string::npos )
       basename = basename.substr(0, dotPos);
@@ -120,7 +149,7 @@ int main(int argc, char* argv[])
           right = (right + 1) * xScale - 1;
           top *= yScale;
           bottom = (bottom + 1) * yScale - 1;
-          if ( (right - left + 1 < 40) || (bottom - top + 1 < 40) )
+          if ( (right - left + 1 < FLESH_REGION_MIN_DIMENSION) || (bottom - top + 1 < FLESH_REGION_MIN_DIMENSION) )
             continue;
           numLargeRegions++;
 
@@ -132,7 +161,7 @@ int main(int argc, char* argv[])
             numFullResRegions = fullResRegions->size();
           if ( !numFullResRegions )
           {
-            fprintf(stderr, "Failed getting full resolution hand candidate %d on %s\n", i, argv[imageIndex]);
+            fprintf(stderr, "Failed getting full resolution hand candidate %d on %s\n", i, filenames[imageIndex].c_str());
             fclose(outputFile);
             return 1;
           }
@@ -142,7 +171,7 @@ int main(int argc, char* argv[])
             for (k = 1; k < numFullResRegions; k++)
               if ( (*fullResRegions)[k]->HasMorePixels( *((*fullResRegions)[regionIndex]) ) )
                 regionIndex = k;
-            fprintf(stderr, "Flesh block %d on %s yielded %d regions - only processing the largest (%d)\n", i, argv[imageIndex], numFullResRegions, regionIndex);
+            fprintf(stderr, "Flesh block %d on %s yielded %d regions - only processing the largest (%d)\n", i, filenames[imageIndex].c_str(), numFullResRegions, regionIndex);
           }
 
           candidate = new HandCandidate( (*fullResRegions)[regionIndex] );
@@ -214,7 +243,7 @@ int main(int argc, char* argv[])
         }
         numHands = hands.size();
         printf("Num Flesh Regions %d of %d\nNum Hands %d\n", numLargeRegions, numFleshRegions, numHands);
-        fprintf(outputFile, "%s", argv[imageIndex]);
+        fprintf(outputFile, "%s", filenames[imageIndex].c_str());
         for (j = 0; j < numHands; j++)
         {
           fprintf(outputFile, " %s", hand->GetPostureString().c_str());

@@ -99,7 +99,7 @@ int main(int argc, char* argv[])
           right = (right + 1) * xScale - 1;
           top *= yScale;
           bottom = (bottom + 1) * yScale - 1;
-          if ( (right - left + 1 < 40) || (bottom - top + 1 < 40) )
+          if ( (right - left + 1 < FLESH_REGION_MIN_DIMENSION) || (bottom - top + 1 < FLESH_REGION_MIN_DIMENSION) )
             continue;
 
           handImage.CreateFromParent(&image, left, right, top, bottom);
