@@ -63,6 +63,13 @@ int main(int argc, char* argv[])
                (MAX(srcPixel[0],
                     MAX(srcPixel[1], srcPixel[2]) ) <= 55) )
             continue;
+          if ( classIndex == 0 )
+          {
+            if ( srcPixel[0] <= 38 )
+              continue;
+            if ( MAX(srcPixel[1], srcPixel[2]) >= srcPixel[0] - 20 )
+              continue;
+          }
 
           for (j = 0; j < numFeatures; j++)
             input.SetValue(j, 0, pixel[j]);
