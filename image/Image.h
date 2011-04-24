@@ -22,6 +22,7 @@ class Image
     int GetWidth();
     int GetHeight();
     unsigned char* GetRGBBuffer();
+    unsigned char* GetBGRBuffer();
     void MarkBufferAsUpdated();
     int GetBufferUpdateIndex();
     double* GetYIQBuffer();
@@ -38,6 +39,7 @@ class Image
     bool CopyBGRBuffer(int width, int height, unsigned char* buffer, int bufferWidth);
     bool CopyIplImage(IplImage* image);
     bool DrawBox(const unsigned char* color, int lineWidth, int left, int top, int right, int bottom);
+    bool DrawBox(const unsigned char* color1, const unsigned char* color2, const unsigned char* color3, const unsigned char* color4, int lineWidth, int left, int top, int right, int bottom);
     bool DrawRect(const unsigned char* color, int lineWidth, const Rect& rect);
     bool DrawLine(const unsigned char* color, int lineWidth, int x1, int y1, int x2, int y2);
     bool DrawLine(const unsigned char* color, int lineWidth, const Point& p1, const Point& p2);
@@ -59,8 +61,8 @@ class Image
     int mHeight;
     unsigned char* mBuffer;
     int mBufferSize;
-    unsigned char* mIplBuffer;
-    int mIplBufferSize;
+    unsigned char* mBGRBuffer;
+    int mBGRBufferSize;
     double* mYIQBuffer;
     int mYIQAlloc;
     bool mYIQValid;

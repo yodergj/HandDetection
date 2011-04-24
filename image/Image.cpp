@@ -33,8 +33,8 @@ Image::Image()
   mHeight = 0;
   mBuffer = NULL;
   mBufferSize = 0;
-  mIplBuffer = NULL;
-  mIplBufferSize = 0;
+  mBGRBuffer = NULL;
+  mBGRBufferSize = 0;
   mYIQBuffer = NULL;
   mYIQAlloc = 0;
   mYIQValid = false;
@@ -66,8 +66,8 @@ Image::~Image()
 {
   if ( mBuffer )
     free(mBuffer);
-  if ( mIplBuffer )
-    free(mIplBuffer);
+  if ( mBGRBuffer )
+    free(mBGRBuffer);
   if ( mYIQBuffer )
     free(mYIQBuffer);
   if ( mScaledRGBBuffer )
@@ -711,6 +711,26 @@ bool Image::DrawBox(const unsigned char* color, int lineWidth,
   return retCode;
 }
 
+bool Image::DrawBox(const unsigned char* color1, const unsigned char* color2,
+                    const unsigned char* color3, const unsigned char* color4,
+                    int lineWidth, int left, int top, int right, int bottom)
+{
+  bool retCode = true;
+
+  if ( lineWidth < 1 )
+  {
+    fprintf(stderr, "Image::DrawBox - Invalid parameter\n");
+    return false;
+  }
+
+  retCode = DrawLine(color1, lineWidth, left, top, right, top);
+  retCode &= DrawLine(color2, lineWidth, left, top, left, bottom);
+  retCode &= DrawLine(color3, lineWidth, left, bottom, right, bottom);
+  retCode &= DrawLine(color4, lineWidth, right, top, right, bottom);
+
+  return retCode;
+}
+
 bool Image::DrawRect(const unsigned char* color, int lineWidth, const Rect& rect)
 {
   bool retCode = true;
@@ -938,40 +958,42 @@ bool Image::Load(const string& filename)
   return Load(filename.c_str());
 }
 
-IplImage* Image::GetIplImage()
+unsigned char* Image::GetBGRBuffer()
 {
   int i, numPixels;
   unsigned char* tmp;
   unsigned char* src;
   unsigned char* dest;
 
-  mIplImage.nChannels = 3;
-  mIplImage.depth = IPL_DEPTH_8U;
-  mIplImage.width = mWidth;
-  mIplImage.height = mHeight;
-  mIplImage.imageSize = mHeight * mWidth * 3;
-#if 0
-  mIplImage.imageData = (char*)mBuffer;
-#else
-  if ( mIplBufferSize < mBufferSize )
+  if ( mBGRBufferSize < mBufferSize )
   {
-    tmp = (unsigned char*)realloc(mIplBuffer, mBufferSize);
+    tmp = (unsigned char*)realloc(mBGRBuffer, mBufferSize);
     if ( !tmp )
       return NULL;
-    mIplBuffer = tmp;
-    mIplBufferSize = mBufferSize;
+    mBGRBuffer = tmp;
+    mBGRBufferSize = mBufferSize;
   }
   numPixels = mWidth * mHeight;
   src = mBuffer;
-  dest = mIplBuffer;
+  dest = mBGRBuffer;
   for (i = 0; i < numPixels; i++, src += 3, dest += 3)
   {
     dest[0] = src[2];
     dest[1] = src[1];
     dest[2] = src[0];
   }
-  mIplImage.imageData = (char*)mIplBuffer;
-#endif
+
+  return mBGRBuffer;
+}
+
+IplImage* Image::GetIplImage()
+{
+  mIplImage.nChannels = 3;
+  mIplImage.depth = IPL_DEPTH_8U;
+  mIplImage.width = mWidth;
+  mIplImage.height = mHeight;
+  mIplImage.imageSize = mHeight * mWidth * 3;
+  mIplImage.imageData = (char*)GetBGRBuffer();
   mIplImage.widthStep = mWidth * 3;
 
   return &mIplImage;

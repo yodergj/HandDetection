@@ -1,2 +1,2 @@
 PROJECT(HandDetection)
-ADD_LIBRARY(utils STATIC TimingAnalyzer.cpp)
+ADD_LIBRARY(utils STATIC DirectoryUtils.cpp TimingAnalyzer.cpp)

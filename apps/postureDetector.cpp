@@ -8,6 +8,7 @@
 #include "HandCandidate.h"
 #include "Hand.h"
 #include "SubImage.h"
+#include "DirectoryUtils.h"
 
 using std::string;
 
@@ -26,7 +27,6 @@ int main(int argc, char* argv[])
   Hand* hand;
   vector<HandCandidate*> handCandidates;
   HandCandidate* candidate;
-  unsigned char boxColor[] = {255, 255, 255};
   unsigned char angledBoxColor[] = {255, 255, 0};
   unsigned char longColor[] = {0, 255, 0};
   unsigned char shortColor[] = {0, 0, 255};
@@ -52,40 +52,48 @@ int main(int argc, char* argv[])
   FILE* listFile;
   vector<string> filenames;
   int numFiles;
+  string outputDir, fullOutputFilename, subDir;
 
-  if ( argc < 4 )
+  if ( argc < 5 )
   {
-    printf("Usage: %s <flesh classifier file> <hand classifier file> <image file> [ <image file> ... ]\n", argv[0]);
-    printf("       %s <flesh classifier file> <hand classifier file> -l <list file>\n", argv[0]);
+    printf("Usage: %s <output dir> <flesh classifier file> <hand classifier file> <image file> [ <image file> ... ]\n", argv[0]);
+    printf("       %s <output dir> <flesh classifier file> <hand classifier file> -l <list file>\n", argv[0]);
+    return 1;
+  }
+
+  outputDir = argv[1];
+  if ( !MakeDirectory(outputDir) )
+  {
+    fprintf(stderr, "Error creating output directory %s\n", outputDir.c_str());
     return 1;
   }
 
   // Either loads a real detector or gets a dummy detector if arg is "DUMMY"
-  fleshDetector = FleshDetector::Get(argv[1]);
+  fleshDetector = FleshDetector::Get(argv[2]);
   if ( !fleshDetector )
   {
-    fprintf(stderr, "Error loading flesh detector %s\n", argv[1]);
+    fprintf(stderr, "Error loading flesh detector %s\n", argv[2]);
     return 1;
   }
 
-  if ( !postureDetector.Load(argv[2]) )
+  if ( !postureDetector.Load(argv[3]) )
   {
-    fprintf(stderr, "Error loading hand detector %s\n", argv[2]);
+    fprintf(stderr, "Error loading hand detector %s\n", argv[3]);
     return 1;
   }
   features = postureDetector.GetFeatureString();
 
-  if ( !strcmp(argv[3], "-l") )
+  if ( !strcmp(argv[4], "-l") )
   {
-    if ( argc < 5 )
+    if ( argc < 6 )
     {
       fprintf(stderr, "List option given, but no list file specified.\n");
       return 1;
     }
-    listFile = fopen(argv[4], "r");
+    listFile = fopen(argv[5], "r");
     if ( !listFile )
     {
-      fprintf(stderr, "Failed opening list file %s\n", argv[4]);
+      fprintf(stderr, "Failed opening list file %s\n", argv[5]);
       return 1;
     }
     char filename[4096];
@@ -95,17 +103,18 @@ int main(int argc, char* argv[])
   }
   else
   {
-    for (i = 3; i < argc; i++)
+    for (i = 4; i < argc; i++)
       filenames.push_back(argv[i]);
   }
   numFiles = filenames.size();
 
   time(&currentTime);
   strftime(outputFilename, 64, "postureResults-%Y%m%d-%H:%M:%S", localtime(&currentTime));
-  outputFile = fopen(outputFilename, "w");
+  fullOutputFilename = outputDir + "/" + outputFilename;
+  outputFile = fopen(fullOutputFilename.c_str(), "w");
   if ( !outputFile )
   {
-    fprintf(stderr, "Error opening output file %s - %s\n", outputFilename, strerror(errno));
+    fprintf(stderr, "Error opening output file %s - %s\n", fullOutputFilename.c_str(), strerror(errno));
     return 1;
   }
   fprintf(outputFile, "Flesh Detection: %s\tPosture Detection: %s\n", argv[1], argv[2]);
@@ -124,6 +133,13 @@ int main(int argc, char* argv[])
     dotPos = basename.rfind('.');
     if ( dotPos != (int)string::npos )
       basename = basename.substr(0, dotPos);
+
+    subDir = GetDirectoryPart(basename);
+    if ( !MakeDirectory(outputDir + "/" + subDir) )
+    {
+      fprintf(stderr, "Error creating output directory %s\n", (outputDir + "/" + subDir).c_str());
+      return 1;
+    }
 
     width = image.GetWidth();
     height = image.GetHeight();
@@ -214,7 +230,6 @@ int main(int argc, char* argv[])
             hand->SetPostureString(postureDetector.GetClassName(classIndex));
             hands.push_back(hand);
             printf("Detected Class %d %s\n", classIndex, hand->GetPostureString().c_str());
-            // TODO Graphical output of class
           }
 
           delete candidate;
@@ -248,7 +263,11 @@ int main(int argc, char* argv[])
         {
           fprintf(outputFile, " %s", hand->GetPostureString().c_str());
           hands[j]->GetBounds(left, right, top, bottom);
-          outlineImage.DrawBox(boxColor, 3, left, top, right, bottom);
+          outlineImage.DrawBox(hands[j]->GetPostureColor(0),
+                               hands[j]->GetPostureColor(1),
+                               hands[j]->GetPostureColor(2),
+                               hands[j]->GetPostureColor(3),
+                               3, left, top, right, bottom);
           delete hands[j];
         }
         if ( numHands == 0 )
@@ -257,9 +276,9 @@ int main(int argc, char* argv[])
         hands.clear();
       }
 
-      fleshImage->Save(basename + "_flesh.png");
-      confidenceImage->Save(basename + "_confidence.png");
-      outlineImage.Save(basename + "_frame.png");
+      fleshImage->Save(outputDir + "/" + basename + "_flesh.png");
+      confidenceImage->Save(outputDir + "/" + basename + "_confidence.png");
+      outlineImage.Save(outputDir + "/" + basename + "_frame.png");
     }
   }
   fclose(outputFile);
