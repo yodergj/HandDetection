@@ -1,9 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <avifile.h>
-#include <avm_fourcc.h>
-#include <errno.h>
 #include <string>
 #include "CompositeClassifier.h"
 #include "FleshDetector.h"
@@ -11,24 +8,10 @@
 #include "HandCandidate.h"
 #include "Hand.h"
 #include "SubImage.h"
+#include "VideoEncoder.h"
 #include "VideoDecoder.h"
 
 using std::string;
-
-#define FRAME_RATE 10
-
-bool InsertFrame(Image* image, avm::IVideoWriteStream* outVidStr)
-{
-  int width, height;
-  unsigned char* data = image->GetBGRBuffer();
-  if ( !data )
-    return false;
-  width = image->GetWidth();
-  height = image->GetHeight();
-  avm::CImage frame(data, width, height);
-  outVidStr->AddFrame(&frame);
-  return true;
-}
 
 int main(int argc, char* argv[])
 {
@@ -65,15 +48,8 @@ int main(int argc, char* argv[])
   int numFarPoints;
   string inputFilename, outputFilename;
   VideoDecoder decoder;
+  VideoEncoder encoder;
   bool needInit = true;
-
-  avm::IWriteFile* outFile;
-  BITMAPINFOHEADER bi;
-  //fourcc_t codec = fccMP42;
-  fourcc_t codec = fccDIV3;
-  //fourcc_t codec = fccIV32;
-  //fourcc_t codec = fccCVID;
-  avm::IVideoWriteStream* vidStr;
 
   if ( argc < 5 )
   {
@@ -106,13 +82,6 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  outFile = avm::CreateWriteFile(outputFilename.c_str());
-  if ( !outFile )
-  {
-    fprintf(stderr, "Error creating video %s\n", outputFilename.c_str());
-    return 1;
-  }
-
   while ( decoder.UpdateFrame() )
   {
     image = decoder.GetFrame();
@@ -123,16 +92,11 @@ int main(int argc, char* argv[])
       width = image->GetWidth();
       height = image->GetHeight();
 
-      memset(&bi, 0, sizeof(BITMAPINFOHEADER));
-      bi.biSize = sizeof(BITMAPINFOHEADER);
-      bi.biWidth = width;
-      bi.biHeight = height;
-      bi.biSizeImage = width * height * 3;
-      bi.biPlanes = 1;
-      bi.biBitCount = 24;
-
-      vidStr = outFile->AddVideoStream(codec, &bi, 1000000 / FRAME_RATE);
-      vidStr->Start();
+      if ( !encoder.Open(outputFilename.c_str(), width, height, 10) )
+      {
+        fprintf(stderr, "Failed opening %s\n", outputFilename.c_str());
+        return 1;
+      }
     }
 
     hands.clear();
@@ -242,13 +206,13 @@ int main(int argc, char* argv[])
       hands.clear();
     }
 
-    if ( !InsertFrame(&outlineImage, vidStr) )
+    if ( !encoder.AddFrame(&outlineImage) )
     {
       fprintf(stderr, "Error inserting video frame\n");
       return 1;
     }
   }
-  vidStr->Stop();
+  encoder.Close();
 
   return 0;
 }
