@@ -1,0 +1,4 @@
+PROJECT(HandDetection)
+INCLUDE_DIRECTORIES(/usr/include/libxml2)
+ADD_EXECUTABLE(FullProject main.cpp)
+TARGET_LINK_LIBRARIES(FullProject hand flesh image geometry video gmm utils ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY} avformat swscale xmlutils xml2 opencv_core opencv_imgproc opencv_objdetect aviplay vpx)

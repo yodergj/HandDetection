@@ -35,6 +35,10 @@ Image::Image()
   mBufferSize = 0;
   mBGRBuffer = NULL;
   mBGRBufferSize = 0;
+  mBGRValid = false;
+  mI420Buffer = NULL;
+  mI420BufferSize = 0;
+  mI420Valid = false;
   mYIQBuffer = NULL;
   mYIQAlloc = 0;
   mYIQValid = false;
@@ -68,6 +72,8 @@ Image::~Image()
     free(mBuffer);
   if ( mBGRBuffer )
     free(mBGRBuffer);
+  if ( mI420Buffer )
+    free(mI420Buffer);
   if ( mYIQBuffer )
     free(mYIQBuffer);
   if ( mScaledRGBBuffer )
@@ -283,6 +289,13 @@ double* Image::GetCustomBuffer(string &featureList)
           break;
         case 'Q':
           destPixel[i] = ((r * .212 + g * -.523 + b *  .311) / .523 + 1) / 2;
+          break;
+          /* YUV Colorspace - same Y as for YIQ */
+        case 'U':
+          destPixel[i] = r * -.14713 + g * -.28886 + b * .436;
+          break;
+        case 'V':
+          destPixel[i] = r * .625 + g * -.51499 + b * -.10001;
           break;
           /* HSL aka HSI Colorspace */
         case 'H':
@@ -965,6 +978,9 @@ unsigned char* Image::GetBGRBuffer()
   unsigned char* src;
   unsigned char* dest;
 
+  if ( mBGRValid )
+    return mBGRBuffer;
+
   if ( mBGRBufferSize < mBufferSize )
   {
     tmp = (unsigned char*)realloc(mBGRBuffer, mBufferSize);
@@ -982,8 +998,62 @@ unsigned char* Image::GetBGRBuffer()
     dest[1] = src[1];
     dest[2] = src[0];
   }
+  mBGRValid = true;
 
   return mBGRBuffer;
+}
+
+unsigned char* Image::GetI420Buffer()
+{
+  int x, y, numPixels, sum;
+  unsigned char rAvg, gAvg, bAvg;
+  unsigned char* tmp;
+  unsigned char* src;
+  unsigned char* yDest;
+  unsigned char* uDest;
+  unsigned char* vDest;
+  int sizeRequired = mBufferSize / 2;
+  int lineWidth = mWidth * 3;
+
+  if ( mI420Valid )
+    return mI420Buffer;
+
+  if ( mI420BufferSize < sizeRequired )
+  {
+    tmp = (unsigned char*)realloc(mI420Buffer, sizeRequired);
+    if ( !tmp )
+      return NULL;
+    mI420Buffer = tmp;
+    mI420BufferSize = sizeRequired;
+  }
+  // Need full res Y plane, followed by U plane and V plane at quarter resolution
+  // TODO Test this
+  numPixels = mWidth * mHeight;
+  src = mBuffer;
+  yDest = mI420Buffer;
+  uDest = yDest + numPixels;
+  vDest = uDest + mWidth * mHeight / 4;
+  for (y = 0; y < mHeight; y++)
+    for (x = 0; x < mWidth; x++, src += 3, yDest++)
+    {
+      *yDest = src[0] * .299 + src[1] *  .587 + src[2] *  .114;
+      if ( (x % 2) && (y % 2) )
+      {
+        sum = src[0] + (src - 3)[0] + (src - lineWidth)[0] + (src - lineWidth - 3)[0];
+        rAvg = (unsigned char)(sum / 4);
+        sum = src[1] + (src - 3)[1] + (src - lineWidth)[1] + (src - lineWidth - 3)[1];
+        gAvg = (unsigned char)(sum / 4);
+        sum = src[2] + (src - 3)[2] + (src - lineWidth)[2] + (src - lineWidth - 3)[2];
+        bAvg = (unsigned char)(sum / 4);
+        *uDest = rAvg * -.14713 + gAvg * -.28886 + bAvg * .436;
+        *vDest = rAvg * .625 + gAvg * -.51499 + bAvg * -.10001;
+        uDest++;
+        vDest++;
+      }
+    }
+  mI420Valid = true;
+
+  return mI420Buffer;
 }
 
 IplImage* Image::GetIplImage()
@@ -1069,6 +1139,8 @@ bool Image::ResizeBuffer(double** buffer, int* bufferAlloc, int numFeatures)
 
 void Image::InvalidateBuffers()
 {
+  mBGRValid = false;
+  mI420Valid = false;
   mYIQValid = false;
   mScaledRGBValid = false;
   mCustomValid = false;
