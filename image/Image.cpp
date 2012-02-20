@@ -1036,7 +1036,7 @@ unsigned char* Image::GetI420Buffer()
   for (y = 0; y < mHeight; y++)
     for (x = 0; x < mWidth; x++, src += 3, yDest++)
     {
-      *yDest = src[0] * .299 + src[1] *  .587 + src[2] *  .114;
+      *yDest = (unsigned char)(src[0] * .299 + src[1] *  .587 + src[2] *  .114);
       if ( (x % 2) && (y % 2) )
       {
         sum = src[0] + (src - 3)[0] + (src - lineWidth)[0] + (src - lineWidth - 3)[0];
@@ -1045,8 +1045,8 @@ unsigned char* Image::GetI420Buffer()
         gAvg = (unsigned char)(sum / 4);
         sum = src[2] + (src - 3)[2] + (src - lineWidth)[2] + (src - lineWidth - 3)[2];
         bAvg = (unsigned char)(sum / 4);
-        *uDest = rAvg * -.14713 + gAvg * -.28886 + bAvg * .436;
-        *vDest = rAvg * .625 + gAvg * -.51499 + bAvg * -.10001;
+        *uDest = (unsigned char)(rAvg * -.14713 + gAvg * -.28886 + bAvg * .436);
+        *vDest = (unsigned char)(rAvg * .625 + gAvg * -.51499 + bAvg * -.10001);
         uDest++;
         vDest++;
       }
