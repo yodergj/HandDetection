@@ -292,10 +292,10 @@ double* Image::GetCustomBuffer(string &featureList)
           break;
           /* YUV Colorspace - same Y as for YIQ */
         case 'U':
-          destPixel[i] = r * -.14713 + g * -.28886 + b * .436;
+          destPixel[i] = r * -.169 + g * -.331 + b * .500 + .5;
           break;
         case 'V':
-          destPixel[i] = r * .625 + g * -.51499 + b * -.10001;
+          destPixel[i] = r * .500 + g * -.419 + b * -.081 + .5;
           break;
           /* HSL aka HSI Colorspace */
         case 'H':
@@ -1027,7 +1027,6 @@ unsigned char* Image::GetI420Buffer()
     mI420BufferSize = sizeRequired;
   }
   // Need full res Y plane, followed by U plane and V plane at quarter resolution
-  // TODO Test this
   numPixels = mWidth * mHeight;
   src = mBuffer;
   yDest = mI420Buffer;
@@ -1045,8 +1044,8 @@ unsigned char* Image::GetI420Buffer()
         gAvg = (unsigned char)(sum / 4);
         sum = src[2] + (src - 3)[2] + (src - lineWidth)[2] + (src - lineWidth - 3)[2];
         bAvg = (unsigned char)(sum / 4);
-        *uDest = (unsigned char)(rAvg * -.14713 + gAvg * -.28886 + bAvg * .436);
-        *vDest = (unsigned char)(rAvg * .625 + gAvg * -.51499 + bAvg * -.10001);
+        *vDest = (unsigned char)(rAvg * .500 + gAvg * -.419 + bAvg * -.081 + 128.5);
+        *uDest = (unsigned char)(rAvg * -.169 + gAvg * -.331 + bAvg * .500 + 128.5);
         uDest++;
         vDest++;
       }
