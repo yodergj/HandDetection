@@ -84,12 +84,17 @@ void VideoDecoder::Reset()
 bool VideoDecoder::GetNextFrame()
 {
   int frameFinished;
+  int len;
 
   while ( av_read_frame(mFormatContext, &mPacket) >= 0 )
   {
     if ( mPacket.stream_index == mVideoStream )
     {
+#if 0
       avcodec_decode_video(mCodecContext, mFrame, &frameFinished, mPacket.data, mPacket.size);
+#else
+      len = avcodec_decode_video2(mCodecContext, mFrame, &frameFinished, &mPacket);
+#endif
 
       if ( frameFinished )
       {
@@ -140,7 +145,11 @@ bool VideoDecoder::Load()
 
   for (i = 0; i < mFormatContext->nb_streams; i++)
   {
+#if 0
     if ( mFormatContext->streams[i]->codec->codec_type == CODEC_TYPE_VIDEO )
+#else
+    if ( mFormatContext->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO )
+#endif
     {
       mVideoStream = i;
       break;

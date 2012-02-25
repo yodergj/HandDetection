@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <errno.h>
+#if 0
 #include <avifile.h>
 #include <avm_fourcc.h>
+#endif
 
 #include "VideoEncoder.h"
 #include "Image.h"
@@ -61,6 +63,7 @@ bool VideoEncoder::Open(const char* filename, int width, int height, int fps)
 
   if ( mAVIProcessing )
   {
+#if 0
     mAVIOutFile = avm::CreateWriteFile(mFilename.c_str());
     if ( !mAVIOutFile )
     {
@@ -85,6 +88,7 @@ bool VideoEncoder::Open(const char* filename, int width, int height, int fps)
 
     mAVIVidStr = mAVIOutFile->AddVideoStream(codec, &bi, 1000000 / mFPS);
     mAVIVidStr->Start();
+#endif
   }
   else if ( mVPXProcessing )
   {
@@ -147,11 +151,13 @@ bool VideoEncoder::Close()
 
   if ( mAVIProcessing )
   {
+#if 0
     mAVIVidStr->Stop();
     mAVIVidStr = 0;
     delete mAVIOutFile;
     mAVIOutFile = 0;
     mAVIProcessing = false;
+#endif
   }
   else if ( mVPXProcessing )
   {
@@ -195,6 +201,7 @@ bool VideoEncoder::AddFrame(Image* image)
 
   if ( mAVIProcessing )
   {
+#if 0
     unsigned char* data = image->GetBGRBuffer();
     if ( !data )
     {
@@ -203,6 +210,7 @@ bool VideoEncoder::AddFrame(Image* image)
     }
     avm::CImage frame(data, mWidth, mHeight);
     mAVIVidStr->AddFrame(&frame);
+#endif
   }
   else if ( mVPXProcessing )
   {
