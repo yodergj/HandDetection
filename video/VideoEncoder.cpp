@@ -1,9 +1,5 @@
 #include <stdio.h>
 #include <errno.h>
-#if 0
-#include <avifile.h>
-#include <avm_fourcc.h>
-#endif
 
 #include "VideoEncoder.h"
 #include "Image.h"
@@ -15,12 +11,8 @@ VideoEncoder::VideoEncoder()
   mFPS = 0;
   mNumFrames = 0;
 
-  mAVIOutFile = 0;
-  mAVIVidStr = 0;
-
   mVPXOutFile = 0;
 
-  mAVIProcessing = false;
   mVPXProcessing = false;
 }
 
@@ -56,41 +48,10 @@ bool VideoEncoder::Open(const char* filename, int width, int height, int fps)
   mFPS = fps;
   mNumFrames = 0;
 
-  if ( extension == "avi" )
-    mAVIProcessing = true;
-  else if ( extension == "webm" || extension == "vpx" )
+  if ( extension == "webm" || extension == "vpx" )
     mVPXProcessing = true;
 
-  if ( mAVIProcessing )
-  {
-#if 0
-    mAVIOutFile = avm::CreateWriteFile(mFilename.c_str());
-    if ( !mAVIOutFile )
-    {
-      fprintf(stderr, "VideoEncoder::Open - Error opening AVI %s\n", filename);
-      mAVIProcessing = false;
-      return false;
-    }
-
-    BITMAPINFOHEADER bi;
-    //fourcc_t codec = fccMP42;
-    fourcc_t codec = fccDIV3;
-    //fourcc_t codec = fccIV32;
-    //fourcc_t codec = fccCVID;
-
-    memset(&bi, 0, sizeof(BITMAPINFOHEADER));
-    bi.biSize = sizeof(BITMAPINFOHEADER);
-    bi.biWidth = mWidth;
-    bi.biHeight = mHeight;
-    bi.biSizeImage = mWidth * mHeight * 3;
-    bi.biPlanes = 1;
-    bi.biBitCount = 24;
-
-    mAVIVidStr = mAVIOutFile->AddVideoStream(codec, &bi, 1000000 / mFPS);
-    mAVIVidStr->Start();
-#endif
-  }
-  else if ( mVPXProcessing )
+  if ( mVPXProcessing )
   {
     vpx_codec_err_t errorCode = vpx_codec_enc_config_default(vpx_codec_vp8_cx(), &mVPXConfig, 0);
     if ( errorCode )
@@ -104,11 +65,7 @@ bool VideoEncoder::Open(const char* filename, int width, int height, int fps)
     mVPXConfig.g_w = mWidth;
     mVPXConfig.g_h = mHeight;
 
-#if 1
     if ( !vpx_img_alloc(&mVPXRawImage, VPX_IMG_FMT_I420, mWidth, mHeight, 1) )
-#else
-    if ( !vpx_img_alloc(&mVPXRawImage, VPX_IMG_FMT_RGB24, mWidth, mHeight, 1) )
-#endif
     {
       fprintf(stderr, "VideoEncoder::Open - Failed allocating VPX raw frame %d x %d \n",
               mWidth, mHeight);
@@ -149,17 +106,7 @@ bool VideoEncoder::Close()
 {
   bool retVal = true;
 
-  if ( mAVIProcessing )
-  {
-#if 0
-    mAVIVidStr->Stop();
-    mAVIVidStr = 0;
-    delete mAVIOutFile;
-    mAVIOutFile = 0;
-    mAVIProcessing = false;
-#endif
-  }
-  else if ( mVPXProcessing )
+  if ( mVPXProcessing )
   {
     retVal = WriteVPXFrameData(true);
     if ( vpx_codec_destroy(&mVPXCodec) )
@@ -199,36 +146,15 @@ bool VideoEncoder::AddFrame(Image* image)
     return false;
   }
 
-  if ( mAVIProcessing )
+  if ( mVPXProcessing )
   {
-#if 0
-    unsigned char* data = image->GetBGRBuffer();
-    if ( !data )
-    {
-      fprintf(stderr, "VideoEncoder::AddFrame - Failed getting image buffer\n");
-      return false;
-    }
-    avm::CImage frame(data, mWidth, mHeight);
-    mAVIVidStr->AddFrame(&frame);
-#endif
-  }
-  else if ( mVPXProcessing )
-  {
-#if 0
-    unsigned char* data = image->GetRGBBuffer();
-#else
     unsigned char* data = image->GetI420Buffer();
-#endif
     if ( !data )
     {
       fprintf(stderr, "VideoEncoder::AddFrame - Failed getting image buffer\n");
       return false;
     }
-#if 0
-    memcpy(mVPXRawImage.planes[0], data, mWidth * mHeight * 3);
-#else
     memcpy(mVPXRawImage.planes[0], data, mWidth * mHeight * 3 / 2);
-#endif
     retVal = WriteVPXFrameData(false);
   }
   else

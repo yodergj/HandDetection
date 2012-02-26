@@ -5,12 +5,6 @@
 using std::string;
 class Image;
 
-namespace avm
-{
-  class IWriteFile;
-  class IVideoWriteStream;
-}
-
 #define VPX_CODEC_DISABLE_COMPAT 1
 #include "vpx/vpx_encoder.h"
 #include "vpx/vp8cx.h"
@@ -33,11 +27,7 @@ class VideoEncoder
     int mHeight;
     int mFPS;
     int mNumFrames;
-    bool mAVIProcessing;
     bool mVPXProcessing;
-
-    avm::IWriteFile* mAVIOutFile;
-    avm::IVideoWriteStream* mAVIVidStr;
 
     vpx_codec_ctx_t mVPXCodec;
     vpx_codec_enc_cfg_t mVPXConfig;

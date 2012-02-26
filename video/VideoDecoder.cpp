@@ -90,19 +90,11 @@ bool VideoDecoder::GetNextFrame()
   {
     if ( mPacket.stream_index == mVideoStream )
     {
-#if 0
-      avcodec_decode_video(mCodecContext, mFrame, &frameFinished, mPacket.data, mPacket.size);
-#else
       len = avcodec_decode_video2(mCodecContext, mFrame, &frameFinished, &mPacket);
-#endif
 
       if ( frameFinished )
       {
-        #if 0
-        img_convert((AVPicture *)mFrameRGB, PIX_FMT_RGB24, (AVPicture *)mFrame, mCodecContext->pix_fmt, mCodecContext->width, mCodecContext->height);
-        #else
         sws_scale(mSwsContext, mFrame->data, mFrame->linesize, 0, mCodecContext->height, mFrameRGB->data, mFrameRGB->linesize);
-        #endif
 
         return true;
       }
@@ -128,7 +120,7 @@ bool VideoDecoder::Load()
   int numBytes;
   uint8_t *tmp;
 
-  if ( av_open_input_file(&mFormatContext, mFilename.c_str(), NULL, 0, NULL) != 0 )
+  if ( avformat_open_input(&mFormatContext, mFilename.c_str(), NULL, NULL) != 0 )
   {
     fprintf(stderr, "VideoDecoder::Load - av_open_input_file failed\n");
     return false;
@@ -141,15 +133,11 @@ bool VideoDecoder::Load()
   }
 
   /* Some debug info */
-  dump_format(mFormatContext, 0, mFilename.c_str(), false);
+  av_dump_format(mFormatContext, 0, mFilename.c_str(), false);
 
   for (i = 0; i < mFormatContext->nb_streams; i++)
   {
-#if 0
-    if ( mFormatContext->streams[i]->codec->codec_type == CODEC_TYPE_VIDEO )
-#else
     if ( mFormatContext->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO )
-#endif
     {
       mVideoStream = i;
       break;
