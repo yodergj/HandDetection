@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <fstream>
 #include <qimage.h>
 #include "Image.h"
 #include "ConnectedRegion.h"
@@ -1078,6 +1079,19 @@ Image& Image::operator=(const Image& ref)
 
 bool Image::SavePPM(const char* filename)
 {
+#ifdef WIN32
+  std::ofstream outfile(filename, std::ios::out | std::ios::binary);
+
+  int numBytes, headerLen;
+  char headerBuffer[64];
+
+  numBytes = mWidth * mHeight * 3;
+  sprintf(headerBuffer, "P6\n%d %d\n255\n", mWidth, mHeight);
+  headerLen = strlen(headerBuffer);
+  outfile.write(headerBuffer, headerLen);
+  outfile.write((const char*)mBuffer, numBytes);
+  outfile.close();
+#else
   int numBytes, headerLen, fileDesc;
   char headerBuffer[64];
 
@@ -1091,6 +1105,7 @@ bool Image::SavePPM(const char* filename)
   write(fileDesc, headerBuffer, headerLen);
   write(fileDesc, mBuffer, numBytes);
   close(fileDesc);
+#endif
 
   return true;
 }

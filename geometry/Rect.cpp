@@ -12,8 +12,8 @@ Rect::Rect(const Point& a, const Point& b, const Point& c, const Point& d)
   mPoints[1] = b;
   mPoints[2] = c;
   mPoints[3] = d;
-  mWidth = sqrt( (a.x - d.x) * (a.x - d.x) + (a.y - d.y) * (a.y - d.y) );
-  mHeight = sqrt( (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y) );
+  mWidth = sqrt( (double)(a.x - d.x) * (a.x - d.x) + (a.y - d.y) * (a.y - d.y) );
+  mHeight = sqrt( (double)(a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y) );
 }
 
 Rect::Rect(const DoublePoint& a, const DoublePoint& b, const DoublePoint& c, const DoublePoint& d)

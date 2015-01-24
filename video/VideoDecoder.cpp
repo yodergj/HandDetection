@@ -35,7 +35,7 @@ VideoDecoder::~VideoDecoder()
   if ( mCodecContext )
     avcodec_close(mCodecContext);
   if ( mFormatContext )
-    av_close_input_file(mFormatContext);
+    avformat_close_input(&mFormatContext);
   if ( mBuffer )
     free(mBuffer);
 }
@@ -126,7 +126,7 @@ bool VideoDecoder::Load()
     return false;
   }
 
-  if ( av_find_stream_info(mFormatContext) < 0 )
+  if ( avformat_find_stream_info(mFormatContext, 0) < 0 )
   {
     fprintf(stderr, "VideoDecoder::Load - av_find_stream_info failed\n");
     return false;
@@ -158,7 +158,7 @@ bool VideoDecoder::Load()
     return false;
   }
 
-  if ( avcodec_open(mCodecContext, mCodec) < 0 )
+  if ( avcodec_open2(mCodecContext, mCodec, 0) < 0 )
   {
     fprintf(stderr, "VideoDecoder::Load - avcodec_open failed\n");
     return false;
