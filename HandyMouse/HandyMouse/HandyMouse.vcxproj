@@ -149,6 +149,7 @@
     <ClCompile Include="..\..\geometry\LineSegment.cpp" />
     <ClCompile Include="..\..\geometry\Point.cpp" />
     <ClCompile Include="..\..\geometry\Rect.cpp" />
+    <ClCompile Include="..\..\image\ColorRegion.cpp" />
     <ClCompile Include="..\..\image\ConnectedRegion.cpp" />
     <ClCompile Include="..\..\image\Image.cpp" />
     <ClCompile Include="..\..\image\SubImage.cpp" />
@@ -220,6 +221,7 @@
     <ClInclude Include="..\..\geometry\LineSegment.h" />
     <ClInclude Include="..\..\geometry\Point.h" />
     <ClInclude Include="..\..\geometry\Rect.h" />
+    <ClInclude Include="..\..\image\ColorRegion.h" />
     <ClInclude Include="..\..\image\ConnectedRegion.h" />
     <ClInclude Include="..\..\image\Image.h" />
     <ClInclude Include="..\..\image\SubImage.h" />

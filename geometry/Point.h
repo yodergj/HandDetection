@@ -14,6 +14,7 @@ class Point
     ~Point();
     bool operator==(const Point& ref) const;
     bool operator!=(const Point& ref) const;
+    bool operator<(const Point& ref) const;
 
     int x;
     int y;

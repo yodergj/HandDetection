@@ -52,3 +52,10 @@ bool Point::operator!=(const Point& ref) const
 {
   return (x != ref.x) || (y != ref.y);
 }
+
+bool Point::operator<(const Point& ref) const
+{
+  if ( y != ref.y )
+    return (y < ref.y);
+  return (x < ref.x);
+}
