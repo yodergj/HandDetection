@@ -10,12 +10,19 @@ HandyTracker::HandyTracker()
 
 HandyTracker::~HandyTracker()
 {
+  for (size_t i = 0; i < mRegionHistory.size(); i++)
+    delete mRegionHistory[i];
+  delete mOpenClassifier;
+  delete mClosedClassifier;
 }
 
 bool HandyTracker::SetOpenClassifier(AdaboostClassifier* classifier)
 {
   if ( !classifier )
     return false;
+
+  if ( mOpenClassifier )
+    delete mOpenClassifier;
 
   mOpenClassifier = classifier;
   return true;
@@ -26,6 +33,9 @@ bool HandyTracker::SetClosedClassifier(AdaboostClassifier* classifier)
   if ( !classifier )
     return false;
 
+  if ( mClosedClassifier )
+    delete mClosedClassifier;
+
   mClosedClassifier = classifier;
   return true;
 }
@@ -35,9 +45,30 @@ HandyTracker::HandState HandyTracker::GetLastState()
   return mStateHistory.back();
 }
 
+HandyTracker::HandState HandyTracker::GetState(int frameNumber)
+{
+  if ( (frameNumber < 0) || (frameNumber >= (int)mStateHistory.size()) )
+    return ST_UNKNOWN;
+  return mStateHistory[frameNumber];
+}
+
+ColorRegion* HandyTracker::GetRegion(int frameNumber)
+{
+  if ( (frameNumber < 0) || (frameNumber >= (int)mRegionHistory.size()) )
+    return 0;
+  return mRegionHistory[frameNumber];
+}
+
+Matrix* HandyTracker::GetFeatureData(int frameNumber)
+{
+  if ( (frameNumber < 0) || (frameNumber >= (int)mFeatureHistory.size()) )
+    return 0;
+  return &mFeatureHistory[frameNumber];
+}
+
 bool HandyTracker::AnalyzeRegion(ColorRegion* region)
 {
-  if ( !region || !mOpenClassifier || !mClosedClassifier )
+  if ( !region )
     return false;
 
   int* integralBuffer = region->GetIntegralBuffer();
@@ -51,8 +82,8 @@ bool HandyTracker::AnalyzeRegion(ColorRegion* region)
   int xVals[4], yVals[4];
   for (i = 0; i < 4; i++)
   {
-    xVals[i] = (i * width) / 4 - 1;
-    yVals[i] = (i * height) / 4 - 1;
+    xVals[i] = ( (i + 1) * width) / 4 - 1;
+    yVals[i] = ( (i + 1) * height) / 4 - 1;
   }
 
   int x, y;
@@ -77,10 +108,15 @@ bool HandyTracker::AnalyzeRegion(ColorRegion* region)
   double aspectRatio = width / (double)height;
   featureData.SetValue(16, 0, aspectRatio);
 
-  int openResult = mOpenClassifier->Classify(featureData);
-  int closedResult = mClosedClassifier->Classify(featureData);
+  int openResult = ST_UNKNOWN;
+  if ( mOpenClassifier )
+    openResult = mOpenClassifier->Classify(featureData);
+  int closedResult = ST_UNKNOWN;
+  if ( mClosedClassifier )
+    closedResult = mClosedClassifier->Classify(featureData);
 
   mRegionHistory.push_back(region);
+  mFeatureHistory.push_back(featureData);
   if ( openResult )
   {
     if ( closedResult )

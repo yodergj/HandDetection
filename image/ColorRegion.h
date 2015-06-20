@@ -21,6 +21,10 @@ public:
   bool Grow(Image& image, const Point& startPt);
   bool TrackFromOldRegion(Image& image, const ColorRegion& oldRegion);
 
+  int GetMinX() { return mMinX; };
+  int GetMinY() { return mMinY; };
+  int GetMaxX() { return mMaxX; };
+  int GetMaxY() { return mMaxY; };
   int GetWidth() { return mMaxX - mMinX + 1; };
   int GetHeight() { return mMaxY - mMinY + 1; };
   Point GetCentroid() { return mCentroid; };

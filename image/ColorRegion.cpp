@@ -125,24 +125,39 @@ bool ColorRegion::Grow(Image& image, const Point& startPt)
   double centroidX = startPt.x;
   double centroidY = startPt.y;
 
+  int colorTol = 5;
+
   while ( !checkPoints.empty() )
   {
     Point pt = *checkPoints.begin();
     checkPoints.erase( checkPoints.begin() );
 
     pixelIndex = 3 * (pt.y * width + pt.x);
-    unsigned char R = imgBuffer[pixelIndex];
-    unsigned char G = imgBuffer[pixelIndex + 1];
-    unsigned char B = imgBuffer[pixelIndex + 2];
+    int R = imgBuffer[pixelIndex];
+    int G = imgBuffer[pixelIndex + 1];
+    int B = imgBuffer[pixelIndex + 2];
 
-    bool rInRange = ( ( (mMinR <= 5) || (R >= mMinR) ) &&
-                      ( (mMaxR >= 250) || (R <= mMaxR) ) );
-    bool gInRange = ( ( (mMinG <= 5) || (G >= mMinG) ) &&
-                      ( (mMaxG >= 250) || (G <= mMaxG) ) );
-    bool bInRange = ( ( (mMinB <= 5) || (B >= mMinB) ) &&
-                      ( (mMaxG >= 250) || (B <= mMaxB) ) );
+#if 0
+#if 0
+    bool rInRange = ( ( (mMinR <= colorTol) || (R >= mMinR - colorTol) ) &&
+                      ( (mMaxR >= 255 - colorTol) || (R <= mMaxR + colorTol) ) );
+    bool gInRange = ( ( (mMinG <= colorTol) || (G >= mMinG - colorTol) ) &&
+                      ( (mMaxG >= 255 - colorTol) || (G <= mMaxG + colorTol) ) );
+    bool bInRange = ( ( (mMinB <= colorTol) || (B >= mMinB - colorTol) ) &&
+                      ( (mMaxB >= 255 - colorTol) || (B <= mMaxB + colorTol) ) );
+#else
+    bool rInRange = ( (R >= mMinR - colorTol) && (R <= mMaxR + colorTol) );
+    bool gInRange = ( (G >= mMinG - colorTol) && (G <= mMaxG + colorTol) );
+    bool bInRange = ( (B >= mMinB - colorTol) && (B <= mMaxB + colorTol) );
+#endif
 
     if ( rInRange && gInRange && bInRange )
+#else
+    double colorDist = sqrt( (R - mMeanR) * (R - mMeanR) +
+                             (G - mMeanG) * (G - mMeanG) +
+                             (B - mMeanB) * (B - mMeanB) );
+    if ( colorDist < colorTol )
+#endif
     {
       if ( pt.x < mMinX )
         mMinX = pt.x;
@@ -156,7 +171,7 @@ bool ColorRegion::Grow(Image& image, const Point& startPt)
       centroidX = (pt.x + centroidX * mPoints.size()) / (mPoints.size() + 1);
       centroidY = (pt.y + centroidY * mPoints.size()) / (mPoints.size() + 1);
 
-      if ( R< mMinR )
+      if ( R < mMinR )
         mMinR = R;
       if ( R > mMaxR )
         mMaxR = R;
@@ -204,6 +219,9 @@ bool ColorRegion::Grow(Image& image, const Point& startPt)
     else
       rejectedPoints.insert(pt);
   }
+
+  mCentroid.x = (int)(centroidX + .5);
+  mCentroid.y = (int)(centroidY + .5);
 
   return true;
 }

@@ -2,6 +2,7 @@
 #define _HANDY_TRACKER_H
 
 #include <vector>
+#include "Matrix.h"
 class ColorRegion;
 class AdaboostClassifier;
 
@@ -22,8 +23,13 @@ public:
   };
 
   HandState GetLastState();
+
+  HandState GetState(int frameNumber);
+  ColorRegion* GetRegion(int frameNumber);
+  Matrix* GetFeatureData(int frameNumber);
 private:
   std::vector<ColorRegion*> mRegionHistory;
+  std::vector<Matrix> mFeatureHistory;
   std::vector<HandState> mStateHistory;
 
   AdaboostClassifier* mOpenClassifier;
