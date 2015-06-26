@@ -74,6 +74,9 @@
     <addaction name="actionLoad"/>
     <addaction name="actionLoad_Open_Classifier"/>
     <addaction name="actionLoad_Closed_Classifier"/>
+    <addaction name="separator"/>
+    <addaction name="actionExport_Frame"/>
+    <addaction name="actionExport_Hand"/>
    </widget>
    <addaction name="menuFile"/>
   </widget>
@@ -99,6 +102,16 @@
   <action name="actionLoad_Closed_Classifier">
    <property name="text">
     <string>Load Closed Classifier</string>
+   </property>
+  </action>
+  <action name="actionExport_Frame">
+   <property name="text">
+    <string>Export Frame</string>
+   </property>
+  </action>
+  <action name="actionExport_Hand">
+   <property name="text">
+    <string>Export Hand</string>
    </property>
   </action>
  </widget>

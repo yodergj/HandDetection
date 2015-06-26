@@ -21,6 +21,8 @@ public slots:
   void on_actionLoad_triggered();
   void on_actionLoad_Open_Classifier_triggered();
   void on_actionLoad_Closed_Classifier_triggered();
+  void on_actionExport_Frame_triggered();
+  void on_actionExport_Hand_triggered();
 
 private:
   void ProcessFrame(Image* img);
@@ -35,6 +37,9 @@ private:
   size_t mFrameNumber;
 
   HandyTracker* mTracker;
+
+  QString mImageFilter;
+  void BuildImageFilter();
 };
 
 #endif // HANDYMOUSE_H

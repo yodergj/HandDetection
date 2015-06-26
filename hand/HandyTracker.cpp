@@ -86,14 +86,21 @@ bool HandyTracker::AnalyzeRegion(ColorRegion* region)
     yVals[i] = ( (i + 1) * height) / 4 - 1;
   }
 
-  int x, y;
-  double blockArea = width * height / 16.0;
+  int x, y, blockWidth, blockHeight;
   for (i = 0; i < 4; i++)
   {
     y = yVals[i];
+    if ( i == 0 )
+      blockHeight = y;
+    else
+      blockHeight = y - yVals[i - 1];
     for (j = 0; j < 4; j++)
     {
       x = xVals[j];
+      if ( j == 0 )
+        blockWidth = x;
+      else
+        blockWidth = x - xVals[j - 1];
       int pixelCount = integralBuffer[y * width + x];
       if ( i > 0 )
         pixelCount -= integralBuffer[yVals[i - 1] * width + x];
@@ -101,6 +108,7 @@ bool HandyTracker::AnalyzeRegion(ColorRegion* region)
         pixelCount -= integralBuffer[y * width + xVals[j - 1]];
       if ( (i > 0) && (j > 0) )
         pixelCount += integralBuffer[yVals[i - 1] * width + xVals[j - 1]];
+      double blockArea = blockWidth * blockHeight;
       featureData.SetValue(i * 4 + j, 0, pixelCount / blockArea);
     }
   }

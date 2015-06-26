@@ -1,4 +1,5 @@
 #include <QFileDialog>
+#include <QImageWriter>
 #include "handymouse.h"
 #include "HandyTracker.h"
 #include "ColorRegion.h"
@@ -26,12 +27,82 @@ HandyMouse::~HandyMouse()
   delete mTracker;
 }
 
+void HandyMouse::BuildImageFilter()
+{
+  QString filter;
+  QList<QByteArray> formats = QImageWriter::supportedImageFormats();
+  foreach (QString format, formats)
+  {
+    filter += QString("%1 files (*.%2);;").arg(format.toUpper()).arg(format);
+  }
+  if (filter.endsWith(";;"))
+    filter.chop(2);
+
+  mImageFilter = filter;
+}
+
+void HandyMouse::on_actionExport_Frame_triggered()
+{
+  if ( mPixmaps.empty() )
+    return;
+
+  if ( mImageFilter.isEmpty() )
+    BuildImageFilter();
+
+  QString filename = QFileDialog::getSaveFileName(this, tr("Save Image"), "", mImageFilter);
+
+  if ( filename.isEmpty() )
+    return;
+
+  mPixmaps[mFrameNumber].toImage().save(filename);
+}
+
+void HandyMouse::on_actionExport_Hand_triggered()
+{
+  if ( mPixmaps.empty() )
+    return;
+
+  ColorRegion* region = mTracker->GetRegion(mFrameNumber);
+  if ( !region )
+    return;
+
+  if ( mImageFilter.isEmpty() )
+    BuildImageFilter();
+
+  QString filename = QFileDialog::getSaveFileName(this, tr("Save Image"), "", mImageFilter);
+
+  if ( filename.isEmpty() )
+    return;
+
+  QImage srcImage = mPixmaps[mFrameNumber].toImage();
+  QImage outImage(region->GetWidth(), region->GetHeight(), srcImage.format());
+  int x, y;
+  int minX = region->GetMinX();
+  int maxX = region->GetMaxX();
+  int minY = region->GetMinY();
+  int maxY = region->GetMaxY();
+
+  for (y = minY; y <= maxY; y++)
+  {
+    for (x = minX; x <= maxX; x++)
+    {
+      QRgb color;
+      if ( region->ContainsPixel(x, y) )
+        color = srcImage.pixel(x, y);
+      else
+        color = qRgb(0, 0, 0);
+      outImage.setPixel(x - minX, y - minY, color);
+    }
+  }
+  outImage.save(filename);
+}
+
 void HandyMouse::on_actionLoad_triggered()
 {
   QString filename = QFileDialog::getOpenFileName(this,
-     tr("Open Video"),
-     "",
-     tr("Video Files (*.asf *.wma *.wmv *.divx *.f4v *.flv *.mkv *.mk3d *.mka *.mks *.mcf *.mp4 *.mpg *.mpeg *.ogg *.ogv *.mov *.qt *.webm)"));
+    tr("Open Video"),
+    "",
+    tr("Video Files (*.asf *.wma *.wmv *.divx *.f4v *.flv *.mkv *.mk3d *.mka *.mks *.mcf *.mp4 *.mpg *.mpeg *.ogg *.ogv *.mov *.qt *.webm)"));
 
   if ( filename.isEmpty() )
     return;
@@ -86,6 +157,7 @@ void HandyMouse::on_actionLoad_triggered()
     mPixmapItem = mScene->addPixmap(mPixmaps[0]);
     mPixmapItem->setPos(0.0, 0.0);
   }
+  DisplayResults();
 }
 
 void HandyMouse::on_actionLoad_Open_Classifier_triggered()
@@ -257,7 +329,12 @@ void HandyMouse::DisplayResults()
     for (int i = 0; i < numFeatures; i++)
     {
       if ( i > 0 )
-        printf("\t");
+      {
+        if ( i % 4 )
+          printf("\t");
+        else
+          printf("\n");
+      }
       printf("%lf", featureData->GetValue(i, 0));
     }
     printf("\n");

@@ -88,6 +88,12 @@ bool ColorRegion::ColorMatches(unsigned char* rgbVals) const
   return ( (rgbVals[0] >= mMinR) && (rgbVals[0] <= mMaxR) && (rgbVals[1] >= mMinG) && (rgbVals[1] <= mMaxG) && (rgbVals[2] >= mMinB) && (rgbVals[2] <= mMaxB) );
 }
 
+bool ColorRegion::ContainsPixel(int x, int y) const
+{
+  Point pt(x, y);
+  return (mPoints.find(pt) != mPoints.end());
+}
+
 bool ColorRegion::Grow(Image& image, const Point& startPt)
 {
   int width = image.GetWidth();
@@ -125,7 +131,7 @@ bool ColorRegion::Grow(Image& image, const Point& startPt)
   double centroidX = startPt.x;
   double centroidY = startPt.y;
 
-  int colorTol = 5;
+  int colorTol = (int)(.20 * 255 + .5);
 
   while ( !checkPoints.empty() )
   {
@@ -326,7 +332,7 @@ void ColorRegion::GenerateIntegralBuffer()
   if ( mIntegralBuffer )
     delete[] mIntegralBuffer;
 
-  int i, j, x, y;
+  int i, j, x, y, bufX, bufY;
   int width = mMaxX - mMinX + 1;
   int height = mMaxY - mMinY + 1;
   int bufSize = width * height;
@@ -335,75 +341,82 @@ void ColorRegion::GenerateIntegralBuffer()
   int diagOffset = leftOffset + upOffset;
   mIntegralBuffer = new int[bufSize];
   memset(mIntegralBuffer, 0, bufSize * sizeof(int));
-  x = 0;
-  y = 0;
+  x = mMinX;
+  y = mMinY;
 
   // Points in the set are ordered top->bottom, left->right.  Since we're working with a connected region, we're guaranteed to have something in every row and column.
   for (std::set<Point>::iterator itr = mPoints.begin(); itr != mPoints.end(); itr++)
   {
-    // Finish remaining lines above
+    // Finish remainder on the line above
     for (; y < itr->y; y++)
     {
-      for (; x < width; x++)
+      bufY = y - mMinY;
+      for (; x <= mMaxX; x++)
       {
-        if ( x > 0 )
-          mIntegralBuffer[y * width + x] += mIntegralBuffer[y * width + x + leftOffset];
-        if ( y > 0 )
+        bufX = x - mMinX;
+        if ( bufX > 0 )
+          mIntegralBuffer[bufY * width + bufX] += mIntegralBuffer[bufY * width + bufX + leftOffset];
+        if ( bufY > 0 )
         {
-          mIntegralBuffer[y * width + x] += mIntegralBuffer[y * width + x + upOffset];
-          if ( x > 0 )
-            mIntegralBuffer[y * width + x] -= mIntegralBuffer[y * width + x + diagOffset];
+          mIntegralBuffer[bufY * width + bufX] += mIntegralBuffer[bufY * width + bufX + upOffset];
+          if ( bufX > 0 )
+            mIntegralBuffer[bufY * width + bufX] -= mIntegralBuffer[bufY * width + bufX + diagOffset];
         }
       }
-      x = 0;
+      x = mMinX;
     }
 
     // Process pixels to the left on this row
+    bufY = y - mMinY;
     for (; x < itr->x; x++)
     {
-      if ( x > 0 )
-        mIntegralBuffer[y * width + x] += mIntegralBuffer[y * width + x + leftOffset];
-      if ( y > 0 )
+      bufX = x - mMinX;
+      if ( bufX > 0 )
+        mIntegralBuffer[bufY * width + bufX] += mIntegralBuffer[bufY * width + bufX + leftOffset];
+      if ( bufY > 0 )
       {
-        mIntegralBuffer[y * width + x] += mIntegralBuffer[y * width + x + upOffset];
-        if ( x > 0 )
-          mIntegralBuffer[y * width + x] -= mIntegralBuffer[y * width + x + diagOffset];
+        mIntegralBuffer[bufY * width + bufX] += mIntegralBuffer[bufY * width + bufX + upOffset];
+        if ( bufX > 0 )
+          mIntegralBuffer[bufY * width + bufX] -= mIntegralBuffer[bufY * width + bufX + diagOffset];
       }
     }
 
     // Do the current pixel
-    mIntegralBuffer[y * width + x] = 1;
-    if ( x > 0 )
-      mIntegralBuffer[y * width + x] += mIntegralBuffer[y * width + x + leftOffset];
-    if ( y > 0 )
+    bufX = x - mMinX;
+    mIntegralBuffer[bufY * width + bufX] = 1;
+    if ( bufX > 0 )
+      mIntegralBuffer[bufY * width + bufX] += mIntegralBuffer[bufY * width + bufX + leftOffset];
+    if ( bufY > 0 )
     {
-      mIntegralBuffer[y * width + x] += mIntegralBuffer[y * width + x + upOffset];
-      if ( x > 0 )
-        mIntegralBuffer[y * width + x] -= mIntegralBuffer[y * width + x + diagOffset];
+      mIntegralBuffer[bufY * width + bufX] += mIntegralBuffer[bufY * width + bufX + upOffset];
+      if ( bufX > 0 )
+        mIntegralBuffer[bufY * width + bufX] -= mIntegralBuffer[bufY * width + bufX + diagOffset];
     }
 
     x++;
-    if ( x == width )
+    if ( x > mMaxX )
     {
-      x = 0;
+      x = mMinX;
       y++;
     }
   }
 
   // Finish the remainder
-  for (; y < height; y++)
+  for (; y <= mMaxY; y++)
   {
-    for (; x < width; x++)
+    bufY = y - mMinY;
+    for (; x <= mMaxX; x++)
     {
-      if ( x > 0 )
-        mIntegralBuffer[y * width + x] += mIntegralBuffer[y * width + x + leftOffset];
-      if ( y > 0 )
+      bufX = x - mMinX;
+      if ( bufX > 0 )
+        mIntegralBuffer[bufY * width + bufX] += mIntegralBuffer[bufY * width + bufX + leftOffset];
+      if ( bufY > 0 )
       {
-        mIntegralBuffer[y * width + x] += mIntegralBuffer[y * width + x + upOffset];
-        if ( x > 0 )
-          mIntegralBuffer[y * width + x] -= mIntegralBuffer[y * width + x + diagOffset];
+        mIntegralBuffer[bufY * width + bufX] += mIntegralBuffer[bufY * width + bufX + upOffset];
+        if ( bufX > 0 )
+          mIntegralBuffer[bufY * width + bufX] -= mIntegralBuffer[bufY * width + bufX + diagOffset];
       }
     }
-    x = 0;
+    x = mMinX;
   }
 }

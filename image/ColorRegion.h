@@ -17,6 +17,7 @@ public:
   bool Empty() const;
   bool ColorMatches(int R, int G, int B) const;
   bool ColorMatches(unsigned char* rgbVals) const;
+  bool ContainsPixel(int x, int y) const;
 
   bool Grow(Image& image, const Point& startPt);
   bool TrackFromOldRegion(Image& image, const ColorRegion& oldRegion);
