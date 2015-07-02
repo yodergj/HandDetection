@@ -5,7 +5,7 @@
 #include <vector>
 using std::string;
 using std::vector;
-#include "XMLUtils.h"
+#include "XMLUtils2.h"
 class Matrix;
 class AdaboostClassifier;
 
@@ -23,9 +23,9 @@ class CompositeClassifier
     string GetClassName(int i) const;
     bool Print(FILE* file);
     bool Save(const char* filename);
-    bool Save(xmlNodePtr classifierNode);
+    bool Save(xercesc::DOMDocument* doc, xercesc::DOMElement* classifierNode);
     bool Load(const char* filename);
-    bool Load(xmlNodePtr classifierNode);
+    bool Load(xercesc::DOMElement* classifierNode);
   private:
     void Clear();
     string mFeatureString;

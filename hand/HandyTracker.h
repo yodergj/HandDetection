@@ -13,6 +13,9 @@ public:
   ~HandyTracker();
 
   bool AnalyzeRegion(ColorRegion* region);
+  bool GenerateFeatureData(ColorRegion* region, Matrix& featureData);
+
+  static int mNumFeatures;
 
   bool SetOpenClassifier(AdaboostClassifier* classifier);
   bool SetClosedClassifier(AdaboostClassifier* classifier);
@@ -27,6 +30,7 @@ public:
   HandState GetState(int frameNumber);
   ColorRegion* GetRegion(int frameNumber);
   Matrix* GetFeatureData(int frameNumber);
+  void ResetHistory();
 private:
   std::vector<ColorRegion*> mRegionHistory;
   std::vector<Matrix> mFeatureHistory;

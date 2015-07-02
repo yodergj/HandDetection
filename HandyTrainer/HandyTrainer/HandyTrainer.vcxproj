@@ -38,11 +38,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
-    <IncludePath>D:\msinttypes-r26;D:\ffmpeg.shared\include;$(OPENCV_DIR)\..\..\include;D:\research\HandDetection\xmlutils;D:\research\HandDetection\geometry;D:\research\HandDetection\flesh;D:\research\HandDetection\classifier;D:\research\HandDetection\hand;D:\research\HandDetection\utils;D:\research\HandDetection\video;D:\research\HandDetection\image;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\ffmpeg.shared\bin;$(OPENCV_DIR)\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\msinttypes-r26;D:\ffmpeg.shared\include;$(OPENCV_DIR)\..\..\include;D:\research\HandDetection\xmlutils;D:\research\HandDetection\geometry;D:\research\HandDetection\flesh;D:\research\HandDetection\classifier;D:\research\HandDetection\hand;D:\research\HandDetection\utils;D:\research\HandDetection\video;D:\research\HandDetection\image;D:\xerces-c-3.1.2\src;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\ffmpeg.shared\bin;$(OPENCV_DIR)\lib;D:\xerces-c-3.1.2\Build\Win32\VC11\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IncludePath>D:\msinttypes-r26;D:\ffmpeg.shared\include;$(OPENCV_DIR)\..\..\include;D:\research\HandDetection\xmlutils;D:\research\HandDetection\geometry;D:\research\HandDetection\flesh;D:\research\HandDetection\classifier;D:\research\HandDetection\hand;D:\research\HandDetection\utils;D:\research\HandDetection\video;D:\research\HandDetection\image;D:\xerces-c-3.1.2\src;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\ffmpeg.shared\bin;$(OPENCV_DIR)\lib;D:\xerces-c-3.1.2\Build\Win32\VC11\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -50,15 +52,15 @@
       <Optimization>Disabled</Optimization>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>.;$(QTDIR)\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;$(QTDIR)\include\QtGui;D:\zlib-1.2.5\include;D:\libxml2-2.7.8.win32\include;D:\iconv-1.9.2.win32\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;$(QTDIR)\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;$(QTDIR)\include\QtGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <OutputFile>$(OutDir)\$(ProjectName).exe</OutputFile>
-      <AdditionalLibraryDirectories>$(QTDIR)\lib;D:\zlib-1.2.5\lib;D:\libxml2-2.7.8.win32\lib;D:\iconv-1.9.2.win32\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(QTDIR)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>qtmaind.lib;Qt5Cored.lib;Qt5Guid.lib;avcodec.lib;avformat.lib;avutil.lib;swscale.lib;libxml2.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>qtmaind.lib;Qt5Cored.lib;Qt5Guid.lib;avcodec.lib;avformat.lib;avutil.lib;swscale.lib;xerces-c_3D.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -74,7 +76,7 @@
       <OutputFile>$(OutDir)\$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>$(QTDIR)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <AdditionalDependencies>qtmain.lib;Qt5Core.lib;Qt5Gui.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>qtmain.lib;Qt5Core.lib;Qt5Gui.lib;avcodec.lib;avformat.lib;avutil.lib;swscale.lib;xerces-c_3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -89,11 +91,13 @@
     <ClCompile Include="..\..\geometry\LineSegment.cpp" />
     <ClCompile Include="..\..\geometry\Point.cpp" />
     <ClCompile Include="..\..\geometry\Rect.cpp" />
+    <ClCompile Include="..\..\hand\HandyTracker.cpp" />
     <ClCompile Include="..\..\image\ColorRegion.cpp" />
     <ClCompile Include="..\..\image\ConnectedRegion.cpp" />
     <ClCompile Include="..\..\image\Image.cpp" />
     <ClCompile Include="..\..\image\SubImage.cpp" />
-    <ClCompile Include="..\..\xmlutils\XMLUtils.cpp" />
+    <ClCompile Include="..\..\video\VideoDecoder.cpp" />
+    <ClCompile Include="..\..\xmlutils\XMLUtils2.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -108,11 +112,13 @@
     <ClInclude Include="..\..\geometry\LineSegment.h" />
     <ClInclude Include="..\..\geometry\Point.h" />
     <ClInclude Include="..\..\geometry\Rect.h" />
+    <ClInclude Include="..\..\hand\HandyTracker.h" />
     <ClInclude Include="..\..\image\ColorRegion.h" />
     <ClInclude Include="..\..\image\ConnectedRegion.h" />
     <ClInclude Include="..\..\image\Image.h" />
     <ClInclude Include="..\..\image\SubImage.h" />
-    <ClInclude Include="..\..\xmlutils\XMLUtils.h" />
+    <ClInclude Include="..\..\video\VideoDecoder.h" />
+    <ClInclude Include="..\..\xmlutils\XMLUtils2.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

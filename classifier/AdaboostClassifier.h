@@ -7,7 +7,7 @@ using std::string;
 using std::vector;
 #include "ThresholdClassifier.h"
 #include "Matrix.h"
-#include "XMLUtils.h"
+#include "XMLUtils2.h"
 
 #define ADABOOST_CLASSIFIER_STR "AdaboostClassifier"
 
@@ -24,9 +24,9 @@ class AdaboostClassifier
     bool SetFeatureString(const string& featureString);
     bool Print(FILE* file);
     bool Save(const char* filename);
-    bool Save(xmlNodePtr classifierNode);
+    bool Save(xercesc::DOMDocument* doc, xercesc::DOMElement* classifierNode);
     bool Load(const char* filename);
-    bool Load(xmlNodePtr classifierNode);
+    bool Load(xercesc::DOMElement* classifierNode);
   private:
     void Clear();
     bool TrainLevel(const vector<double>& weights, int levelNum, int& chosenFeature);

@@ -2,6 +2,8 @@
 #include "ColorRegion.h"
 #include "AdaboostClassifier.h"
 
+int HandyTracker::mNumFeatures = 17;
+
 HandyTracker::HandyTracker()
 {
   mOpenClassifier = 0;
@@ -14,6 +16,15 @@ HandyTracker::~HandyTracker()
     delete mRegionHistory[i];
   delete mOpenClassifier;
   delete mClosedClassifier;
+}
+
+void HandyTracker::ResetHistory()
+{
+  for (size_t i = 0; i < mRegionHistory.size(); i++)
+    delete mRegionHistory[i];
+  mRegionHistory.clear();
+  mFeatureHistory.clear();
+  mStateHistory.clear();
 }
 
 bool HandyTracker::SetOpenClassifier(AdaboostClassifier* classifier)
@@ -66,7 +77,7 @@ Matrix* HandyTracker::GetFeatureData(int frameNumber)
   return &mFeatureHistory[frameNumber];
 }
 
-bool HandyTracker::AnalyzeRegion(ColorRegion* region)
+bool HandyTracker::GenerateFeatureData(ColorRegion* region, Matrix& featureData)
 {
   if ( !region )
     return false;
@@ -75,7 +86,6 @@ bool HandyTracker::AnalyzeRegion(ColorRegion* region)
   int width = region->GetWidth();
   int height = region->GetHeight();
 
-  Matrix featureData;
   featureData.SetSize(17, 1);
 
   int i, j;
@@ -116,23 +126,63 @@ bool HandyTracker::AnalyzeRegion(ColorRegion* region)
   double aspectRatio = width / (double)height;
   featureData.SetValue(16, 0, aspectRatio);
 
-  int openResult = ST_UNKNOWN;
+  return true;
+}
+
+bool HandyTracker::AnalyzeRegion(ColorRegion* region)
+{
+  Matrix featureData;
+  if ( !GenerateFeatureData(region, featureData) )
+    return false;
+
+  int i;
+  std::string openFeatureStr = mOpenClassifier->GetFeatureString();
+  int openSize = (int)openFeatureStr.size();
+  Matrix openInput;
+  openInput.SetSize(openSize, 1);
+  for (i = 0; i < openSize; i++)
+    openInput.SetValue(i, 0, featureData.GetValue(openFeatureStr[i] - 'a', 0) );
+
+  std::string closedFeatureStr = mClosedClassifier->GetFeatureString();
+  int closedSize = (int)closedFeatureStr.size();
+  Matrix closedInput;
+  closedInput.SetSize(closedSize, 1);
+  for (i = 0; i < closedSize; i++)
+    closedInput.SetValue(i, 0, featureData.GetValue(closedFeatureStr[i] - 'a', 0) );
+
+  // Classifiers return 0 for the first class and 1 for the second class (a leftover from when I intended to extend the classifiers for more than 2 classes each)
+  int openResult = -1;
   if ( mOpenClassifier )
-    openResult = mOpenClassifier->Classify(featureData);
-  int closedResult = ST_UNKNOWN;
+    openResult = mOpenClassifier->Classify(openInput);
+  int closedResult = -1;
   if ( mClosedClassifier )
-    closedResult = mClosedClassifier->Classify(featureData);
+    closedResult = mClosedClassifier->Classify(closedInput);
 
   mRegionHistory.push_back(region);
   mFeatureHistory.push_back(featureData);
-  if ( openResult )
+
+  if ( openResult < 0 )
   {
-    if ( closedResult )
+    if ( closedResult == 0 )
+      mStateHistory.push_back(ST_CLOSED);
+    else
+      mStateHistory.push_back(ST_UNKNOWN);
+  }
+  else if ( closedResult < 0 )
+  {
+    if ( openResult == 0 )
+      mStateHistory.push_back(ST_OPEN);
+    else
+      mStateHistory.push_back(ST_UNKNOWN);
+  }
+  else if ( openResult == 0 )
+  {
+    if ( closedResult == 0 )
       mStateHistory.push_back(ST_CONFLICT);
     else
       mStateHistory.push_back(ST_OPEN);
   }
-  else if ( closedResult )
+  else if ( closedResult == 0 )
     mStateHistory.push_back(ST_CLOSED);
   else
     mStateHistory.push_back(ST_UNKNOWN);

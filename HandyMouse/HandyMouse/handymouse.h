@@ -28,7 +28,7 @@ private:
   void ProcessFrame(Image* img);
   void DisplayResults();
   Ui::HandyMouseClass ui;
-  VideoDecoder mVideoDecoder;
+  VideoDecoder* mVideoDecoder;
   QGraphicsScene* mScene;
   QGraphicsPixmapItem* mPixmapItem;
   QGraphicsEllipseItem* mEllipseItem;

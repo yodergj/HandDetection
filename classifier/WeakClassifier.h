@@ -1,9 +1,11 @@
 #ifndef WEAK_CLASSIFIER_H
 #define WEAK_CLASSIFIER_H
 
+#include <string>
 #include <vector>
 using std::vector;
-#include "XMLUtils.h"
+using std::string;
+#include "XMLUtils2.h"
 
 #define WEAK_CLASSIFIER_STR "WeakClassifier"
 #define CLASSIFIER_TYPE_STR "ClassifierType"
@@ -23,11 +25,11 @@ class WeakClassifier
     virtual bool Train(const vector<double>& samples, const vector<double>& weights, const vector<int>& classes, double* trainingError = 0);
     virtual bool Print(FILE* file);
     virtual bool Save(const char* filename);
-    virtual xmlNodePtr Save(xmlDocPtr document);
+    virtual xercesc::DOMElement* Save(xercesc::DOMDocument* document, bool toRootElem);
     static WeakClassifier* Load(const char* filename);
-    static WeakClassifier* Load(xmlNodePtr classifierNode);
+    static WeakClassifier* Load(xercesc::DOMElement* classifierNode);
   protected:
-    virtual bool LoadClassifier(xmlNodePtr classifierNode);
+    virtual bool LoadClassifier(xercesc::DOMElement* classifierNode);
 
     string mFeatureString;
 };

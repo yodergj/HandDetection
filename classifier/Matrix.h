@@ -1,7 +1,7 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
-#include "XMLUtils.h"
+#include "XMLUtils2.h"
 #include <stdio.h>
 
 #define MATRIX_STR "Matrix"
@@ -29,9 +29,9 @@ class Matrix
     void Clear();
     bool Print(FILE* file);
     bool Save(const char* filename);
-    bool Save(xmlNodePtr matrixNode);
+    bool Save(xercesc::DOMDocument* doc, xercesc::DOMElement* matrixNode);
     bool Load(const char* filename);
-    bool Load(xmlNodePtr matrixNode);
+    bool Load(xercesc::DOMElement* matrixNode);
     Matrix& Transpose();
     Matrix& Inverse();
     Matrix& operator-(const Matrix& m);

@@ -184,9 +184,9 @@ bool ThresholdClassifier::Print(FILE* file)
   return true;
 }
 
-xmlNodePtr ThresholdClassifier::Save(xmlDocPtr document)
+xercesc::DOMElement* ThresholdClassifier::Save(xercesc::DOMDocument* document, bool toRootElem)
 {
-  xmlNodePtr classifierNode = WeakClassifier::Save(document);
+  xercesc::DOMElement* classifierNode = WeakClassifier::Save(document, toRootElem);
   if ( classifierNode )
   {
     SetStringValue(classifierNode, CLASSIFIER_TYPE_STR, THRESHOLD_CLASSIFIER_STR);
@@ -198,15 +198,15 @@ xmlNodePtr ThresholdClassifier::Save(xmlDocPtr document)
   return classifierNode;
 }
 
-bool ThresholdClassifier::LoadClassifier(xmlNodePtr classifierNode)
+bool ThresholdClassifier::LoadClassifier(xercesc::DOMElement* classifierNode)
 {
   if ( !classifierNode )
     return false;
 
-  WeakClassifier::LoadClassifier(classifierNode);
+  bool retCode = WeakClassifier::LoadClassifier(classifierNode);
   mThreshold = GetDoubleValue(classifierNode, THRESHOLD_STR, 0);
   mLowerClass = GetIntValue(classifierNode, LOWER_CLASS_STR, 0);
   mUpperClass = GetIntValue(classifierNode, UPPER_CLASS_STR, 1);
 
-  return true;
+  return retCode;
 }

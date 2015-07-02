@@ -1,8 +1,15 @@
 #include <math.h>
 #include <string.h>
+#include <xercesc/util/PlatformUtils.hpp>
+#include <xercesc/util/XMLString.hpp>
+#include <xercesc/dom/DOM.hpp>
+#include <xercesc/framework/LocalFileFormatTarget.hpp>
+#include <xercesc/framework/MemBufFormatTarget.hpp>
+#include <xercesc/parsers/XercesDOMParser.hpp>
 #include "AdaboostClassifier.h"
 #include "ThresholdClassifier.h"
 #include "RangeClassifier.h"
+#include "XMLUtils2.h"
 
 #define DIMENSION_STR "NumDimensions"
 #define CLASSES_STR "NumClasses"
@@ -93,8 +100,8 @@ bool AdaboostClassifier::AddTrainingData(const Matrix& data, int classIndex)
   }
 
   /* Insert a new entry at the correct spot */
-  mTrainingData[classIndex].insert(mTrainingData[classIndex].begin() + maxPos + 1, data);
-  mTrainingDataFreq[classIndex].insert(mTrainingDataFreq[classIndex].begin() + maxPos + 1, 1);
+  mTrainingData[classIndex].insert(mTrainingData[classIndex].begin() + (maxPos + 1), data);
+  mTrainingDataFreq[classIndex].insert(mTrainingDataFreq[classIndex].begin() + (maxPos + 1), 1);
 
   return true;
 }
@@ -340,8 +347,6 @@ bool AdaboostClassifier::Print(FILE* file)
 bool AdaboostClassifier::Save(const char* filename)
 {
   FILE* file;
-  xmlDocPtr document;
-  xmlNodePtr rootNode;
   bool retCode = true;
 
   if ( !filename || !*filename )
@@ -357,24 +362,37 @@ bool AdaboostClassifier::Save(const char* filename)
     return false;
   }
 
-  document = xmlNewDoc(NULL);
-  rootNode = xmlNewDocNode(document, NULL, (const xmlChar *)ADABOOST_CLASSIFIER_STR, NULL);
-  xmlDocSetRootElement(document, rootNode);
+  InitXerces();
+  xercesc::DOMImplementation* impl = xercesc::DOMImplementationRegistry::getDOMImplementation(XMLSTR("Core"));
+  xercesc::DOMLSOutput* output = impl->createLSOutput();
+  xercesc::DOMLSSerializer* serializer = impl->createLSSerializer();
+  xercesc::MemBufFormatTarget* formatTarget = new xercesc::MemBufFormatTarget();
+  output->setByteStream(formatTarget);
+  xercesc::DOMDocument* doc = impl->createDocument(0, XMLSTR(ADABOOST_CLASSIFIER_STR), 0);
+  xercesc::DOMElement* rootElem = doc->getDocumentElement();
 
-  retCode = Save(rootNode);
+  Save(doc, rootElem);
 
-  xmlDocFormatDump(file, document, 1);
+  serializer->write(doc, output);
+  const unsigned char* data = formatTarget->getRawBuffer();
+  unsigned int len = formatTarget->getLen();
+  fwrite(data, 1, len, file);
+
+  doc->release();
+  delete formatTarget;
   fclose(file);
-  xmlFreeDoc(document);
 
   return retCode;
 }
 
-bool AdaboostClassifier::Save(xmlNodePtr classifierNode)
+bool AdaboostClassifier::Save(xercesc::DOMDocument* doc, xercesc::DOMElement* classifierNode)
 {
+  if ( !doc || !classifierNode )
+    return false;
+
   int i, numClassifiers;
   bool retCode = true;
-  xmlNodePtr weakNode;
+  xercesc::DOMElement* weakNode;
 
   numClassifiers = mWeakClassifiers.size();
   // If not all of the input features are selected for the weak features, then
@@ -382,14 +400,14 @@ bool AdaboostClassifier::Save(xmlNodePtr classifierNode)
   SetIntValue(classifierNode, DIMENSION_STR, mFeatureString.size());
   SetIntValue(classifierNode, CLASSES_STR, mNumClasses);
   SetIntValue(classifierNode, CLASSIFIERS_STR, numClassifiers);
-  SetStringValue(classifierNode, FEATURE_STR, mFeatureString);
+  SetStringValue(classifierNode, FEATURE_STR, mFeatureString.c_str());
 
   for (i = 0; (i < numClassifiers) && retCode; i++)
   {
-    weakNode = mWeakClassifiers[i]->Save((xmlDocPtr)NULL);
+    weakNode = mWeakClassifiers[i]->Save(doc, false);
     if ( weakNode )
     {
-      xmlAddChild(classifierNode, weakNode);
+      classifierNode->appendChild(weakNode);
       SetDoubleValue(weakNode, WEIGHT_STR, mClassifierWeights[i]);
     }
     else
@@ -405,8 +423,6 @@ bool AdaboostClassifier::Save(xmlNodePtr classifierNode)
 bool AdaboostClassifier::Load(const char* filename)
 {
   bool retCode = true;
-  xmlDocPtr document;
-  xmlNodePtr node;
 
   if ( !filename || !*filename )
   {
@@ -414,35 +430,30 @@ bool AdaboostClassifier::Load(const char* filename)
     return false;
   }
 
-  document = xmlParseFile(filename);
+  InitXerces();
 
-  if ( !document )
-  {
-    fprintf(stderr, "AdaboostClassifier::Load - Failed parsing %s\n", filename);
-    return false;
-  }
+  xercesc::XercesDOMParser* domParser = new xercesc::XercesDOMParser();
+  xercesc::DOMDocument* doc = 0;
 
-  node = xmlDocGetRootElement(document);
-  if ( !node )
-  {
-    xmlFreeDoc(document);
-    fprintf(stderr, "AdaboostClassifier::Load - No root node in %s\n", filename);
-    return false;
-  }
+  domParser->parse(XMLSTR(filename));
+  doc = domParser->getDocument();
+  xercesc::DOMElement* rootElem = doc->getDocumentElement();
+  
+  retCode = Load(rootElem);
 
-  retCode = Load(node);
-
-  xmlFreeDoc(document);
+  delete domParser;
 
   return retCode;
 }
 
-bool AdaboostClassifier::Load(xmlNodePtr classifierNode)
+bool AdaboostClassifier::Load(xercesc::DOMElement* classifierNode)
 {
+  if ( !classifierNode )
+    return false;
+
   int i, numClassifiersFound, dimensions, numClasses, numClassifiers;
   size_t pos;
   char feature;
-  xmlNodePtr node;
   bool retCode = true;
 
   dimensions = GetIntValue(classifierNode, DIMENSION_STR, 0);
@@ -463,10 +474,16 @@ bool AdaboostClassifier::Load(xmlNodePtr classifierNode)
   }
 
   numClassifiersFound = 0;
-  node = classifierNode->children;
-  while ( node && retCode )
+  xercesc::DOMNodeList* nodeList = classifierNode->getChildNodes();
+  for (XMLSize_t j = 0; retCode && (j < nodeList->getLength()); j++)
   {
-    if ( !strcmp((char *)node->name, WEAK_CLASSIFIER_STR) )
+    xercesc::DOMNode* node = nodeList->item(j);
+    xercesc::DOMElement* elem = dynamic_cast<xercesc::DOMElement*>(node);
+    if ( !elem )
+      continue;
+
+    std::string nodeName = CHAR(elem->getNodeName());
+    if ( !strcmp(nodeName.c_str(), WEAK_CLASSIFIER_STR) )
     {
       if ( numClassifiersFound == numClassifiers )
       {
@@ -475,7 +492,7 @@ bool AdaboostClassifier::Load(xmlNodePtr classifierNode)
       }
       else
       {
-        mClassifierWeights[numClassifiersFound] = GetDoubleValue(node, WEIGHT_STR, -1);
+        mClassifierWeights[numClassifiersFound] = GetDoubleValue(elem, WEIGHT_STR, -1);
         if ( mClassifierWeights[numClassifiersFound] < 0 )
         {
           retCode = false;
@@ -484,7 +501,7 @@ bool AdaboostClassifier::Load(xmlNodePtr classifierNode)
         }
         else
         {
-          mWeakClassifiers[numClassifiersFound] = WeakClassifier::Load(node);
+          mWeakClassifiers[numClassifiersFound] = WeakClassifier::Load(elem);
           if ( !mWeakClassifiers[numClassifiersFound] )
           {
             retCode = false;
@@ -494,12 +511,11 @@ bool AdaboostClassifier::Load(xmlNodePtr classifierNode)
         numClassifiersFound++;
       }
     }
-    else if ( strcmp((char *)node->name, "text") )
+    else if ( strcmp(nodeName.c_str(), "text") )
     {
-      fprintf(stderr, "AdaboostClassifier::Load - Found unknown node %s\n", (char*)node->name);
+      fprintf(stderr, "AdaboostClassifier::Load - Found unknown node %s\n", nodeName.c_str());
       retCode = false;
     }
-    node = node->next;
   }
 
   for (i = 0; retCode && i < numClassifiers; i++)

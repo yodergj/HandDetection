@@ -186,9 +186,9 @@ bool RangeClassifier::Print(FILE* file)
   return true;
 }
 
-xmlNodePtr RangeClassifier::Save(xmlDocPtr document)
+xercesc::DOMElement* RangeClassifier::Save(xercesc::DOMDocument* document, bool toRootElem)
 {
-  xmlNodePtr classifierNode = WeakClassifier::Save(document);
+  xercesc::DOMElement* classifierNode = WeakClassifier::Save(document, toRootElem);
   if ( classifierNode )
   {
     SetStringValue(classifierNode, CLASSIFIER_TYPE_STR, RANGE_CLASSIFIER_STR);
@@ -201,16 +201,16 @@ xmlNodePtr RangeClassifier::Save(xmlDocPtr document)
   return classifierNode;
 }
 
-bool RangeClassifier::LoadClassifier(xmlNodePtr classifierNode)
+bool RangeClassifier::LoadClassifier(xercesc::DOMElement* classifierNode)
 {
   if ( !classifierNode )
     return false;
 
-  WeakClassifier::LoadClassifier(classifierNode);
+  bool retCode = WeakClassifier::LoadClassifier(classifierNode);
   mLowerThreshold = GetDoubleValue(classifierNode, LOWER_THRESHOLD_STR, 0);
   mUpperThreshold = GetDoubleValue(classifierNode, UPPER_THRESHOLD_STR, 0);
   mInnerClass = GetIntValue(classifierNode, INNER_CLASS_STR, 0);
   mOuterClass = GetIntValue(classifierNode, OUTER_CLASS_STR, 1);
 
-  return true;
+  return retCode;
 }

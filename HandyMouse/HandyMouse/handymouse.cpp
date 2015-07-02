@@ -20,11 +20,13 @@ HandyMouse::HandyMouse(QWidget *parent)
   mScene->setBackgroundBrush(brush);
 
   mTracker = new HandyTracker;
+  mVideoDecoder = 0;
 }
 
 HandyMouse::~HandyMouse()
 {
   delete mTracker;
+  delete mVideoDecoder;
 }
 
 void HandyMouse::BuildImageFilter()
@@ -107,26 +109,33 @@ void HandyMouse::on_actionLoad_triggered()
   if ( filename.isEmpty() )
     return;
 
+  if ( mVideoDecoder )
+    delete mVideoDecoder;
+  mVideoDecoder = new VideoDecoder;
+
   if ( mPixmapItem )
     mPixmapItem->setPixmap( QPixmap() );
   if ( !mPixmaps.empty() )
     mPixmaps.clear();
 
+  if ( mTracker )
+    mTracker->ResetHistory();
+
   std::string filenameStr = filename.toStdString(); 
-  mVideoDecoder.SetFilename(filenameStr);
-  if ( !mVideoDecoder.Load() )
+  mVideoDecoder->SetFilename(filenameStr);
+  if ( !mVideoDecoder->Load() )
   {
-    printf("Crap happens\n");
+    fprintf(stderr, "Failed loading video <%s>\n", filenameStr.c_str());
     return;
   }
 
-  if ( !mVideoDecoder.UpdateFrame() )
+  if ( !mVideoDecoder->UpdateFrame() )
   {
-    printf("This sucks\n");
+    fprintf(stderr, "Failed updating frame\n");
     return;
   }
 
-  Image* img = mVideoDecoder.GetFrame();
+  Image* img = mVideoDecoder->GetFrame();
   // img will only be null if no frames are in the video
   if ( !img )
     return;
@@ -238,14 +247,14 @@ void HandyMouse::on_prevButton_clicked()
 
 void HandyMouse::on_nextButton_clicked()
 {
-  if ( mPixmaps.empty() )
+  if ( mPixmaps.empty() || !mVideoDecoder )
     return;
 
   mFrameNumber++;
   if ( mFrameNumber == mPixmaps.size() )
   {
-    mVideoDecoder.UpdateFrame();
-    Image* img = mVideoDecoder.GetFrame();
+    mVideoDecoder->UpdateFrame();
+    Image* img = mVideoDecoder->GetFrame();
     // img will be null when we hit the end of the stream
     if ( !img )
       return;

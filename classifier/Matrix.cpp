@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <xercesc/parsers/XercesDOMParser.hpp>
+#include <xercesc/framework/MemBufFormatTarget.hpp>
 #include "Matrix.h"
 
 #define IDENTITY_THRESH .001
@@ -705,8 +707,6 @@ bool Matrix::Print(FILE* file)
 bool Matrix::Save(const char* filename)
 {
   FILE* file;
-  xmlDocPtr document;
-  xmlNodePtr rootNode;
   bool retCode = true;
 
   if ( !filename || !*filename )
@@ -722,23 +722,33 @@ bool Matrix::Save(const char* filename)
     return false;
   }
 
-  document = xmlNewDoc(NULL);
-  rootNode = xmlNewDocNode(document, NULL, (const xmlChar *)MATRIX_STR, NULL);
-  xmlDocSetRootElement(document, rootNode);
+  InitXerces();
+  xercesc::DOMImplementation* impl = xercesc::DOMImplementationRegistry::getDOMImplementation(XMLSTR("Core"));
+  xercesc::DOMLSOutput* output = impl->createLSOutput();
+  xercesc::DOMLSSerializer* serializer = impl->createLSSerializer();
+  xercesc::MemBufFormatTarget* formatTarget = new xercesc::MemBufFormatTarget();
+  output->setByteStream(formatTarget);
+  xercesc::DOMDocument* doc = impl->createDocument(0, XMLSTR(MATRIX_STR), 0);
+  xercesc::DOMElement* rootElem = doc->getDocumentElement();
 
-  retCode = Save(rootNode);
+  Save(doc, rootElem);
 
-  xmlDocFormatDump(file, document, 1);
+  serializer->write(doc, output);
+  const unsigned char* data = formatTarget->getRawBuffer();
+  unsigned int len = formatTarget->getLen();
+  fwrite(data, 1, len, file);
+
+  doc->release();
+  delete formatTarget;
   fclose(file);
-  xmlFreeDoc(document);
 
   return retCode;
 }
 
-bool Matrix::Save(xmlNodePtr matrixNode)
+bool Matrix::Save(xercesc::DOMDocument* doc, xercesc::DOMElement* matrixNode)
 {
   int i, j;
-  xmlNodePtr numberNode;
+  xercesc::DOMElement* numberNode;
 
   SetIntValue(matrixNode, NUM_ROWS_STR, mRows);
   SetIntValue(matrixNode, NUM_COLS_STR, mColumns);
@@ -747,8 +757,8 @@ bool Matrix::Save(xmlNodePtr matrixNode)
   {
     for (j = 0; j < mColumns; j++)
     {
-      numberNode = xmlNewNode(NULL, (const xmlChar*)NUMBER_STR);
-      xmlAddChild(matrixNode, numberNode);
+      numberNode = doc->createElement(XMLSTR(NUMBER_STR));
+      matrixNode->appendChild(numberNode);
       SetDoubleValue(numberNode, VALUE_STR, mData[i * mColumns + j]);
     }
   }
@@ -759,8 +769,6 @@ bool Matrix::Save(xmlNodePtr matrixNode)
 bool Matrix::Load(const char* filename)
 {
   bool retCode = true;
-  xmlDocPtr document;
-  xmlNodePtr node;
 
   if ( !filename || !*filename )
   {
@@ -768,35 +776,33 @@ bool Matrix::Load(const char* filename)
     return false;
   }
 
-  document = xmlParseFile(filename);
+  InitXerces();
 
-  if ( !document )
-  {
-    fprintf(stderr, "Matrix::Load - Failed parsing %s\n", filename);
-    return false;
-  }
+  xercesc::XercesDOMParser* domParser = new xercesc::XercesDOMParser();
+  xercesc::DOMDocument* doc = 0;
 
-  node = xmlDocGetRootElement(document);
-  if ( !node )
+  domParser->parse(XMLSTR(filename));
+  doc = domParser->getDocument();
+  xercesc::DOMElement* rootElem = doc->getDocumentElement();
+  
+  if ( rootElem )
+    retCode = Load(rootElem);
+  else
   {
-    xmlFreeDoc(document);
     fprintf(stderr, "Matrix::Load - No root node in %s\n", filename);
-    return false;
+    retCode = false;
   }
 
-  retCode = Load(node);
-
-  xmlFreeDoc(document);
+  delete domParser;
 
   return retCode;
 }
 
-bool Matrix::Load(xmlNodePtr matrixNode)
+bool Matrix::Load(xercesc::DOMElement* matrixNode)
 {
   int rows, cols, cellsFilled;
-  xmlNodePtr node;
   Matrix matrix;
-  string matrixID;
+  std::string matrixID;
   bool retCode = true;
 
   rows = GetIntValue(matrixNode, NUM_ROWS_STR, 0);
@@ -814,10 +820,17 @@ bool Matrix::Load(xmlNodePtr matrixNode)
   }
 
   cellsFilled = 0;
-  node = matrixNode->children;
-  while ( node && retCode )
+
+  xercesc::DOMNodeList* nodeList = matrixNode->getChildNodes();
+  for (XMLSize_t j = 0; retCode && (j < nodeList->getLength()); j++)
   {
-    if ( !strcmp((char *)node->name, NUMBER_STR) )
+    xercesc::DOMNode* node = nodeList->item(j);
+    xercesc::DOMElement* elem = dynamic_cast<xercesc::DOMElement*>(node);
+    if ( !elem )
+      continue;
+
+    std::string nodeName = CHAR(elem->getNodeName());
+    if ( !strcmp(nodeName.c_str(), NUMBER_STR) )
     {
       if ( cellsFilled == mCells )
       {
@@ -826,16 +839,15 @@ bool Matrix::Load(xmlNodePtr matrixNode)
       }
       else
       {
-        mData[cellsFilled] = GetDoubleValue(node, VALUE_STR, 0);
+        mData[cellsFilled] = GetDoubleValue(elem, VALUE_STR, 0);
         cellsFilled++;
       }
     }
-    else if ( strcmp((char *)node->name, "text") )
+    else if ( strcmp(nodeName.c_str(), "text") )
     {
-      fprintf(stderr, "Matrix::Load - Found unknown node %s\n", (char*)node->name);
+      fprintf(stderr, "Matrix::Load - Found unknown node %s\n", nodeName.c_str());
       retCode = false;
     }
-    node = node->next;
   }
 
   return retCode;

@@ -2,6 +2,8 @@
 #include "CompositeClassifier.h"
 #include "Matrix.h"
 #include "AdaboostClassifier.h"
+#include <xercesc/framework/MemBufFormatTarget.hpp>
+#include <xercesc/parsers/XercesDOMParser.hpp>
 
 #define FEATURE_STR "Features"
 #define CLASS_NAME_STR "ClassName"
@@ -119,8 +121,6 @@ bool CompositeClassifier::Print(FILE* file)
 bool CompositeClassifier::Save(const char* filename)
 {
   FILE* file;
-  xmlDocPtr document;
-  xmlNodePtr rootNode;
   bool retCode = true;
 
   if ( !filename || !*filename )
@@ -136,33 +136,43 @@ bool CompositeClassifier::Save(const char* filename)
     return false;
   }
 
-  document = xmlNewDoc(NULL);
-  rootNode = xmlNewDocNode(document, NULL, (const xmlChar *)COMPOSITE_CLASSIFIER_STR, NULL);
-  xmlDocSetRootElement(document, rootNode);
+  InitXerces();
+  xercesc::DOMImplementation* impl = xercesc::DOMImplementationRegistry::getDOMImplementation(XMLSTR("Core"));
+  xercesc::DOMLSOutput* output = impl->createLSOutput();
+  xercesc::DOMLSSerializer* serializer = impl->createLSSerializer();
+  xercesc::MemBufFormatTarget* formatTarget = new xercesc::MemBufFormatTarget();
+  output->setByteStream(formatTarget);
+  xercesc::DOMDocument* doc = impl->createDocument(0, XMLSTR(ADABOOST_CLASSIFIER_STR), 0);
+  xercesc::DOMElement* rootElem = doc->getDocumentElement();
 
-  retCode = Save(rootNode);
+  Save(doc, rootElem);
 
-  xmlDocFormatDump(file, document, 1);
+  serializer->write(doc, output);
+  const unsigned char* data = formatTarget->getRawBuffer();
+  unsigned int len = formatTarget->getLen();
+  fwrite(data, 1, len, file);
+
+  doc->release();
+  delete formatTarget;
   fclose(file);
-  xmlFreeDoc(document);
 
   return retCode;
 }
 
-bool CompositeClassifier::Save(xmlNodePtr classifierNode)
+bool CompositeClassifier::Save(xercesc::DOMDocument* doc, xercesc::DOMElement* classifierNode)
 {
   int i, numClassifiers;
   bool retCode = true;
-  xmlNodePtr adaboostNode;
+  xercesc::DOMElement* adaboostNode;
 
   numClassifiers = mClassifiers.size();
-  SetStringValue(classifierNode, FEATURE_STR, mFeatureString);
+  SetStringValue(classifierNode, FEATURE_STR, mFeatureString.c_str());
   for (i = 0; (i < numClassifiers) && retCode; i++)
   {
-    adaboostNode = xmlNewNode(NULL, (const xmlChar*)ADABOOST_CLASSIFIER_STR);
-    xmlAddChild(classifierNode, adaboostNode);
-    SetStringValue(adaboostNode, CLASS_NAME_STR, mClassNames[i]);
-    retCode = mClassifiers[i]->Save(adaboostNode);
+    adaboostNode = doc->createElement(XMLSTR(ADABOOST_CLASSIFIER_STR));
+    classifierNode->appendChild(adaboostNode);
+    SetStringValue(adaboostNode, CLASS_NAME_STR, mClassNames[i].c_str());
+    retCode = mClassifiers[i]->Save(doc, adaboostNode);
   }
 
   return retCode;
@@ -171,8 +181,6 @@ bool CompositeClassifier::Save(xmlNodePtr classifierNode)
 bool CompositeClassifier::Load(const char* filename)
 {
   bool retCode = true;
-  xmlDocPtr document;
-  xmlNodePtr node;
 
   if ( !filename || !*filename )
   {
@@ -180,45 +188,43 @@ bool CompositeClassifier::Load(const char* filename)
     return false;
   }
 
-  document = xmlParseFile(filename);
+  InitXerces();
 
-  if ( !document )
-  {
-    fprintf(stderr, "CompositeClassifier::Load - Failed parsing %s\n", filename);
-    return false;
-  }
+  xercesc::XercesDOMParser* domParser = new xercesc::XercesDOMParser();
+  xercesc::DOMDocument* doc = 0;
 
-  node = xmlDocGetRootElement(document);
-  if ( !node )
-  {
-    xmlFreeDoc(document);
-    fprintf(stderr, "CompositeClassifier::Load - No root node in %s\n", filename);
-    return false;
-  }
+  domParser->parse(XMLSTR(filename));
+  doc = domParser->getDocument();
+  xercesc::DOMElement* rootElem = doc->getDocumentElement();
+  
+  retCode = Load(rootElem);
 
-  retCode = Load(node);
-
-  xmlFreeDoc(document);
+  delete domParser;
 
   return retCode;
 }
 
-bool CompositeClassifier::Load(xmlNodePtr classifierNode)
+bool CompositeClassifier::Load(xercesc::DOMElement* classifierNode)
 {
   bool retCode = true;
   AdaboostClassifier* classifier;
   mFeatureString = GetStringValue(classifierNode, FEATURE_STR);
-  xmlNodePtr node;
 
-  node = classifierNode->children;
-  while ( node && retCode )
+  xercesc::DOMNodeList* nodeList = classifierNode->getChildNodes();
+  for (XMLSize_t j = 0; retCode && (j < nodeList->getLength()); j++)
   {
-    if ( !strcmp((char *)node->name, ADABOOST_CLASSIFIER_STR) )
+    xercesc::DOMNode* node = nodeList->item(j);
+    xercesc::DOMElement* elem = dynamic_cast<xercesc::DOMElement*>(node);
+    if ( !elem )
+      continue;
+
+    std::string nodeName = CHAR(elem->getNodeName());
+    if ( !strcmp(nodeName.c_str(), ADABOOST_CLASSIFIER_STR) )
     {
       classifier = new AdaboostClassifier;
-      if ( classifier->Load(node) )
+      if ( classifier->Load(elem) )
       {
-        mClassNames.push_back( GetStringValue(node, CLASS_NAME_STR) );
+        mClassNames.push_back( GetStringValue(elem, CLASS_NAME_STR) );
         mClassifiers.push_back(classifier);
       }
       else
@@ -228,12 +234,11 @@ bool CompositeClassifier::Load(xmlNodePtr classifierNode)
         retCode = false;
       }
     }
-    else if ( strcmp((char *)node->name, "text") )
+    else if ( strcmp(nodeName.c_str(), "text") )
     {
-      fprintf(stderr, "CompositeClassifier::Load - Found unknown node %s\n", (char*)node->name);
+      fprintf(stderr, "CompositeClassifier::Load - Found unknown node %s\n", nodeName.c_str());
       retCode = false;
     }
-    node = node->next;
   }
 
   return retCode;

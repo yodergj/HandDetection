@@ -95,10 +95,10 @@
     <ClCompile Include="..\..\classifier\WeakClassifier.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\xmlutils\XMLUtils.cpp">
+    <ClCompile Include="..\..\classifier\RangeClassifier.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\classifier\RangeClassifier.cpp">
+    <ClCompile Include="..\..\xmlutils\XMLUtils2.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -162,10 +162,10 @@
     <ClInclude Include="..\..\classifier\WeakClassifier.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\xmlutils\XMLUtils.h">
+    <ClInclude Include="..\..\classifier\RangeClassifier.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\classifier\RangeClassifier.h">
+    <ClInclude Include="..\..\xmlutils\XMLUtils2.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

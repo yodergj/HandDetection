@@ -5,6 +5,8 @@ using std::map;
 #include "WeakClassifier.h"
 #include "ThresholdClassifier.h"
 #include "RangeClassifier.h"
+#include <xercesc\framework\MemBufFormatTarget.hpp>
+#include <xercesc/parsers/XercesDOMParser.hpp>
 
 #define FEATURE_STR "Features"
 
@@ -80,8 +82,6 @@ bool WeakClassifier::Print(FILE* file)
 bool WeakClassifier::Save(const char* filename)
 {
   FILE* file;
-  xmlDocPtr document;
-  xmlNodePtr rootNode;
   bool retCode = true;
 
   if ( !filename || !*filename )
@@ -97,32 +97,46 @@ bool WeakClassifier::Save(const char* filename)
     return false;
   }
 
-  document = xmlNewDoc(NULL);
-  rootNode = Save(document);
-  if ( rootNode )
-  {
-    xmlDocSetRootElement(document, rootNode);
-    xmlDocFormatDump(file, document, 1);
-  }
-  else
-    retCode = false;
+  InitXerces();
+  xercesc::DOMImplementation* impl = xercesc::DOMImplementationRegistry::getDOMImplementation(XMLSTR("Core"));
+  xercesc::DOMLSOutput* output = impl->createLSOutput();
+  xercesc::DOMLSSerializer* serializer = impl->createLSSerializer();
+  xercesc::MemBufFormatTarget* formatTarget = new xercesc::MemBufFormatTarget();
+  output->setByteStream(formatTarget);
+  xercesc::DOMDocument* doc = impl->createDocument(0, 0, 0);
+  //xercesc::DOMElement* rootElem = doc->getDocumentElement();
+  //doc->renameNode(rootElem, 0, X(ADABOOST_CLASSIFIER_STR));
 
+  Save(doc, true);
+
+  serializer->write(doc, output);
+  const unsigned char* data = formatTarget->getRawBuffer();
+  unsigned int len = formatTarget->getLen();
+  fwrite(data, 1, len, file);
+
+  doc->release();
+  delete formatTarget;
   fclose(file);
-  xmlFreeDoc(document);
 
   return retCode;
 }
 
-xmlNodePtr WeakClassifier::Save(xmlDocPtr document)
+xercesc::DOMElement* WeakClassifier::Save(xercesc::DOMDocument* document, bool toRootElem)
 {
-  xmlNodePtr classifierNode = NULL;
-  if ( document )
-    classifierNode = xmlNewDocNode(document, NULL, (const xmlChar *)WEAK_CLASSIFIER_STR, NULL);
+  if ( !document )
+    return 0;
+
+  xercesc::DOMElement* classifierNode = 0;
+  if ( toRootElem )
+  {
+    classifierNode = document->getDocumentElement();
+    document->renameNode(classifierNode, 0, XMLSTR(WEAK_CLASSIFIER_STR));
+  }
   else
-    classifierNode = xmlNewNode(NULL, (const xmlChar *)WEAK_CLASSIFIER_STR);
+    classifierNode = document->createElement(XMLSTR(WEAK_CLASSIFIER_STR));
 
   if ( classifierNode )
-    SetStringValue(classifierNode, FEATURE_STR, mFeatureString);
+    SetStringValue(classifierNode, FEATURE_STR, mFeatureString.c_str());
   else
     fprintf(stderr, "WeakClassifier::Save - Failed getting xml node\n");
 
@@ -132,8 +146,6 @@ xmlNodePtr WeakClassifier::Save(xmlDocPtr document)
 WeakClassifier* WeakClassifier::Load(const char* filename)
 {
   WeakClassifier* result = NULL;
-  xmlDocPtr document;
-  xmlNodePtr node;
 
   if ( !filename || !*filename )
   {
@@ -141,41 +153,33 @@ WeakClassifier* WeakClassifier::Load(const char* filename)
     return NULL;
   }
 
-  document = xmlParseFile(filename);
+  InitXerces();
 
-  if ( !document )
-  {
-    fprintf(stderr, "WeakClassifier::Load - Failed parsing %s\n", filename);
-    return NULL;
-  }
+  xercesc::XercesDOMParser* domParser = new xercesc::XercesDOMParser();
+  xercesc::DOMDocument* doc = 0;
 
-  node = xmlDocGetRootElement(document);
-  if ( !node )
-  {
-    xmlFreeDoc(document);
-    fprintf(stderr, "WeakClassifier::Load - No root node in %s\n", filename);
-    return NULL;
-  }
+  domParser->parse(XMLSTR(filename));
+  doc = domParser->getDocument();
+  xercesc::DOMElement* rootElem = doc->getDocumentElement();
+  
+  result = Load(rootElem);
 
-  result = Load(node);
-
-  xmlFreeDoc(document);
+  delete domParser;
 
   return result;
 }
 
-WeakClassifier* WeakClassifier::Load(xmlNodePtr classifierNode)
+WeakClassifier* WeakClassifier::Load(xercesc::DOMElement* classifierNode)
 {
   WeakClassifier* result = NULL;
 
   if ( !classifierNode )
     return NULL;
 
-  if ( !classifierNode->name ||
-       strcmp((const char *)classifierNode->name, WEAK_CLASSIFIER_STR) )
+  std::string nodeName = CHAR(classifierNode->getNodeName());
+  if ( strcmp(nodeName.c_str(), WEAK_CLASSIFIER_STR) )
   {
-    fprintf(stderr, "WeakClassifier::Load - Invalid node name %s\n",
-            classifierNode->name ? (const char *)classifierNode->name : "NULL");
+    fprintf(stderr, "WeakClassifier::Load - Invalid node name <%s>\n", nodeName.c_str());
     return NULL;
   }
 
@@ -196,7 +200,7 @@ WeakClassifier* WeakClassifier::Load(xmlNodePtr classifierNode)
   return result;
 }
 
-bool WeakClassifier::LoadClassifier(xmlNodePtr classifierNode)
+bool WeakClassifier::LoadClassifier(xercesc::DOMElement* classifierNode)
 {
   mFeatureString = GetStringValue(classifierNode, FEATURE_STR);
 

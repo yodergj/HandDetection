@@ -3,7 +3,9 @@
 #include <QtCore/QCoreApplication>
 #include "AdaboostClassifier.h"
 #include "Image.h"
+#include "VideoDecoder.h"
 #include "ColorRegion.h"
+#include "HandyTracker.h"
 
 int main(int argc, char *argv[])
 {
@@ -18,7 +20,9 @@ int main(int argc, char *argv[])
   int classIndex = 0;
   string className;
   Image image;
+  VideoDecoder* videoDecoder = new VideoDecoder;
   AdaboostClassifier handClassifier;
+  HandyTracker tracker;
   char filename[256];
   FILE *file;
   int revNumber = 0;
@@ -37,6 +41,15 @@ int main(int argc, char *argv[])
     printf("Invalid number of weak classifiers %d\n", numWeakClassifiers );
     return 1;
   }
+
+  if ( !handClassifier.Create(HandyTracker::mNumFeatures, 2, numWeakClassifiers) )
+  {
+    printf("Failed creating classifier\n");
+    return 1;
+  }
+  
+  std::string featureStr("abcdefghijklmnopq");
+  handClassifier.SetFeatureString(featureStr);
 
   for (i = 3; i < argc; i++)
   {
@@ -57,49 +70,73 @@ int main(int argc, char *argv[])
       ColorRegion region;
       if ( region.Grow(image, startPt) )
       {
-        int* integralBuffer = region.GetIntegralBuffer();
-        if ( integralBuffer )
-        {
-          int regWidth = region.GetWidth();
-          int regHeight = region.GetHeight();
-          Matrix featureData;
-          featureData.SetSize(17, 1);
-
-          int xVals[4], yVals[4];
-          for (j = 0; j < 4; j++)
-          {
-            xVals[j] = (j * regWidth) / 4 - 1;
-            yVals[j] = (j * regHeight) / 4 - 1;
-          }
-
-          int x, y;
-          double blockArea = regWidth * regHeight / 16.0;
-          for (j = 0; j < 4; j++)
-          {
-            y = yVals[j];
-            for (k = 0; k < 4; k++)
-            {
-              x = xVals[k];
-              int pixelCount = integralBuffer[y * regWidth + x];
-              if ( j > 0 )
-                pixelCount -= integralBuffer[yVals[j - 1] * width + x];
-              if ( k > 0 )
-                pixelCount -= integralBuffer[y * width + xVals[k - 1]];
-              if ( (j > 0) && (k > 0) )
-                pixelCount += integralBuffer[yVals[j - 1] * width + xVals[k - 1]];
-              featureData.SetValue(j * 4 + k, 0, pixelCount / blockArea);
-            }
-          }
-
-          double aspectRatio = width / (double)height;
-          featureData.SetValue(16, 0, aspectRatio);
+        Matrix featureData;
+        if ( tracker.GenerateFeatureData(&region, featureData) )
           handClassifier.AddTrainingData(featureData, classIndex);
-        }
         else
-          fprintf(stderr, "Failed getting integral buffer while processing %s\n", argv[i]);
+          fprintf(stderr, "Failed generating feature data\n");
       }
       else
-        fprintf(stderr, "Failed getting color region while processing %s\n", argv[i]);
+        fprintf(stderr, "Failed getting color region\n");
+    }
+    else
+    {
+      videoDecoder->SetFilename(argv[i]);
+      if ( videoDecoder->Load() )
+      {
+        if ( classIndex == 0 )
+          printf("Processing hand class video %s\n", argv[i]);
+        else
+          printf("Processing other hand video %s\n", argv[i]);
+
+        int frameNumber = 0;
+        ColorRegion* oldRegion = 0;
+        ColorRegion* region = 0;
+        videoDecoder->UpdateFrame();
+        Image* img = videoDecoder->GetFrame();
+        // img will be null when we hit the end of the stream
+        while ( img )
+        {
+          printf("Processing frame %d\n", ++frameNumber);
+          width = img->GetWidth();
+          height = img->GetHeight();
+
+          delete oldRegion;
+          oldRegion = region;
+          region = new ColorRegion;
+
+          if ( oldRegion )
+          {
+            if ( !region->TrackFromOldRegion(*img, *oldRegion) )
+              fprintf(stderr, "Failed tracking color region from old region\n");
+          }
+          else
+          {
+            Point startPt(width / 2, height / 2);
+            if ( !region->Grow(*img, startPt) )
+              fprintf(stderr, "Failed growing color region\n");
+          }
+
+          if ( !region->Empty() )
+          {
+            Matrix featureData;
+            if ( tracker.GenerateFeatureData(region, featureData) )
+              handClassifier.AddTrainingData(featureData, classIndex);
+            else
+              fprintf(stderr, "Failed generating feature data\n");
+          }
+
+          videoDecoder->UpdateFrame();
+          img = videoDecoder->GetFrame();
+        }
+        delete oldRegion;
+        delete region;
+      }
+      else
+        fprintf(stderr, "Failed opening image/video %s\n", argv[i]);
+
+      delete videoDecoder;
+      videoDecoder = new VideoDecoder;
     }
   }
 
