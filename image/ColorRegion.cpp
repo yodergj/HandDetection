@@ -19,6 +19,7 @@ ColorRegion::ColorRegion()
 
   mStaleResultCount = 0;
   mIntegralBuffer = 0;
+  mRefHeight = 0;
 }
 
 ColorRegion::ColorRegion(const ColorRegion& ref)
@@ -54,6 +55,7 @@ ColorRegion& ColorRegion::operator=(const ColorRegion& ref)
     mMeanB = ref.mMeanB;
 
     mStaleResultCount = ref.mStaleResultCount;
+    mRefHeight = ref.mRefHeight;
     if ( mIntegralBuffer )
     {
       delete[] mIntegralBuffer;
@@ -68,6 +70,15 @@ ColorRegion& ColorRegion::operator=(const ColorRegion& ref)
   }
 
   return *this;
+}
+
+bool ColorRegion::SetReferenceHeight(int refHeight)
+{
+  if ( refHeight < 0 )
+    return false;
+
+  mRefHeight = refHeight;
+  return true;
 }
 
 bool ColorRegion::Empty() const
@@ -244,6 +255,8 @@ bool ColorRegion::TrackFromOldRegion(Image& image, const ColorRegion& oldRegion)
   if ( !imgBuffer )
     return false;
 
+  mRefHeight = oldRegion.mRefHeight;
+
   int x,y;
   int centerX = oldRegion.mCentroid.x;
   int centerY = oldRegion.mCentroid.y;
@@ -325,6 +338,13 @@ int* ColorRegion::GetIntegralBuffer()
   if ( !mIntegralBuffer )
     GenerateIntegralBuffer();
   return mIntegralBuffer;
+}
+
+void ColorRegion::FreeIntegralBuffer()
+{
+  if ( mIntegralBuffer )
+    delete[] mIntegralBuffer;
+  mIntegralBuffer = 0;
 }
 
 void ColorRegion::GenerateIntegralBuffer()

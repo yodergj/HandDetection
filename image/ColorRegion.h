@@ -39,6 +39,10 @@ public:
   double GetMeanG() { return mMeanG; };
   double GetMeanB() { return mMeanB; };
   int* GetIntegralBuffer();
+  void FreeIntegralBuffer();
+
+  int GetReferenceHeight() { return mRefHeight; };
+  bool SetReferenceHeight(int refHeight);
 private:
   void GenerateIntegralBuffer();
   std::set<Point> mPoints;
@@ -54,6 +58,8 @@ private:
   int mStaleResultCount;
 
   int* mIntegralBuffer;
+
+  int mRefHeight;
 };
 
 #endif

@@ -33,8 +33,11 @@ private:
   QGraphicsPixmapItem* mPixmapItem;
   QGraphicsEllipseItem* mEllipseItem;
   QGraphicsRectItem* mRectItem;
+  QGraphicsPolygonItem* mXItem;
+  QGraphicsLineItem* mWristLineItem;
   std::vector<QPixmap> mPixmaps;
   size_t mFrameNumber;
+  bool mTrackingInitialized;
 
   HandyTracker* mTracker;
 

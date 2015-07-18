@@ -6,6 +6,8 @@
 class ColorRegion;
 class AdaboostClassifier;
 
+#define ASPECT_RATIO_INDEX 16
+
 class HandyTracker
 {
 public:
@@ -13,7 +15,8 @@ public:
   ~HandyTracker();
 
   bool AnalyzeRegion(ColorRegion* region);
-  bool GenerateFeatureData(ColorRegion* region, Matrix& featureData);
+  bool AnalyzeRegionForInitialization(ColorRegion* region);
+  bool GenerateFeatureData(ColorRegion* region, Matrix& featureData, int heightRestriction = 0);
 
   static int mNumFeatures;
 
@@ -22,18 +25,21 @@ public:
 
   enum HandState
   {
-    ST_UNKNOWN, ST_OPEN, ST_CLOSED, ST_CONFLICT
+    ST_UNKNOWN, ST_OPEN, ST_CLOSED, ST_CONFLICT, ST_REJECT
   };
 
   HandState GetLastState();
 
   HandState GetState(int frameNumber);
   ColorRegion* GetRegion(int frameNumber);
-  Matrix* GetFeatureData(int frameNumber);
+  Matrix* GetOpenFeatureData(int frameNumber);
+  Matrix* GetClosedFeatureData(int frameNumber);
   void ResetHistory();
 private:
+  HandState CalculateStateResult(int openResult, int closedResult);
   std::vector<ColorRegion*> mRegionHistory;
-  std::vector<Matrix> mFeatureHistory;
+  std::vector<Matrix> mOpenFeatureHistory;
+  std::vector<Matrix> mClosedFeatureHistory;
   std::vector<HandState> mStateHistory;
 
   AdaboostClassifier* mOpenClassifier;

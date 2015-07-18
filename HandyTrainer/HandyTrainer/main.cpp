@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
   char filename[256];
   FILE *file;
   int revNumber = 0;
+  std::vector<double> aspectRatios;
 
   if ( argc < 6 )
   {
@@ -121,7 +122,11 @@ int main(int argc, char *argv[])
           {
             Matrix featureData;
             if ( tracker.GenerateFeatureData(region, featureData) )
+            {
               handClassifier.AddTrainingData(featureData, classIndex);
+              if ( classIndex == 0 )
+                aspectRatios.push_back( featureData.GetValue(16, 0) );
+            }
             else
               fprintf(stderr, "Failed generating feature data\n");
           }
@@ -157,6 +162,24 @@ int main(int argc, char *argv[])
   } while ( file );
 
   handClassifier.Save(filename);
+
+  double aspectMin = FLT_MAX;
+  double aspectMax = 0;
+  double aspectTotal = 0;
+  for (i = 0; i < (int)aspectRatios.size(); i++)
+  {
+    aspectTotal += aspectRatios[i];
+    if ( aspectRatios[i] < aspectMin )
+      aspectMin = aspectRatios[i];
+    if ( aspectRatios[i] > aspectMax )
+      aspectMax = aspectRatios[i];
+  }
+  double aspectMean = aspectTotal / aspectRatios.size();
+
+  sprintf(filename, "%s-aspectRatio.data", className.c_str());
+  file = fopen(filename, "w");
+  fprintf(file, "Min %f\nMean %f\nMax %f\n", aspectMin, aspectMean, aspectMax);
+  fclose(file);
 
   return 0;
 }

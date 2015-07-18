@@ -8,10 +8,13 @@
 HandyMouse::HandyMouse(QWidget *parent)
 	: QMainWindow(parent)
 {
+  mTrackingInitialized = false;
   mFrameNumber = 0;
   mPixmapItem = 0;
   mEllipseItem = 0;
   mRectItem = 0;
+  mXItem = 0;
+  mWristLineItem = 0;
 	ui.setupUi(this);
   mScene = new QGraphicsScene(this);
   ui.imageView->setScene(mScene);
@@ -140,6 +143,7 @@ void HandyMouse::on_actionLoad_triggered()
   if ( !img )
     return;
 
+  mTrackingInitialized = false;
   mFrameNumber = 0;
   ProcessFrame(img);
 
@@ -147,14 +151,14 @@ void HandyMouse::on_actionLoad_triggered()
 
   if ( qimg.isNull() )
   {
-    printf("More crap happens\n");
+    fprintf(stderr, "QImage is null\n");
     return;
   }
 
   QPixmap pixmap;
   if ( !pixmap.convertFromImage(qimg) )
   {
-    printf("Yet more crap happens\n");
+    fprintf(stderr, "Failed getting pixmap from image\n");
     return;
   }
 
@@ -265,14 +269,14 @@ void HandyMouse::on_nextButton_clicked()
 
     if ( qimg.isNull() )
     {
-      printf("More crap happens\n");
+      fprintf(stderr, "QImage is null\n");
       return;
     }
 
     QPixmap pixmap;
     if ( !pixmap.convertFromImage(qimg) )
     {
-      printf("Yet more crap happens\n");
+      fprintf(stderr, "Failed getting pixmap from image\n");
       return;
     }
 
@@ -288,15 +292,8 @@ void HandyMouse::ProcessFrame(Image* img)
   if ( !img )
     return;
 
-  // TODO Add the initialization stage
   ColorRegion* region = 0;
-  if ( mFrameNumber == 0 )
-  {
-    Point imgCenter(img->GetWidth() / 2, img->GetHeight() / 2);
-    region = new ColorRegion;
-    region->Grow(*img, imgCenter);
-  }
-  else
+  if ( mTrackingInitialized )
   {
     ColorRegion* oldRegion = mTracker->GetRegion(mFrameNumber - 1);
     if ( !oldRegion )
@@ -306,13 +303,32 @@ void HandyMouse::ProcessFrame(Image* img)
     }
     region = new ColorRegion;
     region->TrackFromOldRegion(*img, *oldRegion);
-  }
 
-  if ( !mTracker->AnalyzeRegion(region) )
+    if ( !mTracker->AnalyzeRegion(region) )
+    {
+      printf("Failed analyzing region");
+      delete region;
+      return;
+    }
+    region->FreeIntegralBuffer();
+  }
+  else
   {
-    printf("Failed analyzing region");
-    delete region;
-    return;
+    Point imgCenter(img->GetWidth() / 2, img->GetHeight() / 2);
+    region = new ColorRegion;
+    region->Grow(*img, imgCenter);
+
+    if ( !mTracker->AnalyzeRegionForInitialization(region) )
+    {
+      printf("Failed analyzing region for initialization");
+      delete region;
+      return;
+    }
+    region->FreeIntegralBuffer();
+
+    HandyTracker::HandState handClass = mTracker->GetState(mFrameNumber);
+    if ( handClass == HandyTracker::ST_OPEN )
+      mTrackingInitialized = true;
   }
 }
 
@@ -320,7 +336,8 @@ void HandyMouse::DisplayResults()
 {
   HandyTracker::HandState handClass = mTracker->GetState(mFrameNumber);
   ColorRegion* region = mTracker->GetRegion(mFrameNumber);
-  Matrix* featureData = mTracker->GetFeatureData(mFrameNumber);
+  Matrix* openFeatureData = mTracker->GetOpenFeatureData(mFrameNumber);
+  Matrix* closedFeatureData = mTracker->GetClosedFeatureData(mFrameNumber);
 
   printf("Class: ");
   if ( handClass == HandyTracker::ST_OPEN )
@@ -329,12 +346,15 @@ void HandyMouse::DisplayResults()
     printf("Closed\n");
   else if ( handClass == HandyTracker::ST_CONFLICT )
     printf("Conflicted\n");
+  else if ( handClass == HandyTracker::ST_REJECT )
+    printf("Rejected\n");
   else
     printf("Unknown\n");
 
-  if ( featureData )
+  if ( openFeatureData )
   {
-    int numFeatures = featureData->GetRows();
+    printf("Open Data:\n");
+    int numFeatures = openFeatureData->GetRows();
     for (int i = 0; i < numFeatures; i++)
     {
       if ( i > 0 )
@@ -344,7 +364,25 @@ void HandyMouse::DisplayResults()
         else
           printf("\n");
       }
-      printf("%lf", featureData->GetValue(i, 0));
+      printf("%lf", openFeatureData->GetValue(i, 0));
+    }
+    printf("\n");
+  }
+
+  if ( closedFeatureData )
+  {
+    printf("Closed Data:\n");
+    int numFeatures = closedFeatureData->GetRows();
+    for (int i = 0; i < numFeatures; i++)
+    {
+      if ( i > 0 )
+      {
+        if ( i % 4 )
+          printf("\t");
+        else
+          printf("\n");
+      }
+      printf("%lf", closedFeatureData->GetValue(i, 0));
     }
     printf("\n");
   }
@@ -354,10 +392,12 @@ void HandyMouse::DisplayResults()
     Point centroid = region->GetCentroid();
     qreal ellipseX = centroid.x;
     qreal ellipseY = centroid.y;
+    qreal ellipseW = 5.0;
+    qreal ellipseH = 5.0;
     if ( mEllipseItem )
-      mEllipseItem->setPos(ellipseX, ellipseY);
+      mEllipseItem->setRect(ellipseX, ellipseY, ellipseW, ellipseH);
     else
-      mEllipseItem = mScene->addEllipse(ellipseX, ellipseY, 1.0, 1.0, QPen( QColor(0,0,0) ));
+      mEllipseItem = mScene->addEllipse(ellipseX, ellipseY, ellipseW, ellipseH, QPen( QColor(0,0,0) ));
 
     QRectF regionRect(region->GetMinX(), region->GetMinY(), region->GetWidth(), region->GetHeight());
     if ( mRectItem )
@@ -365,15 +405,54 @@ void HandyMouse::DisplayResults()
     else
       mRectItem = mScene->addRect(regionRect);
 
-    if ( handClass == HandyTracker::ST_OPEN )
-      mRectItem->setPen( QPen( QColor(0, 255, 0) ) );
-    else if ( handClass == HandyTracker::ST_CLOSED )
-      mRectItem->setPen( QPen( QColor(0, 0, 255) ) );
-    else if ( handClass == HandyTracker::ST_CONFLICT )
-      mRectItem->setPen( QPen( QColor(255, 0, 0) ) );
-    else
-      mRectItem->setPen( QPen( QColor(255, 255, 255) ) );
-  }
+    if ( mTrackingInitialized )
+    {
+      delete mXItem;
+      mXItem = 0;
 
-  // TODO Finish results display
+      int refHeight = region->GetReferenceHeight();
+      if ( refHeight == 0 )
+      {
+        delete mWristLineItem;
+        mWristLineItem = 0;
+      }
+      else
+      {
+        if ( mWristLineItem )
+          mWristLineItem->setLine(region->GetMinX(), region->GetMinY() + refHeight, region->GetMaxX(), region->GetMinY() + refHeight);
+        else
+          mWristLineItem = mScene->addLine(region->GetMinX(), region->GetMinY() + refHeight, region->GetMaxX(), region->GetMinY() + refHeight);
+      }
+    }
+    else
+    {
+      delete mWristLineItem;
+      mWristLineItem = 0;
+
+      QPolygonF poly;
+      poly << regionRect.bottomLeft() << regionRect.topRight() << regionRect.topLeft() << regionRect.bottomRight();
+      if ( mXItem )
+        mXItem->setPolygon(poly);
+      else
+        mXItem = mScene->addPolygon(poly);
+    }
+
+    QPen coloredPen;
+    if ( handClass == HandyTracker::ST_OPEN )
+      coloredPen = QPen( QColor(0, 255, 0) );
+    else if ( handClass == HandyTracker::ST_CLOSED )
+      coloredPen = QPen( QColor(0, 0, 255) );
+    else if ( handClass == HandyTracker::ST_CONFLICT )
+      coloredPen = QPen( QColor(0, 255, 255) );
+    else if ( handClass == HandyTracker::ST_REJECT )
+      coloredPen = QPen( QColor(255, 0, 0) );
+    else
+      coloredPen = QPen( QColor(255, 255, 255) );
+
+    mRectItem->setPen(coloredPen);
+    if ( mXItem )
+      mXItem->setPen(coloredPen);
+    if ( mWristLineItem )
+      mWristLineItem->setPen(coloredPen);
+  }
 }
