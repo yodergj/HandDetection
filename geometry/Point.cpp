@@ -59,3 +59,10 @@ bool Point::operator<(const Point& ref) const
     return (y < ref.y);
   return (x < ref.x);
 }
+
+int Point::GetTaxicabDistance(const Point& ref)
+{
+  int xdist = abs(x - ref.x);
+  int ydist = abs(y - ref.y);
+  return xdist + ydist;
+}

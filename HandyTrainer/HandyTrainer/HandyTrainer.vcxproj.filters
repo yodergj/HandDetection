@@ -78,6 +78,9 @@
     <ClCompile Include="..\..\xmlutils\XMLUtils2.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\image\Color.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\image\ColorRegion.h">
@@ -132,6 +135,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\xmlutils\XMLUtils2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\image\Color.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

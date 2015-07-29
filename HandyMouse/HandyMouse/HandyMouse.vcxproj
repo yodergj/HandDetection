@@ -155,6 +155,7 @@
     <ClCompile Include="..\..\geometry\Point.cpp" />
     <ClCompile Include="..\..\geometry\Rect.cpp" />
     <ClCompile Include="..\..\hand\HandyTracker.cpp" />
+    <ClCompile Include="..\..\image\Color.cpp" />
     <ClCompile Include="..\..\image\ColorRegion.cpp" />
     <ClCompile Include="..\..\image\ConnectedRegion.cpp" />
     <ClCompile Include="..\..\image\Image.cpp" />
@@ -234,6 +235,7 @@
     <ClInclude Include="..\..\geometry\Point.h" />
     <ClInclude Include="..\..\geometry\Rect.h" />
     <ClInclude Include="..\..\hand\HandyTracker.h" />
+    <ClInclude Include="..\..\image\Color.h" />
     <ClInclude Include="..\..\image\ColorRegion.h" />
     <ClInclude Include="..\..\image\ConnectedRegion.h" />
     <ClInclude Include="..\..\image\Image.h" />

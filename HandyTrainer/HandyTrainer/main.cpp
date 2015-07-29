@@ -7,6 +7,9 @@
 #include "ColorRegion.h"
 #include "HandyTracker.h"
 
+#define MIN_REGION_WIDTH  75
+#define MIN_REGION_HEIGHT 75
+
 int main(int argc, char *argv[])
 {
 #if 0
@@ -18,19 +21,21 @@ int main(int argc, char *argv[])
   int width, height;
   int numWeakClassifiers;
   int classIndex = 0;
-  string className;
+  string className, listFilename;
   Image image;
   VideoDecoder* videoDecoder = new VideoDecoder;
   AdaboostClassifier handClassifier;
   HandyTracker tracker;
-  char filename[256];
+  char filename[512];
+  char buf[1024];
   FILE *file;
   int revNumber = 0;
   std::vector<double> aspectRatios;
 
-  if ( argc < 6 )
+  if ( argc != 4 )
   {
-    printf("Usage: %s <class name> <num weak classifiers> <hand class Image> [...] -x <hand non-class image> [...]\n", argv[0]);
+    //printf("Usage: %s <class name> <num weak classifiers> <hand class Image> [...] -x <hand non-class image> [...]\n", argv[0]);
+    printf("Usage: %s <class name> <num weak classifiers> <list file>\n", argv[0]);
     return 0;
   }
 
@@ -39,37 +44,62 @@ int main(int argc, char *argv[])
   numWeakClassifiers = atoi(argv[2]);
   if ( numWeakClassifiers < 1 )
   {
-    printf("Invalid number of weak classifiers %d\n", numWeakClassifiers );
+    fprintf(stderr, "Invalid number of weak classifiers %d\n", numWeakClassifiers );
     return 1;
   }
 
+  listFilename = argv[3];
+  FILE* listFp = fopen(listFilename.c_str(), "r");
+  if ( !listFp )
+  {
+    fprintf(stderr, "Failed opening list file <%s>\n", listFilename.c_str());
+    return 1;
+  }
+  std::vector<std::string> fileVec;
+  while ( fgets(buf, 1024, listFp) && !feof(listFp) )
+  {
+    std::string str = buf;
+    if ( str.empty() )
+      continue;
+
+    while ( (str[str.size() - 1] == '\n') ||
+            (str[str.size() - 1] == '\r') )
+    {
+      str = str.substr(0, str.size() - 1);
+    }
+
+    if ( !str.empty() )
+      fileVec.push_back(str);
+  }
+  fclose(listFp);
+
   if ( !handClassifier.Create(HandyTracker::mNumFeatures, 2, numWeakClassifiers) )
   {
-    printf("Failed creating classifier\n");
+    fprintf(stderr, "Failed creating classifier\n");
     return 1;
   }
   
   std::string featureStr("abcdefghijklmnopq");
   handClassifier.SetFeatureString(featureStr);
 
-  for (i = 3; i < argc; i++)
+  for (i = 0; i < (int)fileVec.size(); i++)
   {
-    if ( !strcmp(argv[i], "-x") )
+    if ( !strcmp(fileVec[i].c_str(), "-x") )
     {
       classIndex = 1;
       continue;
     }
-    if ( image.Load(argv[i]) )
+    if ( image.Load(fileVec[i]) )
     {
       if ( classIndex == 0 )
-        printf("Processing hand class image %s\n", argv[i]);
+        printf("Processing hand class image %s\n", fileVec[i].c_str());
       else
-        printf("Processing other hand image %s\n", argv[i]);
+        printf("Processing other hand image %s\n", fileVec[i].c_str());
       width = image.GetWidth();
       height = image.GetHeight();
       Point startPt(width / 2, height / 2);
       ColorRegion region;
-      if ( region.Grow(image, startPt) )
+      if ( region.Grow(image, startPt) && (region.GetWidth() >= MIN_REGION_WIDTH) && (region.GetHeight() >= MIN_REGION_HEIGHT) )
       {
         Matrix featureData;
         if ( tracker.GenerateFeatureData(&region, featureData) )
@@ -82,13 +112,13 @@ int main(int argc, char *argv[])
     }
     else
     {
-      videoDecoder->SetFilename(argv[i]);
+      videoDecoder->SetFilename(fileVec[i]);
       if ( videoDecoder->Load() )
       {
         if ( classIndex == 0 )
-          printf("Processing hand class video %s\n", argv[i]);
+          printf("Processing hand class video %s\n", fileVec[i].c_str());
         else
-          printf("Processing other hand video %s\n", argv[i]);
+          printf("Processing other hand video %s\n", fileVec[i].c_str());
 
         int frameNumber = 0;
         ColorRegion* oldRegion = 0;
@@ -118,7 +148,14 @@ int main(int argc, char *argv[])
               fprintf(stderr, "Failed growing color region\n");
           }
 
-          if ( !region->Empty() )
+          if ( (region->GetWidth() < MIN_REGION_WIDTH) || (region->GetHeight() < MIN_REGION_HEIGHT) )
+          {
+            fprintf(stderr, "Rejecting color region for minimum size\n");
+            delete region;
+            region = oldRegion;
+            oldRegion = 0;
+          }
+          else
           {
             Matrix featureData;
             if ( tracker.GenerateFeatureData(region, featureData) )
@@ -138,7 +175,7 @@ int main(int argc, char *argv[])
         delete region;
       }
       else
-        fprintf(stderr, "Failed opening image/video %s\n", argv[i]);
+        fprintf(stderr, "Failed opening image/video %s\n", fileVec[i].c_str());
 
       delete videoDecoder;
       videoDecoder = new VideoDecoder;

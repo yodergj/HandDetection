@@ -55,11 +55,22 @@ private:
   int mMinG, mMaxG;
   int mMinB, mMaxB;
 
+  double mMinH, mMaxH, mMeanH;
+  double mMinS, mMaxS, mMeanS;
+  int mPixelsInMean;
+
   int mStaleResultCount;
 
   int* mIntegralBuffer;
 
   int mRefHeight;
+
+  static const int mColorTolerance;
+  static const double mChannelTolerance;
+  static const double mHueTolerance;
+  static const double mSaturationTolerance;
+  static const double mWeakSaturationThreshold;
+  static const double mLowValueThreshold;
 };
 
 #endif

@@ -215,7 +215,7 @@ bool HandyTracker::AnalyzeRegion(ColorRegion* region)
 
 bool HandyTracker::AnalyzeRegionForInitialization(ColorRegion* region)
 {
-  if ( !region || !mOpenClassifier || !mClosedClassifier )
+  if ( !region )
     return false;
 
   // If we're missing a classifier, just do the regular analysis

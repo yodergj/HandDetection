@@ -34,11 +34,12 @@ HandyMouse::~HandyMouse()
 
 void HandyMouse::BuildImageFilter()
 {
-  QString filter;
+  QString filter = "PNG files (*.png);;";
   QList<QByteArray> formats = QImageWriter::supportedImageFormats();
   foreach (QString format, formats)
   {
-    filter += QString("%1 files (*.%2);;").arg(format.toUpper()).arg(format);
+    if ( format.toUpper() != QString("PNG") )
+      filter += QString("%1 files (*.%2);;").arg(format.toUpper()).arg(format);
   }
   if (filter.endsWith(";;"))
     filter.chop(2);
@@ -107,7 +108,7 @@ void HandyMouse::on_actionLoad_triggered()
   QString filename = QFileDialog::getOpenFileName(this,
     tr("Open Video"),
     "",
-    tr("Video Files (*.asf *.wma *.wmv *.divx *.f4v *.flv *.mkv *.mk3d *.mka *.mks *.mcf *.mp4 *.mpg *.mpeg *.ogg *.ogv *.mov *.qt *.webm)"));
+    tr("Video Files (*.asf *.wma *.wmv *.divx *.f4v *.flv *.mkv *.mk3d *.mka *.mks *.mcf *.mp4 *.mpg *.mpeg *.mts *.ogg *.ogv *.mov *.qt *.webm)"));
 
   if ( filename.isEmpty() )
     return;

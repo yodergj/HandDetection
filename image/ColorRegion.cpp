@@ -1,4 +1,12 @@
 #include "ColorRegion.h"
+#include "Color.h"
+
+const int ColorRegion::mColorTolerance = (int)(.20 * 255 + .5);
+const double ColorRegion::mChannelTolerance = .075 * 255;
+const double ColorRegion::mHueTolerance = .0175;
+const double ColorRegion::mSaturationTolerance = .15;
+const double ColorRegion::mWeakSaturationThreshold = .35;
+const double ColorRegion::mLowValueThreshold = .075;
 
 ColorRegion::ColorRegion()
 {
@@ -16,6 +24,15 @@ ColorRegion::ColorRegion()
   mMinB = 255;
   mMaxB = 0;
   mMeanB = -1;
+
+  mMinH = FLT_MAX;
+  mMaxH = 0;
+  mMeanH = -1;
+  mMinS = FLT_MAX;
+  mMaxS = 0;
+  mMeanS = -1;
+
+  mPixelsInMean = 0;
 
   mStaleResultCount = 0;
   mIntegralBuffer = 0;
@@ -54,6 +71,14 @@ ColorRegion& ColorRegion::operator=(const ColorRegion& ref)
     mMaxB = ref.mMaxB;
     mMeanB = ref.mMeanB;
 
+    mMinH = ref.mMinH;
+    mMaxH = ref.mMaxH;
+    mMeanH = ref.mMeanH;
+    mMinS = ref.mMinS;
+    mMaxS = ref.mMaxS;
+    mMeanS = ref.mMeanS;
+    mPixelsInMean = ref.mPixelsInMean;
+
     mStaleResultCount = ref.mStaleResultCount;
     mRefHeight = ref.mRefHeight;
     if ( mIntegralBuffer )
@@ -91,12 +116,31 @@ bool ColorRegion::Empty() const
 
 bool ColorRegion::ColorMatches(int R, int G, int B) const
 {
+#if 0
   return ( (R >= mMinR) && (R <= mMaxR) && (G >= mMinG) && (G <= mMaxG) && (B >= mMinB) && (B <= mMaxB) );
+#else
+  double hue = GetHue(R, G, B);
+  double colorDist = sqrt( (R - mMeanR) * (R - mMeanR) +
+                           (G - mMeanG) * (G - mMeanG) +
+                           (B - mMeanB) * (B - mMeanB) );
+  return ( (colorDist < mColorTolerance) || HueInRange(mMeanH, mHueTolerance, hue) );
+#endif
 }
 
 bool ColorRegion::ColorMatches(unsigned char* rgbVals) const
 {
+#if 0
   return ( (rgbVals[0] >= mMinR) && (rgbVals[0] <= mMaxR) && (rgbVals[1] >= mMinG) && (rgbVals[1] <= mMaxG) && (rgbVals[2] >= mMinB) && (rgbVals[2] <= mMaxB) );
+#else
+  int R = rgbVals[0];
+  int G = rgbVals[1];
+  int B = rgbVals[2];
+  double hue = GetHue(rgbVals);
+  double colorDist = sqrt( (R - mMeanR) * (R - mMeanR) +
+                           (G - mMeanG) * (G - mMeanG) +
+                           (B - mMeanB) * (B - mMeanB) );
+  return ( (colorDist < mColorTolerance) || HueInRange(mMeanH, mHueTolerance, hue) );
+#endif
 }
 
 bool ColorRegion::ContainsPixel(int x, int y) const
@@ -117,7 +161,8 @@ bool ColorRegion::Grow(Image& image, const Point& startPt)
   if ( !imgBuffer )
     return false;
 
-  std::set<Point> rejectedPoints, checkPoints;
+  std::set<Point> rejectedPoints;
+  std::set<DistPointPair, DistPointPairCompare> checkPoints;
   mPoints.clear();
   mMinX = startPt.x;
   mMaxX = startPt.x;
@@ -128,52 +173,96 @@ bool ColorRegion::Grow(Image& image, const Point& startPt)
   mMinR = mMaxR = mMeanR = imgBuffer[pixelIndex];
   mMinG = mMaxG = mMeanG = imgBuffer[pixelIndex + 1];
   mMinB = mMaxB = mMeanB = imgBuffer[pixelIndex + 2];
+  mMinH = mMaxH = mMeanH = GetHue(imgBuffer + pixelIndex);
+#if 0
+  mMinS = mMaxS = mMeanS = GetHSLSaturation(imgBuffer + pixelIndex);
+#else
+  mMinS = mMaxS = mMeanS = GetHSVSaturation(imgBuffer + pixelIndex);
+#endif
 
   mPoints.insert(startPt);
   if ( startPt.x > 0 )
-    checkPoints.insert( Point(startPt.x - 1, startPt.y) );
+    checkPoints.insert( DistPointPair(1, Point(startPt.x - 1, startPt.y)) );
   if ( startPt.x < width - 1 )
-    checkPoints.insert( Point(startPt.x + 1, startPt.y) );
+    checkPoints.insert( DistPointPair(1, Point(startPt.x + 1, startPt.y)) );
   if ( startPt.y > 0 )
-    checkPoints.insert( Point(startPt.x, startPt.y - 1) );
+    checkPoints.insert( DistPointPair(1, Point(startPt.x, startPt.y - 1)) );
   if ( startPt.y < height - 1 )
-    checkPoints.insert( Point(startPt.x + 1, startPt.y) );
+    checkPoints.insert( DistPointPair(1, Point(startPt.x, startPt.y + 1)) );
 
   double centroidX = startPt.x;
   double centroidY = startPt.y;
 
-  int colorTol = (int)(.20 * 255 + .5);
-
   while ( !checkPoints.empty() )
   {
-    Point pt = *checkPoints.begin();
+    Point pt = checkPoints.begin()->second;
     checkPoints.erase( checkPoints.begin() );
 
     pixelIndex = 3 * (pt.y * width + pt.x);
     int R = imgBuffer[pixelIndex];
     int G = imgBuffer[pixelIndex + 1];
     int B = imgBuffer[pixelIndex + 2];
-
+    double hue = GetHue(imgBuffer + pixelIndex);
 #if 0
-#if 0
-    bool rInRange = ( ( (mMinR <= colorTol) || (R >= mMinR - colorTol) ) &&
-                      ( (mMaxR >= 255 - colorTol) || (R <= mMaxR + colorTol) ) );
-    bool gInRange = ( ( (mMinG <= colorTol) || (G >= mMinG - colorTol) ) &&
-                      ( (mMaxG >= 255 - colorTol) || (G <= mMaxG + colorTol) ) );
-    bool bInRange = ( ( (mMinB <= colorTol) || (B >= mMinB - colorTol) ) &&
-                      ( (mMaxB >= 255 - colorTol) || (B <= mMaxB + colorTol) ) );
+    double saturation = GetHSLSaturation(imgBuffer + pixelIndex);
 #else
-    bool rInRange = ( (R >= mMinR - colorTol) && (R <= mMaxR + colorTol) );
-    bool gInRange = ( (G >= mMinG - colorTol) && (G <= mMaxG + colorTol) );
-    bool bInRange = ( (B >= mMinB - colorTol) && (B <= mMaxB + colorTol) );
+    double saturation = GetHSVSaturation(imgBuffer + pixelIndex);
 #endif
 
-    if ( rInRange && gInRange && bInRange )
-#else
+#if 0
     double colorDist = sqrt( (R - mMeanR) * (R - mMeanR) +
                              (G - mMeanG) * (G - mMeanG) +
                              (B - mMeanB) * (B - mMeanB) );
-    if ( colorDist < colorTol )
+    if ( (colorDist < mColorTolerance) || HueInRange(mMeanH, mHueTolerance, hue) )
+#else
+#if 0
+    double rDist = fabs(R - mMeanR);
+    double gDist = fabs(G - mMeanG);
+    double bDist = fabs(B - mMeanB);
+    double colorDist = sqrt( rDist * rDist + gDist * gDist + bDist * bDist );
+    if ( ( (colorDist < mColorTolerance) &&
+           (rDist < mChannelTolerance) &&
+           (gDist < mChannelTolerance) &&
+           (bDist < mChannelTolerance) ) ||
+         HueInRange(mMeanH, mHueTolerance, hue) )
+#else
+#if 0
+    double hueDist = GetHueDistance(hue, mMeanH);
+    double satDist = fabs(saturation - mMeanS);
+    if ( ( (hueDist < mHueTolerance) && (satDist < mSaturationTolerance) ) ||
+         ( (hueDist < .5 * mHueTolerance) && (satDist < 2 * mSaturationTolerance) ) )
+#else
+    bool hueMatch = false;
+    bool hueMatchGoodForAvg = false;
+    bool distMatch = false;
+
+    double meanValue = GetHSVValue((int)mMeanR, (int)mMeanG, (int)mMeanB);
+
+    if ( (mMeanS < mWeakSaturationThreshold) ||
+         (meanValue < mLowValueThreshold) )
+    {
+      double colorDist = sqrt( (R - mMeanR) * (R - mMeanR) +
+                               (G - mMeanG) * (G - mMeanG) +
+                               (B - mMeanB) * (B - mMeanB) );
+      double satDist = fabs(saturation - mMeanS);
+      distMatch = ( (colorDist < mColorTolerance) && (satDist < mSaturationTolerance) );
+    }
+    else
+    {
+      double hueDist = GetHueDistance(hue, mMeanH);
+      double satDist = fabs(saturation - mMeanS);
+      if ( (hueDist < mHueTolerance) && (satDist < mSaturationTolerance) )
+      {
+        hueMatch = true;
+        hueMatchGoodForAvg = true;
+      }
+      else
+        hueMatch = ( (hueDist < .5 * mHueTolerance) && (satDist < 2 * mSaturationTolerance) );
+    }
+
+    if ( hueMatch || distMatch )
+#endif
+#endif
 #endif
     {
       if ( pt.x < mMinX )
@@ -188,23 +277,54 @@ bool ColorRegion::Grow(Image& image, const Point& startPt)
       centroidX = (pt.x + centroidX * mPoints.size()) / (mPoints.size() + 1);
       centroidY = (pt.y + centroidY * mPoints.size()) / (mPoints.size() + 1);
 
-      if ( R < mMinR )
-        mMinR = R;
-      if ( R > mMaxR )
-        mMaxR = R;
-      mMeanR = (R + mMeanR * mPoints.size()) / (mPoints.size() + 1);
+#if 0
+      if ( colorDist < mColorTolerance )
+#else
+#if 0
+      if ( (colorDist < mColorTolerance) &&
+           (rDist < mChannelTolerance) &&
+           (gDist < mChannelTolerance) &&
+           (bDist < mChannelTolerance) )
+#else
+#if 0
+      if ( (hueDist < mHueTolerance) && (satDist < mSaturationTolerance) )
+#else
+      if ( hueMatchGoodForAvg || distMatch )
+#endif
+#endif
+#endif
+      {
+        if ( R < mMinR )
+          mMinR = R;
+        if ( R > mMaxR )
+          mMaxR = R;
+        mMeanR = (R + mMeanR * mPixelsInMean) / (mPixelsInMean + 1);
 
-      if ( G < mMinG )
-        mMinG = G;
-      if ( G > mMaxG )
-        mMaxG = G;
-      mMeanG = (G + mMeanG * mPoints.size()) / (mPoints.size() + 1);
+        if ( G < mMinG )
+          mMinG = G;
+        if ( G > mMaxG )
+          mMaxG = G;
+        mMeanG = (G + mMeanG * mPixelsInMean) / (mPixelsInMean + 1);
 
-      if ( B < mMinB )
-        mMinB = B;
-      if ( B > mMaxB )
-        mMaxB = B;
-      mMeanB = (B + mMeanB * mPoints.size()) / (mPoints.size() + 1);
+        if ( B < mMinB )
+          mMinB = B;
+        if ( B > mMaxB )
+          mMaxB = B;
+        mMeanB = (B + mMeanB * mPixelsInMean) / (mPixelsInMean + 1);
+
+        if ( hue < mMinH )
+          mMinH = hue;
+        if ( hue > mMaxH )
+          mMaxH = hue;
+#if 1
+        mMeanH = (hue + mMeanH * mPixelsInMean) / (mPixelsInMean + 1);
+#else
+        mMeanH = GetHue((int)(mMeanR + .5), (int)(mMeanG + .5), (int)(mMeanB + .5));
+#endif
+        mMeanS = (saturation + mMeanS * mPixelsInMean) / (mPixelsInMean + 1);
+
+        mPixelsInMean++;
+      }
 
       mPoints.insert(pt);
 
@@ -212,25 +332,25 @@ bool ColorRegion::Grow(Image& image, const Point& startPt)
       {
         Point candPt(pt.x - 1, pt.y);
         if ( (rejectedPoints.find(candPt) == rejectedPoints.end()) && (mPoints.find(candPt) == mPoints.end()) )
-          checkPoints.insert(candPt);
+          checkPoints.insert( DistPointPair(candPt.GetTaxicabDistance(startPt), candPt) );
       }
       if ( pt.x < width - 1 )
       {
         Point candPt(pt.x + 1, pt.y);
         if ( (rejectedPoints.find(candPt) == rejectedPoints.end()) && (mPoints.find(candPt) == mPoints.end()) )
-          checkPoints.insert(candPt);
+          checkPoints.insert( DistPointPair(candPt.GetTaxicabDistance(startPt), candPt) );
       }
       if ( pt.y > 0 )
       {
         Point candPt(pt.x, pt.y - 1);
         if ( (rejectedPoints.find(candPt) == rejectedPoints.end()) && (mPoints.find(candPt) == mPoints.end()) )
-          checkPoints.insert(candPt);
+          checkPoints.insert( DistPointPair(candPt.GetTaxicabDistance(startPt), candPt) );
       }
       if ( pt.y < height - 1 )
       {
         Point candPt(pt.x, pt.y + 1);
         if ( (rejectedPoints.find(candPt) == rejectedPoints.end()) && (mPoints.find(candPt) == mPoints.end()) )
-          checkPoints.insert(candPt);
+          checkPoints.insert( DistPointPair(candPt.GetTaxicabDistance(startPt), candPt) );
       }
     }
     else
