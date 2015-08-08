@@ -27,6 +27,9 @@ class AdaboostClassifier
     bool Save(xercesc::DOMDocument* doc, xercesc::DOMElement* classifierNode);
     bool Load(const char* filename);
     bool Load(xercesc::DOMElement* classifierNode);
+
+    bool SaveTrainingData(const char* filename);
+    bool LoadTrainingData(const char* filename);
   private:
     void Clear();
     bool TrainLevel(const vector<double>& weights, int levelNum, int& chosenFeature);

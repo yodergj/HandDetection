@@ -116,31 +116,65 @@ bool ColorRegion::Empty() const
 
 bool ColorRegion::ColorMatches(int R, int G, int B) const
 {
-#if 0
-  return ( (R >= mMinR) && (R <= mMaxR) && (G >= mMinG) && (G <= mMaxG) && (B >= mMinB) && (B <= mMaxB) );
-#else
   double hue = GetHue(R, G, B);
-  double colorDist = sqrt( (R - mMeanR) * (R - mMeanR) +
-                           (G - mMeanG) * (G - mMeanG) +
-                           (B - mMeanB) * (B - mMeanB) );
-  return ( (colorDist < mColorTolerance) || HueInRange(mMeanH, mHueTolerance, hue) );
-#endif
+  double saturation = GetHSVSaturation(R, G, B);
+
+  bool hueMatch = false;
+  bool distMatch = false;
+
+  double meanValue = GetHSVValue((int)mMeanR, (int)mMeanG, (int)mMeanB);
+
+  if ( (mMeanS < mWeakSaturationThreshold) ||
+       (meanValue < mLowValueThreshold) )
+  {
+    double colorDist = sqrt( (R - mMeanR) * (R - mMeanR) +
+                             (G - mMeanG) * (G - mMeanG) +
+                             (B - mMeanB) * (B - mMeanB) );
+    double satDist = fabs(saturation - mMeanS);
+    distMatch = ( (colorDist < mColorTolerance) && (satDist < mSaturationTolerance) );
+  }
+  else
+  {
+    double hueDist = GetHueDistance(hue, mMeanH);
+    double satDist = fabs(saturation - mMeanS);
+    hueMatch = ( ( (hueDist < mHueTolerance) && (satDist < mSaturationTolerance) ) ||
+                 ( (hueDist < .5 * mHueTolerance) && (satDist < 2 * mSaturationTolerance) ) );
+  }
+
+  return ( hueMatch || distMatch );
 }
 
 bool ColorRegion::ColorMatches(unsigned char* rgbVals) const
 {
-#if 0
-  return ( (rgbVals[0] >= mMinR) && (rgbVals[0] <= mMaxR) && (rgbVals[1] >= mMinG) && (rgbVals[1] <= mMaxG) && (rgbVals[2] >= mMinB) && (rgbVals[2] <= mMaxB) );
-#else
   int R = rgbVals[0];
   int G = rgbVals[1];
   int B = rgbVals[2];
   double hue = GetHue(rgbVals);
-  double colorDist = sqrt( (R - mMeanR) * (R - mMeanR) +
-                           (G - mMeanG) * (G - mMeanG) +
-                           (B - mMeanB) * (B - mMeanB) );
-  return ( (colorDist < mColorTolerance) || HueInRange(mMeanH, mHueTolerance, hue) );
-#endif
+  double saturation = GetHSVSaturation(rgbVals);
+
+  bool hueMatch = false;
+  bool distMatch = false;
+
+  double meanValue = GetHSVValue((int)mMeanR, (int)mMeanG, (int)mMeanB);
+
+  if ( (mMeanS < mWeakSaturationThreshold) ||
+       (meanValue < mLowValueThreshold) )
+  {
+    double colorDist = sqrt( (R - mMeanR) * (R - mMeanR) +
+                             (G - mMeanG) * (G - mMeanG) +
+                             (B - mMeanB) * (B - mMeanB) );
+    double satDist = fabs(saturation - mMeanS);
+    distMatch = ( (colorDist < mColorTolerance) && (satDist < mSaturationTolerance) );
+  }
+  else
+  {
+    double hueDist = GetHueDistance(hue, mMeanH);
+    double satDist = fabs(saturation - mMeanS);
+    hueMatch = ( ( (hueDist < mHueTolerance) && (satDist < mSaturationTolerance) ) ||
+                 ( (hueDist < .5 * mHueTolerance) && (satDist < 2 * mSaturationTolerance) ) );
+  }
+
+  return ( hueMatch || distMatch );
 }
 
 bool ColorRegion::ContainsPixel(int x, int y) const
@@ -174,11 +208,7 @@ bool ColorRegion::Grow(Image& image, const Point& startPt)
   mMinG = mMaxG = mMeanG = imgBuffer[pixelIndex + 1];
   mMinB = mMaxB = mMeanB = imgBuffer[pixelIndex + 2];
   mMinH = mMaxH = mMeanH = GetHue(imgBuffer + pixelIndex);
-#if 0
-  mMinS = mMaxS = mMeanS = GetHSLSaturation(imgBuffer + pixelIndex);
-#else
   mMinS = mMaxS = mMeanS = GetHSVSaturation(imgBuffer + pixelIndex);
-#endif
 
   mPoints.insert(startPt);
   if ( startPt.x > 0 )
@@ -203,35 +233,8 @@ bool ColorRegion::Grow(Image& image, const Point& startPt)
     int G = imgBuffer[pixelIndex + 1];
     int B = imgBuffer[pixelIndex + 2];
     double hue = GetHue(imgBuffer + pixelIndex);
-#if 0
-    double saturation = GetHSLSaturation(imgBuffer + pixelIndex);
-#else
     double saturation = GetHSVSaturation(imgBuffer + pixelIndex);
-#endif
 
-#if 0
-    double colorDist = sqrt( (R - mMeanR) * (R - mMeanR) +
-                             (G - mMeanG) * (G - mMeanG) +
-                             (B - mMeanB) * (B - mMeanB) );
-    if ( (colorDist < mColorTolerance) || HueInRange(mMeanH, mHueTolerance, hue) )
-#else
-#if 0
-    double rDist = fabs(R - mMeanR);
-    double gDist = fabs(G - mMeanG);
-    double bDist = fabs(B - mMeanB);
-    double colorDist = sqrt( rDist * rDist + gDist * gDist + bDist * bDist );
-    if ( ( (colorDist < mColorTolerance) &&
-           (rDist < mChannelTolerance) &&
-           (gDist < mChannelTolerance) &&
-           (bDist < mChannelTolerance) ) ||
-         HueInRange(mMeanH, mHueTolerance, hue) )
-#else
-#if 0
-    double hueDist = GetHueDistance(hue, mMeanH);
-    double satDist = fabs(saturation - mMeanS);
-    if ( ( (hueDist < mHueTolerance) && (satDist < mSaturationTolerance) ) ||
-         ( (hueDist < .5 * mHueTolerance) && (satDist < 2 * mSaturationTolerance) ) )
-#else
     bool hueMatch = false;
     bool hueMatchGoodForAvg = false;
     bool distMatch = false;
@@ -258,12 +261,16 @@ bool ColorRegion::Grow(Image& image, const Point& startPt)
       }
       else
         hueMatch = ( (hueDist < .5 * mHueTolerance) && (satDist < 2 * mSaturationTolerance) );
+#if 1
+      if ( mPoints.size() > 1.0e4 )
+      {
+        if ( saturation < mMinS )
+          hueMatch = false;
+      }
+#endif
     }
 
     if ( hueMatch || distMatch )
-#endif
-#endif
-#endif
     {
       if ( pt.x < mMinX )
         mMinX = pt.x;
@@ -278,20 +285,7 @@ bool ColorRegion::Grow(Image& image, const Point& startPt)
       centroidY = (pt.y + centroidY * mPoints.size()) / (mPoints.size() + 1);
 
 #if 0
-      if ( colorDist < mColorTolerance )
-#else
-#if 0
-      if ( (colorDist < mColorTolerance) &&
-           (rDist < mChannelTolerance) &&
-           (gDist < mChannelTolerance) &&
-           (bDist < mChannelTolerance) )
-#else
-#if 0
-      if ( (hueDist < mHueTolerance) && (satDist < mSaturationTolerance) )
-#else
       if ( hueMatchGoodForAvg || distMatch )
-#endif
-#endif
 #endif
       {
         if ( R < mMinR )
@@ -316,11 +310,11 @@ bool ColorRegion::Grow(Image& image, const Point& startPt)
           mMinH = hue;
         if ( hue > mMaxH )
           mMaxH = hue;
-#if 1
         mMeanH = (hue + mMeanH * mPixelsInMean) / (mPixelsInMean + 1);
-#else
-        mMeanH = GetHue((int)(mMeanR + .5), (int)(mMeanG + .5), (int)(mMeanB + .5));
-#endif
+        if ( saturation < mMinS )
+          mMinS = saturation;
+        if ( saturation > mMaxS )
+          mMaxS = saturation;
         mMeanS = (saturation + mMeanS * mPixelsInMean) / (mPixelsInMean + 1);
 
         mPixelsInMean++;

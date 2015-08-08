@@ -15,8 +15,6 @@ public:
   ColorRegion& operator=(const ColorRegion& ref);
 
   bool Empty() const;
-  bool ColorMatches(int R, int G, int B) const;
-  bool ColorMatches(unsigned char* rgbVals) const;
   bool ContainsPixel(int x, int y) const;
 
   bool Grow(Image& image, const Point& startPt);
@@ -45,6 +43,8 @@ public:
   bool SetReferenceHeight(int refHeight);
 private:
   void GenerateIntegralBuffer();
+  bool ColorMatches(int R, int G, int B) const;
+  bool ColorMatches(unsigned char* rgbVals) const;
   std::set<Point> mPoints;
 
   int mMinX, mMaxX, mMinY, mMaxY;

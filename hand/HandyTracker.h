@@ -6,7 +6,8 @@
 class ColorRegion;
 class AdaboostClassifier;
 
-#define ASPECT_RATIO_INDEX 16
+#define ASPECT_RATIO_INDEX 25
+#define GRID_DIM_SIZE 5
 
 class HandyTracker
 {
@@ -35,6 +36,7 @@ public:
   Matrix* GetOpenFeatureData(int frameNumber);
   Matrix* GetClosedFeatureData(int frameNumber);
   void ResetHistory();
+  void PurgeRegion(int frameNumber);
 private:
   HandState CalculateStateResult(int openResult, int closedResult);
   std::vector<ColorRegion*> mRegionHistory;

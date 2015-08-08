@@ -23,6 +23,7 @@ public slots:
   void on_actionLoad_Closed_Classifier_triggered();
   void on_actionExport_Frame_triggered();
   void on_actionExport_Hand_triggered();
+  void on_actionTo_Region_Size_Jump_triggered();
 
 private:
   void ProcessFrame(Image* img);
@@ -35,14 +36,17 @@ private:
   QGraphicsRectItem* mRectItem;
   QGraphicsPolygonItem* mXItem;
   QGraphicsLineItem* mWristLineItem;
-  std::vector<QPixmap> mPixmaps;
+  std::vector<QPixmap*> mPixmaps;
+  static const int mMaxPixmapBacklog;
   size_t mFrameNumber;
+  bool mStreamFullyProcessed;
   bool mTrackingInitialized;
 
   HandyTracker* mTracker;
 
   QString mImageFilter;
   void BuildImageFilter();
+  void ClearPixmaps();
 };
 
 #endif // HANDYMOUSE_H

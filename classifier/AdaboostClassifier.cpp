@@ -541,3 +541,91 @@ bool AdaboostClassifier::Load(xercesc::DOMElement* classifierNode)
 
   return retCode;
 }
+
+bool AdaboostClassifier::SaveTrainingData(const char* filename)
+{
+  if ( !filename || !*filename )
+    return false;
+
+  FILE* fp = fopen(filename, "w");
+  if ( !fp )
+    return false;
+
+  int numFeatures = (int)mFeatureString.size();
+  fprintf(fp, "%s\n", mFeatureString.c_str());
+
+  for (size_t i = 0; i < mTrainingData.size(); i++)
+  {
+    fprintf(fp, "%d\n", mTrainingData[i].size());
+    for (size_t j = 0; j < mTrainingData[i].size(); j++)
+    {
+      fprintf(fp, "%d", mTrainingDataFreq[i][j]);
+      Matrix& data = mTrainingData[i][j];
+      for (int k = 0; k < numFeatures; k++)
+        fprintf(fp, " %e", data.GetValue(k, 0));
+      fprintf(fp, "\n");
+    }
+  }
+
+  fclose(fp);
+  return true;
+}
+
+bool AdaboostClassifier::LoadTrainingData(const char* filename)
+{
+  if ( !filename || !*filename )
+    return false;
+
+  FILE* fp = fopen(filename, "r");
+  if ( !fp )
+    return false;
+
+  bool error = false;
+  char buf[256];
+  if ( !fgets(buf, 256, fp) )
+    error = true;
+
+  if ( !error )
+  {
+    mFeatureString = buf;
+    while ( (mFeatureString.c_str()[mFeatureString.size() - 1] == '\n') ||
+            (mFeatureString.c_str()[mFeatureString.size() - 1] == '\r') )
+    {
+      mFeatureString = mFeatureString.substr(0, mFeatureString.size() - 1);
+    }
+    if ( (int)mFeatureString.size() != mNumDimensions )
+      error = true;
+  }
+
+  for (int i = 0; !error && (i < 2); i++)
+  {
+    int numLines = 0;
+    if ( !fscanf(fp, "%d", &numLines) )
+      error = true;
+    for (int j = 0; !error && (j < numLines); j++)
+    {
+      int freq = 0;
+      if ( fscanf(fp, "%d", &freq) )
+        mTrainingDataFreq[i].push_back(freq);
+      else
+        error = true;
+
+      Matrix data;
+      data.SetSize(mNumDimensions, 1);
+      for (int k = 0; !error && (k < mNumDimensions); k++)
+      {
+        double val;
+        if ( fscanf(fp, "%lf", &val) )
+          data.SetValue(k, 0, val);
+        else
+          error = true;
+      }
+      if ( !error )
+        mTrainingData[i].push_back(data);
+    }
+  }
+
+  fclose(fp);
+
+  return !error;
+}

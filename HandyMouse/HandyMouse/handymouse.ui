@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>749</width>
-    <height>458</height>
+    <height>524</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -42,6 +42,16 @@
        </widget>
       </item>
       <item>
+       <widget class="QLabel" name="frameNumLabel">
+        <property name="frameShape">
+         <enum>QFrame::Box</enum>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item>
        <spacer name="horizontalSpacer">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -55,6 +65,21 @@
        </spacer>
       </item>
      </layout>
+    </item>
+    <item>
+     <widget class="QLabel" name="debugLabel">
+      <property name="font">
+       <font>
+        <family>Courier New</family>
+       </font>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+     </widget>
     </item>
    </layout>
   </widget>
@@ -78,7 +103,14 @@
     <addaction name="actionExport_Frame"/>
     <addaction name="actionExport_Hand"/>
    </widget>
+   <widget class="QMenu" name="menuRun">
+    <property name="title">
+     <string>Run</string>
+    </property>
+    <addaction name="actionTo_Region_Size_Jump"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuRun"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">
    <attribute name="toolBarArea">
@@ -112,6 +144,11 @@
   <action name="actionExport_Hand">
    <property name="text">
     <string>Export Hand</string>
+   </property>
+  </action>
+  <action name="actionTo_Region_Size_Jump">
+   <property name="text">
+    <string>To Region Size Jump</string>
    </property>
   </action>
  </widget>

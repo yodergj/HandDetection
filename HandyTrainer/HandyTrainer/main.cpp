@@ -7,8 +7,8 @@
 #include "ColorRegion.h"
 #include "HandyTracker.h"
 
-#define MIN_REGION_WIDTH  75
-#define MIN_REGION_HEIGHT 75
+#define MIN_REGION_WIDTH  100
+#define MIN_REGION_HEIGHT 100
 
 int main(int argc, char *argv[])
 {
@@ -21,21 +21,21 @@ int main(int argc, char *argv[])
   int width, height;
   int numWeakClassifiers;
   int classIndex = 0;
-  string className, listFilename;
+  string className, listFilename, inputDataFilename;
   Image image;
   VideoDecoder* videoDecoder = new VideoDecoder;
   AdaboostClassifier handClassifier;
   HandyTracker tracker;
   char filename[512];
+  char datafilename[512];
   char buf[1024];
   FILE *file;
   int revNumber = 0;
   std::vector<double> aspectRatios;
 
-  if ( argc != 4 )
+  if ( (argc < 4) || (argc > 6) )
   {
-    //printf("Usage: %s <class name> <num weak classifiers> <hand class Image> [...] -x <hand non-class image> [...]\n", argv[0]);
-    printf("Usage: %s <class name> <num weak classifiers> <list file>\n", argv[0]);
+    printf("Usage: %s <class name> <num weak classifiers> [-d <data file>] [list file]\n", argv[0]);
     return 0;
   }
 
@@ -48,30 +48,47 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  listFilename = argv[3];
-  FILE* listFp = fopen(listFilename.c_str(), "r");
-  if ( !listFp )
-  {
-    fprintf(stderr, "Failed opening list file <%s>\n", listFilename.c_str());
-    return 1;
-  }
   std::vector<std::string> fileVec;
-  while ( fgets(buf, 1024, listFp) && !feof(listFp) )
+  if ( !strcmp(argv[3], "-d") )
   {
-    std::string str = buf;
-    if ( str.empty() )
-      continue;
-
-    while ( (str[str.size() - 1] == '\n') ||
-            (str[str.size() - 1] == '\r') )
+    if ( argc == 4 )
     {
-      str = str.substr(0, str.size() - 1);
+      printf("Usage: %s <class name> <num weak classifiers> [-d <data file>] [list file]\n", argv[0]);
+      return 0;
+    }
+    inputDataFilename = argv[4];
+    if ( argc == 6 )
+      listFilename = argv[5];
+  }
+  else
+    listFilename = argv[3];
+
+  if ( !listFilename.empty() )
+  {
+    FILE* listFp = fopen(listFilename.c_str(), "r");
+    if ( !listFp )
+    {
+      fprintf(stderr, "Failed opening list file <%s>\n", listFilename.c_str());
+      return 1;
     }
 
-    if ( !str.empty() )
-      fileVec.push_back(str);
+    while ( fgets(buf, 1024, listFp) && !feof(listFp) )
+    {
+      std::string str = buf;
+      if ( str.empty() )
+        continue;
+
+      while ( (str[str.size() - 1] == '\n') ||
+        (str[str.size() - 1] == '\r') )
+      {
+        str = str.substr(0, str.size() - 1);
+      }
+
+      if ( !str.empty() )
+        fileVec.push_back(str);
+    }
+    fclose(listFp);
   }
-  fclose(listFp);
 
   if ( !handClassifier.Create(HandyTracker::mNumFeatures, 2, numWeakClassifiers) )
   {
@@ -79,8 +96,19 @@ int main(int argc, char *argv[])
     return 1;
   }
   
-  std::string featureStr("abcdefghijklmnopq");
+  std::string featureStr;
+  for (i = 0; i < HandyTracker::mNumFeatures; i++)
+    featureStr += (char)('A' + i);
   handClassifier.SetFeatureString(featureStr);
+
+  if ( !inputDataFilename.empty() )
+  {
+    if ( !handClassifier.LoadTrainingData(inputDataFilename.c_str()) )
+    {
+      fprintf(stderr, "Failed loading data file %s\n", inputDataFilename.c_str());
+      return 1;
+    }
+  }
 
   for (i = 0; i < (int)fileVec.size(); i++)
   {
@@ -182,21 +210,24 @@ int main(int argc, char *argv[])
     }
   }
 
+  do
+  {
+    sprintf(filename, "adahand-%s-%d.rev%d.cfg", className.c_str(), numWeakClassifiers, revNumber);
+    sprintf(datafilename, "adahand-%s-%d.rev%d.data", className.c_str(), numWeakClassifiers, revNumber);
+    file = fopen(filename, "r");
+    if ( file )
+      fclose(file);
+    revNumber++;
+  } while ( file );
+
+  handClassifier.SaveTrainingData(datafilename);
+
   printf("Starting training\n");
   if ( !handClassifier.Train() )
   {
     printf("Failed training the hand classifier\n");
     return 1;
   }
-
-  do
-  {
-    sprintf(filename, "adahand-%s-%d.rev%d.cfg", className.c_str(), numWeakClassifiers, revNumber);
-    file = fopen(filename, "r");
-    if ( file )
-      fclose(file);
-    revNumber++;
-  } while ( file );
 
   handClassifier.Save(filename);
 

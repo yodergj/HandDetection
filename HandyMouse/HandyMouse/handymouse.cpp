@@ -5,6 +5,8 @@
 #include "ColorRegion.h"
 #include "AdaboostClassifier.h"
 
+const int HandyMouse::mMaxPixmapBacklog = 10;
+
 HandyMouse::HandyMouse(QWidget *parent)
 	: QMainWindow(parent)
 {
@@ -24,12 +26,22 @@ HandyMouse::HandyMouse(QWidget *parent)
 
   mTracker = new HandyTracker;
   mVideoDecoder = 0;
+  mStreamFullyProcessed = false;
 }
 
 HandyMouse::~HandyMouse()
 {
   delete mTracker;
   delete mVideoDecoder;
+  ClearPixmaps();
+}
+
+void HandyMouse::ClearPixmaps()
+{
+  size_t numPixmaps = mPixmaps.size();
+  for (size_t i = 0; i < numPixmaps; i++)
+    delete mPixmaps[i];
+  mPixmaps.clear();
 }
 
 void HandyMouse::BuildImageFilter()
@@ -49,7 +61,7 @@ void HandyMouse::BuildImageFilter()
 
 void HandyMouse::on_actionExport_Frame_triggered()
 {
-  if ( mPixmaps.empty() )
+  if ( mPixmaps.empty() || !mPixmaps[mFrameNumber] )
     return;
 
   if ( mImageFilter.isEmpty() )
@@ -60,12 +72,12 @@ void HandyMouse::on_actionExport_Frame_triggered()
   if ( filename.isEmpty() )
     return;
 
-  mPixmaps[mFrameNumber].toImage().save(filename);
+  mPixmaps[mFrameNumber]->toImage().save(filename);
 }
 
 void HandyMouse::on_actionExport_Hand_triggered()
 {
-  if ( mPixmaps.empty() )
+  if ( mPixmaps.empty() || !mPixmaps[mFrameNumber] )
     return;
 
   ColorRegion* region = mTracker->GetRegion(mFrameNumber);
@@ -80,7 +92,7 @@ void HandyMouse::on_actionExport_Hand_triggered()
   if ( filename.isEmpty() )
     return;
 
-  QImage srcImage = mPixmaps[mFrameNumber].toImage();
+  QImage srcImage = mPixmaps[mFrameNumber]->toImage();
   QImage outImage(region->GetWidth(), region->GetHeight(), srcImage.format());
   int x, y;
   int minX = region->GetMinX();
@@ -116,11 +128,11 @@ void HandyMouse::on_actionLoad_triggered()
   if ( mVideoDecoder )
     delete mVideoDecoder;
   mVideoDecoder = new VideoDecoder;
+  mStreamFullyProcessed = false;
 
   if ( mPixmapItem )
     mPixmapItem->setPixmap( QPixmap() );
-  if ( !mPixmaps.empty() )
-    mPixmaps.clear();
+  ClearPixmaps();
 
   if ( mTracker )
     mTracker->ResetHistory();
@@ -156,19 +168,20 @@ void HandyMouse::on_actionLoad_triggered()
     return;
   }
 
-  QPixmap pixmap;
-  if ( !pixmap.convertFromImage(qimg) )
+  QPixmap* pixmap = new QPixmap;
+  if ( !pixmap->convertFromImage(qimg, Qt::NoFormatConversion) )
   {
     fprintf(stderr, "Failed getting pixmap from image\n");
+    delete pixmap;
     return;
   }
 
   mPixmaps.push_back(pixmap);
   if ( mPixmapItem )
-    mPixmapItem->setPixmap(mPixmaps[0]);
+    mPixmapItem->setPixmap(*mPixmaps[0]);
   else
   {
-    mPixmapItem = mScene->addPixmap(mPixmaps[0]);
+    mPixmapItem = mScene->addPixmap(*mPixmaps[0]);
     mPixmapItem->setPos(0.0, 0.0);
   }
   DisplayResults();
@@ -246,7 +259,12 @@ void HandyMouse::on_prevButton_clicked()
     return;
 
   mFrameNumber--;
-  mPixmapItem->setPixmap(mPixmaps[mFrameNumber]);
+  if ( mPixmaps[mFrameNumber] )
+    mPixmapItem->setPixmap(*mPixmaps[mFrameNumber]);
+  else
+  {
+    // TODO
+  }
   DisplayResults();
 }
 
@@ -262,7 +280,11 @@ void HandyMouse::on_nextButton_clicked()
     Image* img = mVideoDecoder->GetFrame();
     // img will be null when we hit the end of the stream
     if ( !img )
+    {
+      mStreamFullyProcessed = true;
+      mFrameNumber--;
       return;
+    }
 
     ProcessFrame(img);
 
@@ -271,21 +293,58 @@ void HandyMouse::on_nextButton_clicked()
     if ( qimg.isNull() )
     {
       fprintf(stderr, "QImage is null\n");
+      mStreamFullyProcessed = true;
+      mFrameNumber--;
       return;
     }
 
-    QPixmap pixmap;
-    if ( !pixmap.convertFromImage(qimg) )
+    QPixmap* pixmap = new QPixmap;
+    if ( !pixmap->convertFromImage(qimg, Qt::NoFormatConversion) )
     {
       fprintf(stderr, "Failed getting pixmap from image\n");
+      delete pixmap;
+      mStreamFullyProcessed = true;
+      mFrameNumber--;
       return;
     }
 
     mPixmaps.push_back(pixmap);
   }
 
-  mPixmapItem->setPixmap(mPixmaps[mFrameNumber]);
+  if ( mFrameNumber >= mMaxPixmapBacklog )
+  {
+    delete mPixmaps[mFrameNumber - mMaxPixmapBacklog];
+    mPixmaps[mFrameNumber - mMaxPixmapBacklog] = 0;
+    mTracker->PurgeRegion(mFrameNumber - mMaxPixmapBacklog);
+  }
+
+  if ( mPixmaps[mFrameNumber] )
+    mPixmapItem->setPixmap(*mPixmaps[mFrameNumber]);
+
   DisplayResults();
+}
+
+void HandyMouse::on_actionTo_Region_Size_Jump_triggered()
+{
+  if ( mPixmaps.empty() || !mVideoDecoder )
+    return;
+
+  ColorRegion* prevRegion = 0;
+  ColorRegion* region = mTracker->GetRegion(mFrameNumber);
+  bool sizeJumpOccurred = false;
+  while ( !sizeJumpOccurred )
+  {
+    prevRegion = region;
+    on_nextButton_clicked();
+
+    if ( mStreamFullyProcessed )
+      break;
+
+    region = mTracker->GetRegion(mFrameNumber);
+    if ( ( abs( region->GetWidth() - prevRegion->GetWidth() ) > 20 ) ||
+         ( abs( region->GetHeight() - prevRegion->GetHeight() ) > 20 ) )
+      sizeJumpOccurred = true;
+  }
 }
 
 void HandyMouse::ProcessFrame(Image* img)
@@ -335,57 +394,61 @@ void HandyMouse::ProcessFrame(Image* img)
 
 void HandyMouse::DisplayResults()
 {
+  QString debugText;
+  QString frameStr = QString("%1").arg(mFrameNumber);
+  ui.frameNumLabel->setText(frameStr);
+
   HandyTracker::HandState handClass = mTracker->GetState(mFrameNumber);
   ColorRegion* region = mTracker->GetRegion(mFrameNumber);
   Matrix* openFeatureData = mTracker->GetOpenFeatureData(mFrameNumber);
   Matrix* closedFeatureData = mTracker->GetClosedFeatureData(mFrameNumber);
 
-  printf("Class: ");
+  debugText += "Class: ";
   if ( handClass == HandyTracker::ST_OPEN )
-    printf("Open\n");
+    debugText += "Open\n";
   else if ( handClass == HandyTracker::ST_CLOSED )
-    printf("Closed\n");
+    debugText += "Closed\n";
   else if ( handClass == HandyTracker::ST_CONFLICT )
-    printf("Conflicted\n");
+    debugText += "Conflicted\n";
   else if ( handClass == HandyTracker::ST_REJECT )
-    printf("Rejected\n");
+    debugText += "Rejected\n";
   else
-    printf("Unknown\n");
+    debugText += "Unknown\n";
 
   if ( openFeatureData )
   {
-    printf("Open Data:\n");
+    debugText += "Open Data:\n";
     int numFeatures = openFeatureData->GetRows();
     for (int i = 0; i < numFeatures; i++)
     {
       if ( i > 0 )
       {
-        if ( i % 4 )
-          printf("\t");
+        if ( i % GRID_DIM_SIZE )
+          debugText += "\t";
         else
-          printf("\n");
+          debugText += "\n";
       }
-      printf("%lf", openFeatureData->GetValue(i, 0));
+      debugText += QString("%1").arg(openFeatureData->GetValue(i, 0), -10);
     }
-    printf("\n");
+    debugText += "\n";
   }
 
   if ( closedFeatureData )
   {
-    printf("Closed Data:\n");
+    debugText += "Closed Data:\n";
     int numFeatures = closedFeatureData->GetRows();
     for (int i = 0; i < numFeatures; i++)
     {
       if ( i > 0 )
       {
-        if ( i % 4 )
-          printf("\t");
+        if ( i % GRID_DIM_SIZE )
+          debugText += "\t";
         else
-          printf("\n");
+          debugText += "\n";
       }
-      printf("%lf", closedFeatureData->GetValue(i, 0));
+      debugText += QString("%1").arg(closedFeatureData->GetValue(i, 0), -10);
     }
-    printf("\n");
+    debugText += "\n";
   }
 
   if ( region )
@@ -456,4 +519,6 @@ void HandyMouse::DisplayResults()
     if ( mWristLineItem )
       mWristLineItem->setPen(coloredPen);
   }
+
+  ui.debugLabel->setText(debugText);
 }
