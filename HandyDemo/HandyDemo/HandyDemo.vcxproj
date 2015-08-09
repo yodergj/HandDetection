@@ -1,0 +1,131 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B12702AD-ABFB-343A-A199-8E24837244A3}</ProjectGuid>
+    <Keyword>Qt4VSv1.0</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v110</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v110</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>11.0.61030.0</_ProjectFileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IncludePath>D:\msinttypes-r26;D:\ffmpeg.shared\include;$(OPENCV_DIR)\..\..\include;D:\research\HandDetection\xmlutils;D:\research\HandDetection\geometry;D:\research\HandDetection\flesh;D:\research\HandDetection\classifier;D:\research\HandDetection\hand;D:\research\HandDetection\utils;D:\research\HandDetection\video;D:\research\HandDetection\image;D:\xerces-c-3.1.2\src;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\ffmpeg.shared\bin;$(OPENCV_DIR)\lib;D:\xerces-c-3.1.2\Build\Win32\VC11\Debug;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IncludePath>D:\msinttypes-r26;D:\ffmpeg.shared\include;$(OPENCV_DIR)\..\..\include;D:\research\HandDetection\xmlutils;D:\research\HandDetection\geometry;D:\research\HandDetection\flesh;D:\research\HandDetection\classifier;D:\research\HandDetection\hand;D:\research\HandDetection\utils;D:\research\HandDetection\video;D:\research\HandDetection\image;D:\xerces-c-3.1.2\src;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\ffmpeg.shared\bin;$(OPENCV_DIR)\lib;D:\xerces-c-3.1.2\Build\Win32\VC11\Release;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>UNICODE;WIN32;WIN64;QT_DLL;QT_CORE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Optimization>Disabled</Optimization>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <AdditionalIncludeDirectories>.;$(QTDIR)\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;$(QTDIR)\include\QtGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <OutputFile>$(OutDir)\$(ProjectName).exe</OutputFile>
+      <AdditionalLibraryDirectories>$(QTDIR)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>qtmaind.lib;Qt5Cored.lib;Qt5Guid.lib;avcodec.lib;avformat.lib;avutil.lib;swscale.lib;xerces-c_3D.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>UNICODE;WIN32;WIN64;QT_DLL;QT_NO_DEBUG;NDEBUG;QT_CORE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DebugInformationFormat />
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <AdditionalIncludeDirectories>.;$(QTDIR)\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;$(QTDIR)\include\QtGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <OutputFile>$(OutDir)\$(ProjectName).exe</OutputFile>
+      <AdditionalLibraryDirectories>$(QTDIR)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <AdditionalDependencies>qtmain.lib;Qt5Core.lib;Qt5Gui.lib;avcodec.lib;avformat.lib;avutil.lib;swscale.lib;xerces-c_3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\classifier\AdaboostClassifier.cpp" />
+    <ClCompile Include="..\..\classifier\Matrix.cpp" />
+    <ClCompile Include="..\..\classifier\RangeClassifier.cpp" />
+    <ClCompile Include="..\..\classifier\ThresholdClassifier.cpp" />
+    <ClCompile Include="..\..\classifier\WeakClassifier.cpp" />
+    <ClCompile Include="..\..\geometry\DoublePoint.cpp" />
+    <ClCompile Include="..\..\geometry\Line.cpp" />
+    <ClCompile Include="..\..\geometry\LineSegment.cpp" />
+    <ClCompile Include="..\..\geometry\Point.cpp" />
+    <ClCompile Include="..\..\geometry\Rect.cpp" />
+    <ClCompile Include="..\..\hand\HandyTracker.cpp" />
+    <ClCompile Include="..\..\image\Color.cpp" />
+    <ClCompile Include="..\..\image\ColorRegion.cpp" />
+    <ClCompile Include="..\..\image\ConnectedRegion.cpp" />
+    <ClCompile Include="..\..\image\Image.cpp" />
+    <ClCompile Include="..\..\video\VideoDecoder.cpp" />
+    <ClCompile Include="..\..\video\VideoEncoder.cpp" />
+    <ClCompile Include="..\..\xmlutils\XMLUtils2.cpp" />
+    <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\classifier\AdaboostClassifier.h" />
+    <ClInclude Include="..\..\classifier\Matrix.h" />
+    <ClInclude Include="..\..\classifier\RangeClassifier.h" />
+    <ClInclude Include="..\..\classifier\ThresholdClassifier.h" />
+    <ClInclude Include="..\..\classifier\WeakClassifier.h" />
+    <ClInclude Include="..\..\geometry\DoublePoint.h" />
+    <ClInclude Include="..\..\geometry\Line.h" />
+    <ClInclude Include="..\..\geometry\LineSegment.h" />
+    <ClInclude Include="..\..\geometry\Point.h" />
+    <ClInclude Include="..\..\geometry\Rect.h" />
+    <ClInclude Include="..\..\hand\HandyTracker.h" />
+    <ClInclude Include="..\..\image\Color.h" />
+    <ClInclude Include="..\..\image\ColorRegion.h" />
+    <ClInclude Include="..\..\image\ConnectedRegion.h" />
+    <ClInclude Include="..\..\image\Image.h" />
+    <ClInclude Include="..\..\video\VideoDecoder.h" />
+    <ClInclude Include="..\..\video\VideoEncoder.h" />
+    <ClInclude Include="..\..\xmlutils\XMLUtils2.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+  <ProjectExtensions>
+    <VisualStudio>
+      <UserProperties UicDir=".\GeneratedFiles" MocDir=".\GeneratedFiles\$(ConfigurationName)" MocOptions="" RccDir=".\GeneratedFiles" lupdateOnBuild="0" lupdateOptions="" lreleaseOptions="" Qt5Version_x0020_Win32="msvc2012_opengl" />
+    </VisualStudio>
+  </ProjectExtensions>
+</Project>

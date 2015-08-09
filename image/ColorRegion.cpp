@@ -37,6 +37,7 @@ ColorRegion::ColorRegion()
   mStaleResultCount = 0;
   mIntegralBuffer = 0;
   mRefHeight = 0;
+  mFeatureWidth = 0;
 }
 
 ColorRegion::ColorRegion(const ColorRegion& ref)
@@ -81,6 +82,7 @@ ColorRegion& ColorRegion::operator=(const ColorRegion& ref)
 
     mStaleResultCount = ref.mStaleResultCount;
     mRefHeight = ref.mRefHeight;
+    mFeatureWidth = ref.mFeatureWidth;
     if ( mIntegralBuffer )
     {
       delete[] mIntegralBuffer;
@@ -103,6 +105,15 @@ bool ColorRegion::SetReferenceHeight(int refHeight)
     return false;
 
   mRefHeight = refHeight;
+  return true;
+}
+
+bool ColorRegion::SetFeatureWidth(int width)
+{
+  if ( width < 0 )
+    return false;
+
+  mFeatureWidth = width;
   return true;
 }
 

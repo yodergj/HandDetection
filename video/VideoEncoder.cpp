@@ -11,13 +11,43 @@ VideoEncoder::VideoEncoder()
   mFPS = 0;
   mNumFrames = 0;
 
+#ifdef USE_VPX
   mVPXOutFile = 0;
+#endif
+
+#ifdef USE_FFMPEG
+  mFormatContext = NULL;
+  mCodecContext = NULL;
+  mCodec = NULL;
+  mFrame = NULL;
+  mFrameRGB = NULL;
+  mPacket.data = NULL;
+  mSwsContext = NULL;
+  mVideoStream = -1;
+  mBuffer = NULL;
+  mFilename = "";
+
+  mCodecID = AV_CODEC_ID_H264;
+  mOutFile = 0;
+#endif
 
   mVPXProcessing = false;
 }
 
 VideoEncoder::~VideoEncoder()
 {
+#ifdef USE_FFMPEG
+  if ( mFrame )
+    av_free(mFrame);
+  if ( mFrameRGB )
+    av_free(mFrameRGB);
+  if ( mCodecContext )
+    avcodec_close(mCodecContext);
+  if ( mFormatContext )
+    avformat_close_input(&mFormatContext);
+  if ( mBuffer )
+    free(mBuffer);
+#endif
 }
 
 bool VideoEncoder::Open(const char* filename, int width, int height, int fps)
@@ -53,6 +83,7 @@ bool VideoEncoder::Open(const char* filename, int width, int height, int fps)
 
   if ( mVPXProcessing )
   {
+#ifdef USE_VPX
     vpx_codec_err_t errorCode = vpx_codec_enc_config_default(vpx_codec_vp8_cx(), &mVPXConfig, 0);
     if ( errorCode )
     {
@@ -95,9 +126,76 @@ bool VideoEncoder::Open(const char* filename, int width, int height, int fps)
       fclose(mVPXOutFile);
       mVPXOutFile = 0;
     }
+#else
+    retVal = false;
+#endif
   }
   else
+  {
+#ifdef USE_FFMPEG
+#if 0
+    mCodecID = AV_CODEC_ID_H264;
+#else
+    mCodecID = AV_CODEC_ID_MPEG1VIDEO;
+#endif
+    mCodec = avcodec_find_encoder(mCodecID);
+    if ( !mCodec )
+    {
+      fprintf(stderr, "VideoEncoder::Open - codec not found\n");
+      return false;
+    }
+
+    mCodecContext = avcodec_alloc_context3(mCodec);
+    if ( !mCodecContext )
+    {
+      fprintf(stderr, "VideoEncoder::Open - avcodec_alloc_context3 failed\n");
+      return false;
+    }
+
+    mCodecContext->bit_rate = 400000;
+    mCodecContext->width = width;
+    mCodecContext->height = height;
+    mCodecContext->time_base.num = 1;
+    mCodecContext->time_base.den = fps;
+    mCodecContext->gop_size = 10;
+    mCodecContext->max_b_frames = 1;
+    mCodecContext->pix_fmt = AV_PIX_FMT_YUV420P;
+    if (mCodecID == AV_CODEC_ID_H264)
+      av_opt_set(mCodecContext->priv_data, "preset", "slow", 0);
+
+    if ( avcodec_open2(mCodecContext, mCodec, NULL) < 0 )
+    {
+      fprintf(stderr, "VideoEncoder::Open - avcodec_open2 failed\n");
+      return false;
+    }
+
+    mOutFile = fopen(filename, "wb");
+    if ( !mOutFile )
+    {
+      fprintf(stderr, "VideoEncoder::Open - Failed opening %s\n", filename);
+      return false;
+    }
+
+    mFrame = av_frame_alloc();
+    if ( !mFrame )
+    {
+      fprintf(stderr, "VideoEncoder::Open - av_frame_alloc failed\n");
+      return false;
+    }
+
+    mFrame->format = mCodecContext->pix_fmt;
+    mFrame->width = width;
+    mFrame->height = height;
+
+    if ( av_image_alloc(mFrame->data, mFrame->linesize, width, height, mCodecContext->pix_fmt, 32) < 0 )
+    {
+      fprintf(stderr, "VideoEncoder::Open - av_image_alloc failed\n");
+      exit(1);
+    }
+#else
     retVal = false;
+#endif
+  }
 
   return retVal;
 }
@@ -108,6 +206,7 @@ bool VideoEncoder::Close()
 
   if ( mVPXProcessing )
   {
+#ifdef USE_VPX
     retVal = WriteVPXFrameData(true);
     if ( vpx_codec_destroy(&mVPXCodec) )
     {
@@ -126,10 +225,47 @@ bool VideoEncoder::Close()
               strerror(errno));
     fclose(mVPXOutFile);
     mVPXOutFile = 0;
+#else
+    retVal = false;
+#endif
     mVPXProcessing = false;
   }
   else
+  {
+#ifdef USE_FFMPEG
+    uint8_t endcode[] = { 0, 0, 1, 0xb7 };
+    int delayedIndex = 1;
+    int gotOutput = 1;
+    while ( gotOutput )
+    {
+      fflush(stdout);
+      if ( avcodec_encode_video2(mCodecContext, &mPacket, NULL, &gotOutput) < 0 )
+      {
+        fprintf(stderr, "VideoEncoder::Close - avcodec_encode_video2 failed\n");
+        exit(1);
+      }
+      if (gotOutput)
+      {
+        printf("Write frame %3d (size=%5d)\n", delayedIndex++, mPacket.size);
+        fwrite(mPacket.data, 1, mPacket.size, mOutFile);
+        av_free_packet(&mPacket);
+      }
+    }
+    fwrite(endcode, 1, sizeof(endcode), mOutFile);
+    fclose(mOutFile);
+    mOutFile = 0;
+
+    avcodec_close(mCodecContext);
+    av_free(mCodecContext);
+    mCodecContext = 0;
+
+    av_freep(&mFrame->data[0]);
+    av_frame_free(&mFrame);
+    mFrame = 0;
+#else
     retVal = false;
+#endif
+  }
 
   mFilename = "";
 
@@ -148,6 +284,7 @@ bool VideoEncoder::AddFrame(Image* image)
 
   if ( mVPXProcessing )
   {
+#ifdef USE_VPX
     unsigned char* data = image->GetI420Buffer();
     if ( !data )
     {
@@ -156,9 +293,81 @@ bool VideoEncoder::AddFrame(Image* image)
     }
     memcpy(mVPXRawImage.planes[0], data, mWidth * mHeight * 3 / 2);
     retVal = WriteVPXFrameData(false);
+#else
+    retVal = false;
+#endif
   }
   else
+  {
+#ifdef USE_FFMPEG
+    av_init_packet(&mPacket);
+    mPacket.data = NULL;    // packet data will be allocated by the encoder
+    mPacket.size = 0;
+    fflush(stdout);
+
+    unsigned char* srcBuffer = image->GetI420Buffer();
+    if ( !srcBuffer )
+    {
+      fprintf(stderr, "VideoEncoder::AddFrame - Failed getting YUV buffer\n");
+      return false;
+    }
+
+    int x, y;
+    for (y = 0; y < mHeight; y++)
+      for (x = 0; x < mWidth; x++)
+        mFrame->data[0][y * mFrame->linesize[0] + x] = srcBuffer[y * mWidth + x];
+
+    int halfWidth = mWidth / 2;
+    int halfHeight = mHeight / 2;
+    unsigned char* uBuffer = srcBuffer + mWidth * mHeight;
+    unsigned char* vBuffer = uBuffer + halfWidth * halfHeight;
+
+    for (y = 0; y < halfHeight; y++)
+      for (x = 0; x < halfWidth; x++)
+      {
+        mFrame->data[1][y * mFrame->linesize[1] + x] = uBuffer[y * halfWidth + x];
+        mFrame->data[2][y * mFrame->linesize[2] + x] = vBuffer[y * halfWidth + x];
+      }
+#if 0
+    int x, y;
+    /* prepare a dummy image */
+    /* Y */
+    for (y = 0; y < mCodecContext->height; y++)
+    {
+      for (x = 0; x < mCodecContext->width; x++)
+      {
+        mFrame->data[0][y * mFrame->linesize[0] + x] = x + y + (mNumFrames % 25) * 3;
+      }
+    }
+    /* Cb and Cr */
+    for (y = 0; y < mCodecContext->height/2; y++)
+    {
+      for (x = 0; x < mCodecContext->width/2; x++)
+      {
+        mFrame->data[1][y * mFrame->linesize[1] + x] = 128 + y + (mNumFrames % 25) * 2;
+        mFrame->data[2][y * mFrame->linesize[2] + x] = 64 + x + (mNumFrames % 25) * 5;
+      }
+    }
+#endif
+    mFrame->pts = mNumFrames;
+
+    int gotOutput;
+    if ( avcodec_encode_video2(mCodecContext, &mPacket, mFrame, &gotOutput) < 0 )
+    {
+      fprintf(stderr, "VideoEncoder::AddFrame - avcodec_encode_video2 failed\n");
+      return false;
+    }
+
+    if (gotOutput)
+    {
+      printf("Write frame %3d (size=%5d)\n", mNumFrames, mPacket.size);
+      fwrite(mPacket.data, 1, mPacket.size, mOutFile);
+      av_free_packet(&mPacket);
+    }
+#else
     retVal = false;
+#endif
+  }
 
   if ( retVal )
     mNumFrames++;
@@ -166,6 +375,139 @@ bool VideoEncoder::AddFrame(Image* image)
   return retVal;
 }
 
+static void video_encode_example(const char *filename, enum AVCodecID codec_id)
+{
+  AVCodec *codec;
+  AVCodecContext *c= NULL;
+  int i, ret, x, y, got_output;
+  FILE *f;
+  AVFrame *frame;
+  AVPacket pkt;
+  uint8_t endcode[] = { 0, 0, 1, 0xb7 };
+  printf("Encode video file %s\n", filename);
+  /* find the mpeg1 video encoder */
+  codec = avcodec_find_encoder(codec_id);
+  if (!codec)
+  {
+    fprintf(stderr, "Codec not found\n");
+    exit(1);
+  }
+  c = avcodec_alloc_context3(codec);
+  if (!c)
+  {
+    fprintf(stderr, "Could not allocate video codec context\n");
+    exit(1);
+  }
+  /* put sample parameters */
+  c->bit_rate = 400000;
+  /* resolution must be a multiple of two */
+  c->width = 352;
+  c->height = 288;
+  /* frames per second */
+  c->time_base.num = 1;
+  c->time_base.den = 25;
+  c->gop_size = 10; /* emit one intra frame every ten frames */
+  c->max_b_frames = 1;
+  c->pix_fmt = AV_PIX_FMT_YUV420P;
+  if (codec_id == AV_CODEC_ID_H264)
+    av_opt_set(c->priv_data, "preset", "slow", 0);
+  /* open it */
+  if (avcodec_open2(c, codec, NULL) < 0)
+  {
+    fprintf(stderr, "Could not open codec\n");
+    exit(1);
+  }
+  f = fopen(filename, "wb");
+  if (!f)
+  {
+    fprintf(stderr, "Could not open %s\n", filename);
+    exit(1);
+  }
+  frame = av_frame_alloc();
+  if (!frame)
+  {
+    fprintf(stderr, "Could not allocate video frame\n");
+    exit(1);
+  }
+  frame->format = c->pix_fmt;
+  frame->width  = c->width;
+  frame->height = c->height;
+  /* the image can be allocated by any means and av_image_alloc() is
+  * just the most convenient way if av_malloc() is to be used */
+  ret = av_image_alloc(frame->data, frame->linesize, c->width, c->height, c->pix_fmt, 32);
+  if (ret < 0)
+  {
+    fprintf(stderr, "Could not allocate raw picture buffer\n");
+    exit(1);
+  }
+  /* encode 1 second of video */
+  for (i = 0; i < 25; i++)
+  {
+    av_init_packet(&pkt);
+    pkt.data = NULL;    // packet data will be allocated by the encoder
+    pkt.size = 0;
+    fflush(stdout);
+    /* prepare a dummy image */
+    /* Y */
+    for (y = 0; y < c->height; y++)
+    {
+      for (x = 0; x < c->width; x++)
+      {
+        frame->data[0][y * frame->linesize[0] + x] = x + y + i * 3;
+      }
+    }
+    /* Cb and Cr */
+    for (y = 0; y < c->height/2; y++)
+    {
+      for (x = 0; x < c->width/2; x++)
+      {
+        frame->data[1][y * frame->linesize[1] + x] = 128 + y + i * 2;
+        frame->data[2][y * frame->linesize[2] + x] = 64 + x + i * 5;
+      }
+    }
+    frame->pts = i;
+    /* encode the image */
+    ret = avcodec_encode_video2(c, &pkt, frame, &got_output);
+    if (ret < 0)
+    {
+      fprintf(stderr, "Error encoding frame\n");
+      exit(1);
+    }
+    if (got_output)
+    {
+      printf("Write frame %3d (size=%5d)\n", i, pkt.size);
+      fwrite(pkt.data, 1, pkt.size, f);
+      av_free_packet(&pkt);
+    }
+  }
+  /* get the delayed frames */
+  for (got_output = 1; got_output; i++)
+  {
+    fflush(stdout);
+    ret = avcodec_encode_video2(c, &pkt, NULL, &got_output);
+    if (ret < 0)
+    {
+      fprintf(stderr, "Error encoding frame\n");
+      exit(1);
+    }
+    if (got_output)
+    {
+      printf("Write frame %3d (size=%5d)\n", i, pkt.size);
+      fwrite(pkt.data, 1, pkt.size, f);
+      av_free_packet(&pkt);
+    }
+  }
+  /* add sequence end code to have a real mpeg file */
+  fwrite(endcode, 1, sizeof(endcode), f);
+  fclose(f);
+  avcodec_close(c);
+  av_free(c);
+  av_freep(&frame->data[0]);
+  av_frame_free(&frame);
+  printf("\n");
+}
+
+#ifdef USE_VPX
 bool VideoEncoder::WriteVPXFileHeader()
 {
   unsigned char data[32];
@@ -252,3 +594,4 @@ void VideoEncoder::Put32(unsigned char* buffer, int data)
   buffer[2] = (unsigned char)(data >> 16);
   buffer[3] = (unsigned char)(data >> 24);
 }
+#endif

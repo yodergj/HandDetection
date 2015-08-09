@@ -40,6 +40,9 @@ Image::Image()
   mI420Buffer = NULL;
   mI420BufferSize = 0;
   mI420Valid = false;
+  mYUVBuffer = NULL;
+  mYUVBufferSize = 0;
+  mYUVValid = false;
   mYIQBuffer = NULL;
   mYIQAlloc = 0;
   mYIQValid = false;
@@ -75,6 +78,8 @@ Image::~Image()
     free(mBGRBuffer);
   if ( mI420Buffer )
     free(mI420Buffer);
+  if ( mYUVBuffer )
+    free(mYUVBuffer);
   if ( mYIQBuffer )
     free(mYIQBuffer);
   if ( mScaledRGBBuffer )
@@ -1002,6 +1007,38 @@ unsigned char* Image::GetBGRBuffer()
   mBGRValid = true;
 
   return mBGRBuffer;
+}
+
+unsigned char* Image::GetYUVBuffer()
+{
+  int i, numPixels;
+  unsigned char* tmp;
+  unsigned char* src;
+  unsigned char* dest;
+
+  if ( mYUVValid )
+    return mYUVBuffer;
+
+  if ( mYUVBufferSize < mBufferSize )
+  {
+    tmp = (unsigned char*)realloc(mYUVBuffer, mBufferSize);
+    if ( !tmp )
+      return NULL;
+    mYUVBuffer = tmp;
+    mYUVBufferSize = mBufferSize;
+  }
+  numPixels = mWidth * mHeight;
+  src = mBuffer;
+  dest = mYUVBuffer;
+  for (i = 0; i < numPixels; i++, src += 3, dest += 3)
+  {
+    dest[0] = (unsigned char)(src[0] * .299 + src[1] *  .587 + src[2] *  .114);
+    dest[1] = (unsigned char)(src[0] * -.169 + src[1] * -.331 + src[2] * .500 + 128.5);
+    dest[2] = (unsigned char)(src[0] * .500 + src[1] * -.419 + src[2] * -.081 + 128.5);
+  }
+  mYUVValid = true;
+
+  return mYUVBuffer;
 }
 
 unsigned char* Image::GetI420Buffer()

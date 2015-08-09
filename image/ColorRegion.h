@@ -41,6 +41,9 @@ public:
 
   int GetReferenceHeight() { return mRefHeight; };
   bool SetReferenceHeight(int refHeight);
+
+  int GetFeatureWidth() { return mFeatureWidth; };
+  bool SetFeatureWidth(int width);
 private:
   void GenerateIntegralBuffer();
   bool ColorMatches(int R, int G, int B) const;
@@ -64,6 +67,7 @@ private:
   int* mIntegralBuffer;
 
   int mRefHeight;
+  int mFeatureWidth;
 
   static const int mColorTolerance;
   static const double mChannelTolerance;

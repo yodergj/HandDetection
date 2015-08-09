@@ -24,6 +24,7 @@ class Image
     unsigned char* GetRGBBuffer();
     unsigned char* GetBGRBuffer();
     unsigned char* GetI420Buffer();
+    unsigned char* GetYUVBuffer();
     void MarkBufferAsUpdated();
     int GetBufferUpdateIndex();
     double* GetYIQBuffer();
@@ -68,6 +69,11 @@ class Image
     unsigned char* mI420Buffer;
     int mI420BufferSize;
     bool mI420Valid;
+
+    unsigned char* mYUVBuffer;
+    int mYUVBufferSize;
+    bool mYUVValid;
+
     double* mYIQBuffer;
     int mYIQAlloc;
     bool mYIQValid;

@@ -109,6 +109,7 @@ bool HandyTracker::GenerateFeatureData(ColorRegion* region, Matrix& featureData,
     while ( (restrictedWidth > 1) && ( lineBuffer[restrictedWidth - 2] == lineBuffer[restrictedWidth - 1] ) )
       restrictedWidth--;
   }
+  region->SetFeatureWidth(restrictedWidth);
 
   featureData.SetSize(mNumFeatures, 1);
 
