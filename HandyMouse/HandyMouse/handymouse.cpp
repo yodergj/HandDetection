@@ -17,6 +17,7 @@ HandyMouse::HandyMouse(QWidget *parent)
   mRectItem = 0;
   mXItem = 0;
   mWristLineItem = 0;
+  mWristLineItem2 = 0;
 	ui.setupUi(this);
   mScene = new QGraphicsScene(this);
   ui.imageView->setScene(mScene);
@@ -479,6 +480,8 @@ void HandyMouse::DisplayResults()
       {
         delete mWristLineItem;
         mWristLineItem = 0;
+        delete mWristLineItem2;
+        mWristLineItem2 = 0;
       }
       else
       {
@@ -486,12 +489,19 @@ void HandyMouse::DisplayResults()
           mWristLineItem->setLine(region->GetMinX(), region->GetMinY() + refHeight, region->GetMaxX(), region->GetMinY() + refHeight);
         else
           mWristLineItem = mScene->addLine(region->GetMinX(), region->GetMinY() + refHeight, region->GetMaxX(), region->GetMinY() + refHeight);
+
+        if ( mWristLineItem2 )
+          mWristLineItem2->setLine(region->GetMinX() + region->GetFeatureWidth(), region->GetMinY(), region->GetMinX() + region->GetFeatureWidth(), region->GetMinY() + refHeight);
+        else
+          mWristLineItem2 = mScene->addLine(region->GetMinX() + region->GetFeatureWidth(), region->GetMinY(), region->GetMinX() + region->GetFeatureWidth(), region->GetMinY() + refHeight);
       }
     }
     else
     {
       delete mWristLineItem;
       mWristLineItem = 0;
+      delete mWristLineItem2;
+      mWristLineItem2 = 0;
 
       QPolygonF poly;
       poly << regionRect.bottomLeft() << regionRect.topRight() << regionRect.topLeft() << regionRect.bottomRight();
@@ -518,6 +528,8 @@ void HandyMouse::DisplayResults()
       mXItem->setPen(coloredPen);
     if ( mWristLineItem )
       mWristLineItem->setPen(coloredPen);
+    if ( mWristLineItem2 )
+      mWristLineItem2->setPen(coloredPen);
   }
 
   ui.debugLabel->setText(debugText);

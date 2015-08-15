@@ -209,7 +209,11 @@ bool HandyTracker::AnalyzeRegion(ColorRegion* region)
       return false;
   }
 #else
+#if 0
   int stripWidth = 20;
+#else
+  int stripWidth = 30;
+#endif
   int* integralBuffer = region->GetIntegralBuffer();
   int width = region->GetWidth();
   int height = region->GetHeight();
@@ -242,12 +246,16 @@ bool HandyTracker::AnalyzeRegion(ColorRegion* region)
         else if ( stripY <= 0 )
           done = true;
         else
+#if 0
           x--;
+#else
+          x -= 2;
+#endif
       }
     }
   }
 
-  if ( !GenerateFeatureData(region, openFeatureData) )
+  if ( !GenerateFeatureData(region, openFeatureData, referenceHeight) )
     return false;
 
   closedFeatureData = openFeatureData;
@@ -303,7 +311,11 @@ bool HandyTracker::AnalyzeRegionForInitialization(ColorRegion* region)
     return false;
 
   double aspectRatio = featureData.GetValue(ASPECT_RATIO_INDEX, 0);
+#if 0
   if ( aspectRatio > 1 )
+#else
+  if ( aspectRatio > 1.1 )
+#endif
   {
     mRegionHistory.push_back(region);
     mOpenFeatureHistory.push_back(featureData);
@@ -344,7 +356,11 @@ bool HandyTracker::AnalyzeRegionForInitialization(ColorRegion* region)
 
 #if 1
   int openHeight = 0;
+#if 0
   int stripWidth = 20;
+#else
+  int stripWidth = 30;
+#endif
   int* integralBuffer = region->GetIntegralBuffer();
   int width = region->GetWidth();
   int height = region->GetHeight();
@@ -376,7 +392,11 @@ bool HandyTracker::AnalyzeRegionForInitialization(ColorRegion* region)
         else if ( stripY <= 0 )
           done = true;
         else
+#if 0
           x--;
+#else
+          x -= 2;
+#endif
       }
     }
   }

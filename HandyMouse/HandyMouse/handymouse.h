@@ -36,6 +36,7 @@ private:
   QGraphicsRectItem* mRectItem;
   QGraphicsPolygonItem* mXItem;
   QGraphicsLineItem* mWristLineItem;
+  QGraphicsLineItem* mWristLineItem2;
   std::vector<QPixmap*> mPixmaps;
   static const int mMaxPixmapBacklog;
   size_t mFrameNumber;
